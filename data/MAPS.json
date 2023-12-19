@@ -1,0 +1,22 @@
+{
+  "Brazil_23":
+    {
+      "corners":  "Brazil_23.json",
+      "map"    :  "Brazil_23_plot.png",
+      "mapScaleX":  25.5,
+      "mapScaleY":  58,
+      "X-Off"    :  406,
+      "Y-Off"    :  104,
+      "angle"    :   0
+    },
+  "LasVegas_23": 
+  {
+    "corners"  :   "LasVegas_23.json",
+    "map"      :   "LasVegas_23_plot.png",
+    "mapScaleX":  25.5,
+    "mapScaleY":  58,
+    "X-Off"    :  406,
+    "Y-Off"    :  104,
+    "angle"    :   0
+  }
+}

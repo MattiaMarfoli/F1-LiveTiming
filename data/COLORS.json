@@ -1,0 +1,194 @@
+{
+  "1": {
+    "abbreviation": "VER",
+    "full_name": "Verstappen",
+    "color": [16, 68, 143],
+    "team": "Red Bull"
+  },
+  "11": {
+    "abbreviation": "PER",
+    "full_name": "Perez",
+    "color": [54, 113, 198],
+    "team": "Red Bull"
+  },
+  "36": {
+    "abbreviation": "DEN",
+    "full_name":  "",
+    "color": [54, 113, 198],
+    "team": "Red Bull"
+  },
+  "37": {
+    "abbreviation": "HAD",
+    "full_name": "Hadjar",
+    "color": [54, 113, 198],
+    "team": "Red Bull"
+  },
+  "2": {
+    "abbreviation": "SAR",
+    "full_name": "Sargeant",
+    "color": [55, 190, 221],
+    "team": "Williams"
+  },
+  "23": {
+    "abbreviation": "ALB",
+    "full_name": "Albon",
+    "color": [23, 172, 207],
+    "team": "Williams"
+  },
+  "45": {
+    "abbreviation": "SUL",
+    "full_name": "O'Sullivan",
+    "color": [23, 172, 207],
+    "team": "Williams"
+  },
+  "3": {
+    "abbreviation": "RIC",
+    "full_name": "Ricciardo",
+    "color": [94, 143, 170],
+    "team": "AlphaTauri"
+  },
+  "21": {
+    "abbreviation": "DEV",
+    "full_name": "De Vries",
+    "color": [94, 143, 170],
+    "team": "AlphaTauri"
+  },
+  "22": {
+    "abbreviation": "TSU",
+    "full_name": "Tsunoda",
+    "color": [68, 111, 135],
+    "team": "AlphaTauri"
+  },
+  "40": {
+    "abbreviation": "LAW",
+    "full_name": "Lawson",
+    "color": [94, 143, 170],
+    "team": "AlphaTauri"
+  },
+  "4": {
+    "abbreviation": "NOR",
+    "full_name": "Norris",
+    "color": [240, 112, 7],
+    "team": "McLaren"
+  },
+  "81": {
+    "abbreviation": "PIA",
+    "full_name": "Piastri",
+    "color": [245, 128, 32],
+    "team": "McLaren"
+  },
+  "29": {
+    "abbreviation": "WAR",
+    "full_name": "Ward",
+    "color": [245, 128, 32],
+    "team": "McLaren"
+  },
+  "10": {
+    "abbreviation": "GAS",
+    "full_name": "Gasly",
+    "color": [143, 28, 214],
+    "team": "Alpine"
+  },
+  "31": {
+    "abbreviation": "OCO",
+    "full_name": "Ocon",
+    "color": [110, 12, 171],
+    "team": "Alpine"
+  },
+  "61": {
+    "abbreviation": "DOO",
+    "full_name": "Doohan",
+    "color": [110, 12, 171],
+    "team": "Alpine"
+  },
+  "14": {
+    "abbreviation": "ALO",
+    "full_name": "Alonso",
+    "color": [23, 97, 77],
+    "team": "Aston Martin"
+  },
+  "18": {
+    "abbreviation": "STR",
+    "full_name": "Stroll",
+    "color": [53, 140, 117],
+    "team": "Aston Martin"
+  },
+  "34": {
+    "abbreviation": "DRU",
+    "full_name": "Drugovich",
+    "color": [53, 140, 117],
+    "team": "Aston Martin"
+  },
+  "16": {
+    "abbreviation": "LEC",
+    "full_name": "Leclerc",
+    "color": [249, 21, 54],
+    "team": "Ferrari"
+  },
+  "55": {
+    "abbreviation": "SAI",
+    "full_name": "Sainz",
+    "color": [232, 191, 28],
+    "team": "Ferrari"
+  },
+  "39": {
+    "abbreviation": "SHW",
+    "full_name": "Shwartzman",
+    "color": [232, 191, 28],
+    "team": "Ferrari"
+  },
+  "20": {
+    "abbreviation": "MAG",
+    "full_name": "Magnussen",
+    "color": [112, 24, 9],
+    "team": "Haas"
+  },
+  "27": {
+    "abbreviation": "HUL",
+    "full_name": "Hulkenberg",
+    "color": [77, 14, 3],
+    "team": "Haas"
+  },
+  "50": {
+    "abbreviation": "BEA",
+    "full_name": "Bearman",
+    "color": [77, 14, 3],
+    "team": "Haas"
+  },
+  "24": {
+    "abbreviation": "ZHO",
+    "full_name": "Zhou",
+    "color": [201, 45, 75],
+    "team": "Alfa Romeo"
+  },
+  "77": {
+    "abbreviation": "BOT",
+    "full_name": "Bottas",
+    "color": [168, 7, 38],
+    "team": "Alfa Romeo"
+  },
+  "98": {
+    "abbreviation": "POU",
+    "full_name": "Pourchaire",
+    "color": [168, 7, 38],
+    "team": "Alfa Romeo"
+  },
+  "44": {
+    "abbreviation": "HAM",
+    "full_name": "Hamilton",
+    "color": [108, 211, 191],
+    "team": "Mercedes"
+  },
+  "63": {
+    "abbreviation": "RUS",
+    "full_name": "Russell",
+    "color": [56, 207, 177],
+    "team": "Mercedes"
+  },
+  "42": {
+    "abbreviation": "VES",
+    "full_name": "Vesti",
+    "color": [56, 207, 177],
+    "team": "Mercedes"
+  }
+}

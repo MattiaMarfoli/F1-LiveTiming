@@ -1,0 +1,8 @@
+2023-12-19 16:58:01,969 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2023-12-19 16:58:02,376 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-11-05_S%C3%A3o_Paulo_Grand_Prix/2023-11-04_Sprint_Shootout/CarData.z.jsonStream HTTP/1.1" 200 2634683
+2023-12-19 16:58:08,265 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2023-12-19 16:58:08,572 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-11-05_S%C3%A3o_Paulo_Grand_Prix/2023-11-04_Sprint_Shootout/Position.z.jsonStream HTTP/1.1" 200 3053595
+2023-12-19 16:58:15,092 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2023-12-19 16:58:15,440 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-11-05_S%C3%A3o_Paulo_Grand_Prix/2023-11-04_Sprint_Shootout/TimingDataF1.jsonStream HTTP/1.1" 200 692557
+2023-12-19 16:58:16,655 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2023-12-19 16:58:16,969 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-11-05_S%C3%A3o_Paulo_Grand_Prix/2023-11-04_Sprint_Shootout/WeatherData.jsonStream HTTP/1.1" 200 12225
