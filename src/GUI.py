@@ -75,6 +75,7 @@ class GUI:
     self._seconds_to_skip                 = 5
     self._delay_T                         = _config.DELAY
     self._TIME_UPDATE_TELEMETRY_PLOT      = 1./_config.FREQ_UPDATE_PLOT
+    self._TIME_UPDATE_LISTENER            = 1./(4.*_config.FREQ_UPDATE_PLOT)
     self._PRINT_TIMES                     = _config.PRINT_TIMES
 
     self._mapScaleX = 1
@@ -92,6 +93,7 @@ class GUI:
     
     self._update_telemetry_thread = threading.Thread(target=self.update_telemetry_plot)
     self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry)
+    self._listener_thread = threading.Thread(target=self.Listener)
     #self._process = multiprocessing.Process(target=self.update_telemetry_plot)
     #self._thread_cl = threading.Thread(target=self.update_classifier)
     #self._thread_lap = threading.Thread(target=self.update_laps)
@@ -220,23 +222,27 @@ class GUI:
       Initialize all buttons.
     """
     #int_times=self._LS._interesting_times
-    with dpg.group(label="buttons",tag="buttons",horizontal=True):
+    with dpg.group(label="buttons1",tag="buttons1",horizontal=True,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT)):
       PLAY_LABEL="Pause" if self._task_state=="running" else "Start"
       dpg.add_button(label=PLAY_LABEL,tag="PLAY_BUTTON",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.pause_button)
       dpg.add_button(label="-"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,tag="backward",callback=self.backward_button)
       dpg.add_button(label="+"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,tag="forward",callback=self.forward_button)
       dpg.add_button(label="kill",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.kill_button)
-      dpg.add_button(label="Laptimes",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.display_laptimes)
-      dpg.add_input_int(label="Updates FW/BW seconds",tag="skip_seconds",default_value=self._seconds_to_skip,width=50,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_skip_time)
-      dpg.add_input_int(label="Delay [s]",tag="delay",width=50,min_value=0,max_value=300,default_value=self._delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_delay_time)
-      dpg.add_combo(tag="Race_Map",default_value="None",items=list(self._maps.keys()),width=50,callback=self.change_map_background)
+      #dpg.add_button(label="Laptimes",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.display_laptimes)
+    with dpg.group(label="buttons2",tag="buttons2",horizontal=True,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT)):  
+      dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=self._seconds_to_skip,width=self._BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_skip_time)
+      dpg.add_input_int(label="Delay [s]",tag="delay",width=self._BUTTONS_WIDTH,min_value=0,max_value=300,default_value=self._delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_delay_time)
+      dpg.add_combo(tag="Race_Map",default_value="None",items=list(self._maps.keys()),width=self._BUTTONS_WIDTH,callback=self.change_map_background)
       #dpg.add_input_float(label="Map_Scale_X",tag="mapScaleX",width=50,min_value=10,max_value=100,default_value=50,min_clamped=True,max_clamped=True,step=0,step_fast=0)
       #dpg.add_input_float(label="Map_Scale_Y",tag="mapScaleY",width=50,min_value=10,max_value=100,default_value=50,min_clamped=True,max_clamped=True,step=0,step_fast=0)
       #dpg.add_input_float(label="X-Off",tag="XOFF",width=50,min_value=-640,max_value=640,default_value=320,min_clamped=True,max_clamped=True,step=0,step_fast=0)
       #dpg.add_input_float(label="Y-Off",tag="YOFF",width=50,min_value=-480,max_value=480,default_value=240,min_clamped=True,max_clamped=True,step=0,step_fast=0)
       #dpg.add_input_float(label="angle",tag="angle",width=50,min_value=0,max_value=360,default_value=0,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.rotate_map)
-    with dpg.group(label="buttons2",tag="buttons2",horizontal=True,height=self._BUTTONS_HEIGHT):
-      self.show_telemetry_button()
+    n_rows=len(self._drivers_list) // 8 + (len(self._drivers_list) % 8 > 0)
+    for n_row in range(1,n_rows+1):
+      with dpg.group(label="buttons"+str(2+n_row),tag="buttons"+str(2+n_row),horizontal=True,height=self._BUTTONS_HEIGHT,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*(1+n_row))):
+        self.show_telemetry_button(row_number=n_row)
+        self._BUTTONS_ROWS=2+n_row
 
   def pause_button(self):
     if self._task_state == "running":
@@ -281,12 +287,15 @@ class GUI:
     if self._last_message_displayed_DT.timestamp()-self._seconds_to_skip>=self._first_message_DT.timestamp():
       self._time_skipped-=self._seconds_to_skip
     
-  def show_telemetry_button(self):
-    for driver in self._drivers_list:
-      if driver in self._watchlist_drivers:
-        dpg.add_checkbox(label=self._DRIVERS_INFO[driver]["abbreviation"],tag=driver+"ST",default_value=True)
-      else:
-        dpg.add_checkbox(label=self._DRIVERS_INFO[driver]["abbreviation"],tag=driver+"ST",default_value=False)
+  def show_telemetry_button(self,row_number):
+    selected_teams=self._watchlist_teams[4*(row_number-1):4*row_number]
+    for team in selected_teams:
+      for driver in self._drivers_list:
+        if team==self._DRIVERS_INFO[driver]["team"]:
+          if driver in self._watchlist_drivers:
+            dpg.add_checkbox(label=self._DRIVERS_INFO[driver]["abbreviation"],tag=driver+"ST",default_value=True)
+          else:
+            dpg.add_checkbox(label=self._DRIVERS_INFO[driver]["abbreviation"],tag=driver+"ST",default_value=False)
       #dpg.add_bool_value(default_value=True,source=driver+"ST")
 
   def kill_button(self):
@@ -317,6 +326,21 @@ class GUI:
                                          "VS": data_lap["ValueString"],
                                          "VS_s": data_lap["ValueInt_sec"]}
     print(json.dumps(displayed_laptimes,indent=2))
+
+  def move_menu_bar_when_scrolling(self):
+    current_y_scroll=dpg.get_y_scroll(item="Primary window")
+    dpg.set_item_pos(item="weather1",pos=(dpg.get_item_pos(item="weather1")[0],dpg.get_item_pos(item="weather1")[1]+current_y_scroll-self._y_scroll))
+    dpg.set_item_pos(item="weather2",pos=(dpg.get_item_pos(item="weather2")[0],dpg.get_item_pos(item="weather2")[1]+current_y_scroll-self._y_scroll))
+    dpg.set_item_pos(item="map",pos=(dpg.get_item_pos(item="map")[0],dpg.get_item_pos(item="map")[1]+current_y_scroll-self._y_scroll))
+    n_button=1
+    while True:
+      if dpg.does_item_exist(item="buttons"+str(n_button)):
+        #print(n_button,dpg.get_item_children(item="buttons"+str(n_button)))
+        dpg.set_item_pos(item="buttons"+str(n_button),pos=(dpg.get_item_pos(item="buttons"+str(n_button))[0],dpg.get_item_pos(item="buttons"+str(n_button))[1]+current_y_scroll-self._y_scroll))
+        n_button+=1
+      else:
+        self._y_scroll=current_y_scroll
+        return 
 
 
 #########################################################################################################
@@ -366,7 +390,7 @@ class GUI:
   def add_driver_tel_plot(self,number,parent,driver):
     nr=int(number) # 0 -> 19 !
     x_pos=self._TEL_PLOTS_WIDTH*(nr%2) 
-    y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._BUTTONS_ROWS*self._BUTTONS_HEIGHT+self._TOP_BAR_HEIGHT
+    y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._TOP_BAR_HEIGHT
     with dpg.group(pos=(x_pos,y_pos),width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT,tag="wdw"+driver,parent=parent):
       with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),link_all_x=True,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT):
         with dpg.plot(tag="speed"+driver):    
@@ -394,65 +418,41 @@ class GUI:
           dpg.bind_item_theme(driver+"b",driver+"_color")
 
   def initialize_plot(self):
-    #with dpg.window(width=640,height=480,tag="map_window"):
-    #  dpg.add_drawlist(width=640,height=480,pos=(1440,100),tag="drawlist_map_position")
-    #  dpg.draw_circle(color=(255,0,0,255),center=(0,0),radius=5,fill=(255,0,0,255),tag="circle")
-    
+    # telemetry view tab    
     with dpg.group(label=self._YEAR+"-"+" ".join(self._RACE.split("_"))+"-"+self._SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
-      with dpg.group(label="Weather",tag="weather",horizontal=False,pos=(self._TEL_PLOTS_WIDTH*2+20,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS)):  
+      
+      # weather group
+      with dpg.group(label="Weather1",tag="weather1",horizontal=False,pos=(self._TEL_PLOTS_WIDTH*2+27+8*self._BUTTONS_WIDTH,self._TOP_BAR_HEIGHT)):  
         dpg.add_text(default_value="AirTemp:",  tag="AirTemp")
         dpg.add_text(default_value="TrackTemp:",tag="TrackTemp")
         dpg.add_text(default_value="Humidity:", tag="Humidity")
+        dpg.add_text(default_value="WindDirection:", tag="WindDirection")
+      with dpg.group(label="Weather2",tag="weather2",horizontal=False,pos=(self._TEL_PLOTS_WIDTH*2+10+8*self._BUTTONS_WIDTH+122,self._TOP_BAR_HEIGHT)):
         dpg.add_text(default_value="WindSpeed:",tag="WindSpeed")
-        dpg.add_text(default_value="Rainfall:", tag="WindDirection")
         dpg.add_text(default_value="Pressure:", tag="Pressure")
         dpg.add_text(default_value="Rainfall:", tag="Rainfall")
         # if you add or delete some texts inside "weather" change the value of 
         # 7 in add_drawlist below!
       
+      # buttons
       self._drivers_list=sorted(self._drivers_list,key=int)
       self.add_buttons()
+      self._y_scroll=dpg.get_y_scroll(item="Primary window")
       
+      with dpg.window(label="Track_Map",tag="Track_Map",width=640,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True):
+        #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
+          dpg.add_drawlist(width=640,height=480,pos=(0,0),tag="drawlist_map_position")
+          dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+      
+      # telemetry plots
       self._drivers_watchlist_telemetry=[]
       for team in self._watchlist_teams:
         for driver in self._drivers_list:
           if team==self._DRIVERS_INFO[driver]["team"]:
             self._drivers_watchlist_telemetry.append(driver)
-        
       for nr,driver in zip(range(len(self._drivers_list)),self._drivers_watchlist_telemetry):
         self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
 
-
-      # with dpg.plot(label="Speed",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT*3./5.,no_title=True,use_local_time=True):
-      #   dpg.add_plot_legend()
-      #   dpg.add_plot_axis(dpg.mvXAxis, label="Time from "+self._SESSION+" start [s]",tag="x_axis_SPEED",time=True)
-      #   dpg.add_plot_axis(dpg.mvYAxis, label="Speed [km/h]", tag="y_axis_SPEED")
-      #   dpg.set_axis_limits("y_axis_SPEED", -2, 380)
-      #   #dpg.set_axis_limits("x_axis_SPEED", ymin=self._first_message_DT.timestamp(), ymax=self._first_message_DT.timestamp()+self._WINDOW_DISPLAY_LENGTH)
-      #   for label in self._drivers_list:
-      #     dpg.add_line_series(x=[0],y=[0],label=label+"s",parent="y_axis_SPEED",tag=label+"s")
-      #     dpg.set_item_label(item=label+"s",label=self._DRIVERS_INFO[label]["abbreviation"])
-      #     dpg.bind_item_theme(label+"s",label+"_color")
-      # with dpg.plot(label="Throttle",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.,no_title=True,use_local_time=True):
-      #   dpg.add_plot_legend()
-      #   dpg.add_plot_axis(dpg.mvXAxis, label="Time from "+self._SESSION+" start [s]",tag="x_axis_THROTTLE",time=True)
-      #   dpg.add_plot_axis(dpg.mvYAxis, label="Throttle [%]", tag="y_axis_THROTTLE")
-      #   dpg.set_axis_limits("y_axis_THROTTLE", -2, 101)
-      #   #dpg.set_axis_limits("x_axis_THROTTLE", ymin=self._first_message_DT.timestamp(), ymax=self._first_message_DT.timestamp()+self._WINDOW_DISPLAY_LENGTH)
-      #   for label in self._drivers_list:
-      #     dpg.add_line_series(x=[0],y=[0],label=label+"t",parent="y_axis_THROTTLE",tag=label+"t")
-      #     dpg.set_item_label(item=label+"t",label=self._DRIVERS_INFO[label]["abbreviation"])
-      #     dpg.bind_item_theme(label+"t",label+"_color")
-      # with dpg.plot(label="Brake",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.,no_title=True,use_local_time=True):
-      #   dpg.add_plot_legend()
-      #   dpg.add_plot_axis(dpg.mvXAxis, label="Time from "+self._SESSION+" start [s]",tag="x_axis_BRAKE",time=True)
-      #   dpg.add_plot_axis(dpg.mvYAxis, label="Brake [on/off]", tag="y_axis_BRAKE")
-      #   dpg.set_axis_limits("y_axis_BRAKE", -2, 101)
-      #   #dpg.set_axis_limits("x_axis_BRAKE", ymin=self._first_message_DT.timestamp(), ymax=self._first_message_DT.timestamp()+self._WINDOW_DISPLAY_LENGTH)
-      #   for label in self._drivers_list:
-      #     dpg.add_line_series(x=[0],y=[0],label=label+"b",parent="y_axis_BRAKE",tag=label+"b")
-      #     dpg.set_item_label(item=label+"b",label=self._DRIVERS_INFO[label]["abbreviation"])
-      #     dpg.bind_item_theme(label+"b",label+"_color")
       
       
 
@@ -534,8 +534,6 @@ class GUI:
       minx=max(self._first_message_DT.timestamp()-self._BaseTimestamp,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp-self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT)
       maxx=max(self._first_message_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_RIGHT)
       
-      #print(dpg.get_y_scroll(item="Primary window"))
-      
       x_label=[]
       minute=None
       for Timestamp in np.arange(int(minx),int(maxx),1):
@@ -566,9 +564,10 @@ class GUI:
       for key,value in weather_data.items():
         #print(key)
         if key in ["AirTemp","TrackTemp","Humidity","WindSpeed","WindDirection","Pressure","Rainfall"]:
-          dpg.set_value(item=key,value=str(key)+": "+str(value))
+          dpg.set_value(item=key,value=str(key)+":"+str(value))
       if self._PRINT_TIMES:
         print(self._last_message_displayed_DT.timestamp()," ",minx, " ",maxx," ",dpg.get_axis_limits("x_axis_SPEED"))
+              
       time.sleep(self._TIME_UPDATE_TELEMETRY_PLOT)
 
 #####################################################################################s
@@ -973,6 +972,16 @@ class GUI:
   
 ###################################################################################################################  
   
+  def Listener(self):
+    while not dpg.does_item_exist(item="Telemetry_view"):
+      time.sleep(0.5)
+      
+    while True:
+      if self._y_scroll!=dpg.get_y_scroll(item="Primary window"):
+        self.move_menu_bar_when_scrolling()
+      time.sleep(self._TIME_UPDATE_TELEMETRY_PLOT)
+    
+  
   def showTab(self,sender):
     print(sender," show set to True")
     dpg.configure_item(self._tabs[sender],show=True)
@@ -1023,6 +1032,7 @@ class GUI:
     
     self._update_telemetry_thread.start()    
     self._compare_telemetry_thread.start()
+    self._listener_thread.start()
     dpg.start_dearpygui()  
     dpg.destroy_context()
   
