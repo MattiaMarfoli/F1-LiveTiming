@@ -140,7 +140,8 @@ class DATABASE:
               Value_int=int(mins)*60. + float(secs) # s
               self._Laps[driver][NLap]={"DateTime":       DT, 
                                         "ValueString":    Value,
-                                        "ValueInt_sec":   Value_int}
+                                        "ValueInt_sec":   Value_int,
+                                        "TimeStamp": DT.timestamp()-self._BaseTimestamp}
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
             self._Weather[DT]=WeatherDict    

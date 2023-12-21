@@ -77,6 +77,8 @@ class GUI:
     self._TIME_UPDATE_TELEMETRY_PLOT      = 1./_config.FREQ_UPDATE_PLOT
     self._TIME_UPDATE_LISTENER            = 1./(4.*_config.FREQ_UPDATE_PLOT)
     self._PRINT_TIMES                     = _config.PRINT_TIMES
+    self._BEST_LAP                        = 1e6
+    self._PERSONAL_BEST_LAPS              = {}
 
     self._mapScaleX = 1
     self._mapScaleY = 1
@@ -222,14 +224,14 @@ class GUI:
       Initialize all buttons.
     """
     #int_times=self._LS._interesting_times
-    with dpg.group(label="buttons1",tag="buttons1",horizontal=True,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT)):
+    with dpg.group(label="buttons1",tag="buttons1",horizontal=True,pos=(10,0)):
       PLAY_LABEL="Pause" if self._task_state=="running" else "Start"
       dpg.add_button(label=PLAY_LABEL,tag="PLAY_BUTTON",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.pause_button)
       dpg.add_button(label="-"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,tag="backward",callback=self.backward_button)
       dpg.add_button(label="+"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,tag="forward",callback=self.forward_button)
       dpg.add_button(label="kill",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.kill_button)
       #dpg.add_button(label="Laptimes",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.display_laptimes)
-    with dpg.group(label="buttons2",tag="buttons2",horizontal=True,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT)):  
+    with dpg.group(label="buttons2",tag="buttons2",horizontal=True,pos=(10,self._BUTTONS_HEIGHT)):  
       dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=self._seconds_to_skip,width=self._BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_skip_time)
       dpg.add_input_int(label="Delay [s]",tag="delay",width=self._BUTTONS_WIDTH,min_value=0,max_value=300,default_value=self._delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_delay_time)
       dpg.add_combo(tag="Race_Map",default_value="None",items=list(self._maps.keys()),width=self._BUTTONS_WIDTH,callback=self.change_map_background)
@@ -240,7 +242,7 @@ class GUI:
       #dpg.add_input_float(label="angle",tag="angle",width=50,min_value=0,max_value=360,default_value=0,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.rotate_map)
     n_rows=len(self._drivers_list) // 8 + (len(self._drivers_list) % 8 > 0)
     for n_row in range(1,n_rows+1):
-      with dpg.group(label="buttons"+str(2+n_row),tag="buttons"+str(2+n_row),horizontal=True,height=self._BUTTONS_HEIGHT,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*(1+n_row))):
+      with dpg.group(label="buttons"+str(2+n_row),tag="buttons"+str(2+n_row),horizontal=True,height=self._BUTTONS_HEIGHT,pos=(10,self._BUTTONS_HEIGHT*(1+n_row))):
         self.show_telemetry_button(row_number=n_row)
         self._BUTTONS_ROWS=2+n_row
 
@@ -329,18 +331,19 @@ class GUI:
 
   def move_menu_bar_when_scrolling(self):
     current_y_scroll=dpg.get_y_scroll(item="Primary window")
-    dpg.set_item_pos(item="weather1",pos=(dpg.get_item_pos(item="weather1")[0],dpg.get_item_pos(item="weather1")[1]+current_y_scroll-self._y_scroll))
-    dpg.set_item_pos(item="weather2",pos=(dpg.get_item_pos(item="weather2")[0],dpg.get_item_pos(item="weather2")[1]+current_y_scroll-self._y_scroll))
-    dpg.set_item_pos(item="map",pos=(dpg.get_item_pos(item="map")[0],dpg.get_item_pos(item="map")[1]+current_y_scroll-self._y_scroll))
-    n_button=1
-    while True:
-      if dpg.does_item_exist(item="buttons"+str(n_button)):
-        #print(n_button,dpg.get_item_children(item="buttons"+str(n_button)))
-        dpg.set_item_pos(item="buttons"+str(n_button),pos=(dpg.get_item_pos(item="buttons"+str(n_button))[0],dpg.get_item_pos(item="buttons"+str(n_button))[1]+current_y_scroll-self._y_scroll))
-        n_button+=1
-      else:
-        self._y_scroll=current_y_scroll
-        return 
+    #dpg.set_item_pos(item="weather1",pos=(dpg.get_item_pos(item="weather1")[0],dpg.get_item_pos(item="weather1")[1]+current_y_scroll-self._y_scroll))
+    #dpg.set_item_pos(item="weather2",pos=(dpg.get_item_pos(item="weather2")[0],dpg.get_item_pos(item="weather2")[1]+current_y_scroll-self._y_scroll))
+    #dpg.set_item_pos(item="Track_Map",pos=(dpg.get_item_pos(item="Track_Map")[0],dpg.get_item_pos(item="Track_Map")[1]+current_y_scroll-self._y_scroll))
+    #dpg.set_item_pos(item="menu_bar_buttons_weather",pos=(dpg.get_item_pos(item="menu_bar_buttons_weather")[0],dpg.get_item_pos(item="menu_bar_buttons_weather")[1]+current_y_scroll-self._y_scroll))
+    #n_button=1
+    #while True:
+    #  if dpg.does_item_exist(item="buttons"+str(n_button)):
+    #    #print(n_button,dpg.get_item_children(item="buttons"+str(n_button)))
+    #    dpg.set_item_pos(item="buttons"+str(n_button),pos=(dpg.get_item_pos(item="buttons"+str(n_button))[0],dpg.get_item_pos(item="buttons"+str(n_button))[1]+current_y_scroll-self._y_scroll))
+    #    n_button+=1
+    #  else:
+    self._y_scroll=current_y_scroll
+    #    return 
 
 
 #########################################################################################################
@@ -393,7 +396,7 @@ class GUI:
     y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._TOP_BAR_HEIGHT
     with dpg.group(pos=(x_pos,y_pos),width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT,tag="wdw"+driver,parent=parent):
       with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),link_all_x=True,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT):
-        with dpg.plot(tag="speed"+driver):    
+        with dpg.plot(tag="speed"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_SPEED"+driver,time=True,no_tick_labels=True,no_tick_marks=True)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_SPEED"+driver)
           dpg.set_axis_limits("y_axis_SPEED"+driver, -2, 380)
@@ -401,7 +404,7 @@ class GUI:
           #dpg.set_item_label(item=driver+"s",label=self._DRIVERS_INFO[driver]["abbreviation"])
           dpg.bind_item_theme(driver+"s",driver+"_color")
           
-        with dpg.plot(tag="throttle"+driver):    
+        with dpg.plot(tag="throttle"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_THROTTLE"+driver,time=True,no_tick_labels=True,no_tick_marks=True)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_THROTTLE"+driver,no_tick_labels=True,no_tick_marks=True)
           dpg.set_axis_limits("y_axis_THROTTLE"+driver, -2, 101)
@@ -409,7 +412,7 @@ class GUI:
           #dpg.add_plot_legend(show=False)
           dpg.bind_item_theme(driver+"t",driver+"_color")
             
-        with dpg.plot(tag="brake"+driver):    
+        with dpg.plot(tag="brake"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_BRAKE"+driver)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_BRAKE"+driver,no_tick_labels=True,no_tick_marks=True)
           dpg.set_axis_limits("y_axis_BRAKE"+driver, -2, 101)
@@ -421,40 +424,59 @@ class GUI:
     # telemetry view tab    
     with dpg.group(label=self._YEAR+"-"+" ".join(self._RACE.split("_"))+"-"+self._SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
       
-      # weather group
-      with dpg.group(label="Weather1",tag="weather1",horizontal=False,pos=(self._TEL_PLOTS_WIDTH*2+27+8*self._BUTTONS_WIDTH,self._TOP_BAR_HEIGHT)):  
-        dpg.add_text(default_value="AirTemp:",  tag="AirTemp")
-        dpg.add_text(default_value="TrackTemp:",tag="TrackTemp")
-        dpg.add_text(default_value="Humidity:", tag="Humidity")
-        dpg.add_text(default_value="WindDirection:", tag="WindDirection")
-      with dpg.group(label="Weather2",tag="weather2",horizontal=False,pos=(self._TEL_PLOTS_WIDTH*2+10+8*self._BUTTONS_WIDTH+122,self._TOP_BAR_HEIGHT)):
-        dpg.add_text(default_value="WindSpeed:",tag="WindSpeed")
-        dpg.add_text(default_value="Pressure:", tag="Pressure")
-        dpg.add_text(default_value="Rainfall:", tag="Rainfall")
-        # if you add or delete some texts inside "weather" change the value of 
-        # 7 in add_drawlist below!
+      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=630,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True):
+        # weather group
+        with dpg.group(label="Weather1",tag="weather1",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH,0)):  
+          dpg.add_text(default_value="AirTemp:",  tag="AirTemp")
+          dpg.add_text(default_value="TrackTemp:",tag="TrackTemp")
+          dpg.add_text(default_value="Humidity:", tag="Humidity")
+          dpg.add_text(default_value="WindDirection:", tag="WindDirection")
+        with dpg.group(label="Weather2",tag="weather2",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH+130,0)):
+          dpg.add_text(default_value="WindSpeed:",tag="WindSpeed")
+          dpg.add_text(default_value="Pressure:", tag="Pressure")
+          dpg.add_text(default_value="Rainfall:", tag="Rainfall")
+          # if you add or delete some texts inside "weather" change the value of 
+          # 7 in add_drawlist below!
+
+        # buttons
+        self._drivers_list=sorted(self._drivers_list,key=int)
+        self.add_buttons()
+        self._y_scroll=dpg.get_y_scroll(item="Primary window")
       
-      # buttons
-      self._drivers_list=sorted(self._drivers_list,key=int)
-      self.add_buttons()
-      self._y_scroll=dpg.get_y_scroll(item="Primary window")
-      
-      with dpg.window(label="Track_Map",tag="Track_Map",width=640,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True):
+      with dpg.window(label="Track_Map",tag="Track_Map",width=630,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True):
         #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
-          dpg.add_drawlist(width=640,height=480,pos=(0,0),tag="drawlist_map_position")
+          dpg.add_drawlist(width=630,height=480,pos=(0,0),tag="drawlist_map_position")
           dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
       
       # telemetry plots
+      self._annotations_telemetry_plot = {}
       self._drivers_watchlist_telemetry=[]
       for team in self._watchlist_teams:
         for driver in self._drivers_list:
+          self._annotations_telemetry_plot[driver]=[] # [[time,speed,id,tag=("min"/"max")],[...]]
+          self._PERSONAL_BEST_LAPS[driver]={"ValueString":"",
+                                            "ValueInt_sec":1e6} 
+          # initialize dict that is needed later for keeping
+          # track of latest id of the annotations in telemetry
           if team==self._DRIVERS_INFO[driver]["team"]:
             self._drivers_watchlist_telemetry.append(driver)
       for nr,driver in zip(range(len(self._drivers_list)),self._drivers_watchlist_telemetry):
         self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
 
+  def is_personal_fastest_up_to_now(self,Laps,laptime,driver):
+    for nlap,lap in Laps[driver].items():
+      if lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
+        if laptime>lap["ValueInt_sec"]:
+          return False
+    return True
       
-      
+  def is_overall_fastest_up_to_time(self,Laps,laptime):    
+    for driver in self._drivers_list:
+      for nlap,lap in Laps[driver].items():
+        if lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
+          if laptime>lap["ValueInt_sec"]:
+            return False
+    return True 
 
   def update_telemetry_plot(self):
     if self._LIVE_SIM:
@@ -525,7 +547,7 @@ class GUI:
                                   start_time=self._last_message_displayed_DT-datetime.timedelta(seconds=self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT),
                                   end_time=self._last_message_displayed_DT)
       Telemetry_to_be_plotted = self._database.get_dictionary(feed="CarData.z")
-      
+      Laps = self._database.get_dictionary(feed="TimingDataF1")
       
       #Pos_drivers = self._database.get_last_msg_before_time("Position.z",self._last_message_displayed_DT)
       #dpg.delete_item("circle")
@@ -551,13 +573,85 @@ class GUI:
       
       for driver,telemetry in Telemetry_to_be_plotted.items():
         if driver in self._drivers_list:
-          #print(telemetry["TimeStamp"][slice_between_times])
-          dpg.set_value(item=driver+"s", value=[telemetry["TimeStamp"][slice_between_times],telemetry["Speed"][slice_between_times]])
-          dpg.set_value(item=driver+"t", value=[telemetry["TimeStamp"][slice_between_times],telemetry["Throttle"][slice_between_times]])
-          dpg.set_value(item=driver+"b", value=[telemetry["TimeStamp"][slice_between_times],telemetry["Brake"][slice_between_times]])
+          speeds=telemetry["Speed"][slice_between_times]
+          times=telemetry["TimeStamp"][slice_between_times]
+          
+          maxima=scipy.signal.argrelextrema(np.array(speeds), np.greater,order=3)[0]
+          minima=scipy.signal.argrelextrema(np.array(speeds), np.less,order=3)[0]
+          
+          # 1. check if old anns are also in new anns
+            # 2. if true: skip
+            # 3. if false and if old ann lower min(new anns) -> delete ann
+          # 4. plot all new anns that are greater than max(old anns)
+          last_time_ann=0
+          first_time_ann=1e11
+          last_id_min=0
+          last_id_max=0
+          ann_to_pop=[]
+          #print("\n",driver," ",self._annotations_telemetry_plot[driver])
+          for j,old_annotation in zip(range(len(self._annotations_telemetry_plot[driver])),self._annotations_telemetry_plot[driver]):
+            #print(old_annotation)
+            t,speed,id,tag = old_annotation
+            t=float(t)
+            if t not in times:
+              dpg.delete_item(item=driver+"_"+tag+"_"+str(id))
+              ann_to_pop.append(j)
+            
+            #print(t,type(t),times[0],type(times[0]))
+            if t>last_time_ann:
+              last_time_ann=t
+            if t<first_time_ann:
+              first_time_ann=t
+              
+            if tag=="min":
+              last_id_min=id
+            elif tag=="max":
+              #print("driver",driver,id,type(id),last_id_max,type(last_id_max))
+              last_id_max=id
+          
+          ann_to_pop.sort(reverse=True)
+          for ann in ann_to_pop:
+            self._annotations_telemetry_plot[driver].remove(self._annotations_telemetry_plot[driver][ann])
+          
+          for i,idx in zip(range(1,len(maxima)+1),maxima):
+            if times[idx]>last_time_ann or times[idx]<first_time_ann: # adjust parent
+              # print("driver",driver,type(driver))
+              # print("time",times[idx],type(times[idx]))
+              # print("speed",speeds[idx],type(speeds[idx]))
+              # print("last_id",last_id_max,type(last_id_max))
+              dpg.add_plot_annotation(label=str(int(speeds[idx])),tag=driver+"_max_"+str(last_id_max+i), default_value=(times[idx],speeds[idx]), offset=(0,-5), color=[0,0,0,0],parent="speed"+driver)
+              self._annotations_telemetry_plot[driver].append([times[idx],speeds[idx],last_id_max+i,"max"])
+              
+          for i,idx in zip(range(1,len(minima)+1),minima):
+            if times[idx]>last_time_ann or times[idx]<first_time_ann: # adjust parent
+              dpg.add_plot_annotation(label=str(int(speeds[idx])),tag=driver+"_min_"+str(last_id_min+i), default_value=(times[idx],speeds[idx]), offset=(0,+5), color=[0,0,0,0],parent="speed"+driver)
+              self._annotations_telemetry_plot[driver].append([times[idx],speeds[idx],last_id_min+i,"min"])
+          
+          if len(Laps[driver].keys())>0:
+            for nlap,lap in Laps[driver].items():
+              # if it's inside window displayed
+              if lap["TimeStamp"]>minx and lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
+                # if not exist draw it based on wheter it's fastest etc
+                if not dpg.does_item_exist(item="vline"+driver+lap["ValueString"]):
+                  dpg.add_vline_series(x=[lap["TimeStamp"]],tag="vline"+driver+lap["ValueString"],label=str(nlap)+" "+lap["ValueString"],parent="y_axis_SPEED"+driver)
+                if self.is_overall_fastest_up_to_time(Laps,lap["ValueInt_sec"]):
+                  dpg.bind_item_theme("vline"+driver+lap["ValueString"],"BestOverallLap") 
+                elif self.is_personal_fastest_up_to_now(Laps,lap["ValueInt_sec"],driver):
+                  dpg.bind_item_theme("vline"+driver+lap["ValueString"],"BestPersonalLap")
+                else:
+                  dpg.bind_item_theme("vline"+driver+lap["ValueString"],"NormalLap")
+              else:
+                if dpg.does_item_exist(item="vline"+driver+lap["ValueString"]):
+                  dpg.delete_item(item="vline"+driver+lap["ValueString"])
+          self.hide_show_tel(driver)
+          
+          dpg.set_value(item=driver+"s", value=[times,speeds])
+          dpg.set_value(item=driver+"t", value=[times,telemetry["Throttle"][slice_between_times]])
+          dpg.set_value(item=driver+"b", value=[times,telemetry["Brake"][slice_between_times]])
           dpg.set_axis_limits("x_axis_BRAKE"+driver, minx, maxx)
           dpg.set_axis_ticks(axis="x_axis_BRAKE"+driver,label_pairs=x_label)
-          self.hide_show_tel(driver)
+          
+          
       #print(minx," ",maxx," " ,x_label[:10])
       
       weather_data=self._database.get_last_msg_before_time(feed="WeatherData",sel_time=self._last_message_displayed_DT)
@@ -695,7 +789,7 @@ class GUI:
       with dpg.group(label="compare_buttons",tag="compare_buttons",horizontal=True):
         dpg.add_combo(items=list(self._drivers_list),tag="DRV-1-LapTimes",width=150,default_value=None)
         dpg.add_combo(items=list(self._drivers_list),tag="DRV-2-LapTimes",width=150,default_value=None)
-      with dpg.plot(label="CompareSpeed",tag="CompareSpeed",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT*3./5.,no_title=True):
+      with dpg.plot(label="CompareSpeed",tag="CompareSpeed",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT*3./5.,no_title=True,anti_aliased=True):
         dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_SPEED_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Speed [km/h]", tag="y_axis_SPEED_Compare")
@@ -704,7 +798,7 @@ class GUI:
         dpg.set_axis_ticks("x_axis_SPEED_Compare",self._xTurns)
         dpg.add_drag_line(label="speed_compare_line",tag="speed_compare_line", color=[255, 0, 0, 255], default_value=0.5, callback=self.print_speed_drivers)
         
-      with dpg.plot(label="CompareThrottle",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.,no_title=True):
+      with dpg.plot(label="CompareThrottle",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.,no_title=True,anti_aliased=True):
         dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_THROTTLE_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Throttle [%]", tag="y_axis_THROTTLE_Compare")
@@ -712,7 +806,7 @@ class GUI:
         dpg.set_axis_limits("x_axis_THROTTLE_Compare", ymin=minx1 ,ymax=maxx1)
         dpg.set_axis_ticks("x_axis_THROTTLE_Compare",self._xTurns)
 
-      with dpg.plot(label="CompareBrake",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.,no_title=True):
+      with dpg.plot(label="CompareBrake",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.,no_title=True,anti_aliased=True):
         dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_BRAKE_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Brake [on/off]", tag="y_axis_BRAKE_Compare")
@@ -720,7 +814,7 @@ class GUI:
         dpg.set_axis_limits("x_axis_BRAKE_Compare", ymin=minx1 ,ymax=maxx1)
         dpg.set_axis_ticks("x_axis_BRAKE_Compare",self._xTurns)
 
-      with dpg.plot(label="CompareDeltaTime",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/3.,no_title=True):
+      with dpg.plot(label="CompareDeltaTime",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/3.,no_title=True,anti_aliased=True):
         dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DELTA_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Delta [s]", tag="y_axis_DELTA_Compare")
@@ -728,14 +822,14 @@ class GUI:
         dpg.set_axis_limits("x_axis_DELTA_Compare", ymin=minx1 ,ymax=maxx1)
         dpg.set_axis_ticks("x_axis_DELTA_Compare",self._xTurns)
 
-      with dpg.plot(label="CompareLaps",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT,no_title=True):
+      with dpg.plot(label="CompareLaps",width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT,no_title=True,anti_aliased=True):
         dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="LapNumber",tag="x_axis_LAPS_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="LapTime [s]", tag="y_axis_LAPS_Compare")
         dpg.set_axis_limits("y_axis_LAPS_Compare", ymin_LT, ymax_LT)
         dpg.set_axis_limits("x_axis_LAPS_Compare", xmin_LT, xmax_LT)
       
-      with dpg.plot(label="ZoomCompare",width=self._VIEWPORT_WIDTH-self._TEL_PLOTS_WIDTH,height=3/5*self._TEL_PLOTS_HEIGHT,pos=(self._TEL_PLOTS_WIDTH,0),no_title=True):
+      with dpg.plot(label="ZoomCompare",width=self._VIEWPORT_WIDTH-self._TEL_PLOTS_WIDTH,height=3/5*self._TEL_PLOTS_HEIGHT,pos=(self._TEL_PLOTS_WIDTH,0),no_title=True,anti_aliased=True):
         dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_ZOOM",no_tick_marks=True,no_tick_labels=True)
         dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_ZOOM",no_tick_marks=True,no_tick_labels=True)
         
@@ -1012,11 +1106,23 @@ class GUI:
         with dpg.group(label="Race selector",tag="Race_Selector",show=True):
           dpg.add_combo(items=list(self._parser._sessions_dict.keys()),tag="year",default_value="None",callback=self.choose_session)
     
+    # Colors for laps based on laptime
+    with dpg.theme(tag="BestOverallLap"): 
+        with dpg.theme_component():
+          dpg.add_theme_color(dpg.mvPlotCol_Line, [255,0,255] , category=dpg.mvThemeCat_Plots)
+    with dpg.theme(tag="BestPersonalLap"):
+      with dpg.theme_component():
+        dpg.add_theme_color(dpg.mvPlotCol_Line, [0,255,0] , category=dpg.mvThemeCat_Plots)
+    with dpg.theme(tag="NormalLap"):
+      with dpg.theme_component():
+        dpg.add_theme_color(dpg.mvPlotCol_Line, [204,204,0] , category=dpg.mvThemeCat_Plots)
+    
     # Colors for drivers in plots
     for driver,info in self._DRIVERS_INFO.items():
       with dpg.theme(tag=driver+"_color"):
         with dpg.theme_component():
           dpg.add_theme_color(dpg.mvPlotCol_Line, info["color"] , category=dpg.mvThemeCat_Plots)
+      
       with dpg.theme(tag=driver+"plot_marker"):
         with dpg.theme_component(dpg.mvScatterSeries):
           dpg.add_theme_color(dpg.mvPlotCol_Line, info["color"], category=dpg.mvThemeCat_Plots)
@@ -1033,6 +1139,25 @@ class GUI:
     self._update_telemetry_thread.start()    
     self._compare_telemetry_thread.start()
     self._listener_thread.start()
+    
+    with dpg.theme() as global_theme:
+      with dpg.theme_component(dpg.mvAll):
+        # Core Style
+        dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0,0, category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 3,1, category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 2,2, category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 4,3, category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize, 1, category=dpg.mvThemeCat_Core)
+
+        # Plot Style
+        dpg.add_theme_style(dpg.mvPlotStyleVar_PlotBorderSize, 0, category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_PlotPadding, 0,0, category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_LabelPadding, 0,0, category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_LineWeight, 1.2, category=dpg.mvThemeCat_Plots)
+    
+    dpg.bind_theme(global_theme)
+    
+    #dpg.show_style_editor()
     dpg.start_dearpygui()  
     dpg.destroy_context()
   
