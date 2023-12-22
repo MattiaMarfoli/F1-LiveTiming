@@ -34,6 +34,26 @@ class DATABASE:
     self._LeaderBoard={}
     self._Laps={}
     self._Weather={}
+    self._SessionStatus={"Running":
+                                    {0:
+                                      {
+                                        "StartDateTime": 0,
+                                        "EndDateTime":   0,
+                                        "Duration":       0
+                                      }  
+                          },
+                         "Inactive":
+                                    {0:
+                                      {
+                                        "StartDateTime": 0,
+                                        "EndDateTime":   0,
+                                        "Duration":      0   
+                                      }
+                          }
+                        }
+    self._Nof_Restarts=0
+    self._PrevSessionDatetime=0
+    self._PrevSessionStatus=0
     self._Laps[None]={}
     
     
@@ -67,7 +87,6 @@ class DATABASE:
       - 45: DRS (0-14, odd is disabled, even is enabled)
 
       credits to: MultiviewerF1 
-      
     Position.z:
 
     """
@@ -145,20 +164,19 @@ class DATABASE:
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
             self._Weather[DT]=WeatherDict    
-          #for key,value in a.items():
-          #  if "Lines" in value.keys():
-          #    for lines,lines_value in value.items():
-          #      if lines!="Withheld":
-          #      #print(key,lines,lines_value)
-          #        for driver,stints in lines_value.items():
-          #          if "LastLapTime" in stints.keys() and "NumberOfLaps" in stints.keys():
-          #            if driver not in b.keys():
-          #              b[driver]={}
-          #            
-          #            b[driver][stints["NumberOfLaps"]]=stints["LastLapTime"]["Value"]
-
-        #elif feed=="DriverList" and self._driver_list_flag==False:
-        #  self._driver_list=
+        #elif feed=="SessionStatus": # more checks needed
+        #  for DT,Status in msg_decrypted.items():
+        #    if self._PrevSessionStatus==0:
+        #      self._PrevSessionDatetime=DT
+        #      self._PrevSessionStatus=Status["Status"]
+        #      if Status["Status"]=="Finished" or Status["Status"]=="Aborted" or Status["Status"]=="Finalised":
+        #        self._SessionStatus["Running"]["StartDateTime"]=self._first_datetime
+        #        self._SessionStatus["Running"]["EndDateTime"]=DT
+        #        self._SessionStatus["Running"]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
+        #    else: # StartDateTime EndDateTime Duration
+        #      if Status["Status"]==
+                
+                
         else: # TODO: update this
           DT=msg_decrypted[list(msg_decrypted.keys())[0]]
         self._last_datetime=DT
@@ -167,6 +185,12 @@ class DATABASE:
         self._logger_file.write("\n")
         self._logger_file.flush()
         
+  #def get_number_of_restarts(self):
+  #  with self._lock:
+  #    return self._Nof_Restarts
+  #
+  #def get_actual_session_status(self,DT: datetime.datetime):
+  #  with self._lock:
       
   
   def is_first_RD_arrived(self):

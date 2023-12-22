@@ -323,6 +323,12 @@ class PARSER:
           date_key=self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)
           body=json.loads(line_noBOM[12:])
           return {date_key:body}
+        elif feed=="SessionStatus":
+          line_noBOM=line_noBOM.replace("\ufeff","")
+          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
+          date_key=self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)
+          body=json.loads(line_noBOM[12:])
+          return {date_key:body}
         else:
           date_body=line_noBOM.split("{")
           date=date_body[0].replace("\ufeff","")
