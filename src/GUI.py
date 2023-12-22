@@ -399,7 +399,7 @@ class GUI:
         with dpg.plot(tag="speed"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_SPEED"+driver,time=True,no_tick_labels=True,no_tick_marks=True)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_SPEED"+driver)
-          dpg.set_axis_limits("y_axis_SPEED"+driver, -2, 380)
+          dpg.set_axis_limits("y_axis_SPEED"+driver, -2, 399)
           dpg.add_line_series(x=[0],y=[0],label=driver+"s",parent="y_axis_SPEED"+driver,tag=driver+"s")
           #dpg.set_item_label(item=driver+"s",label=self._DRIVERS_INFO[driver]["abbreviation"])
           dpg.bind_item_theme(driver+"s",driver+"_color")
@@ -593,7 +593,7 @@ class GUI:
             #print(old_annotation)
             t,speed,id,tag = old_annotation
             t=float(t)
-            if t not in times:
+            if t not in times and dpg.does_item_exist(item=driver+"_"+tag+"_"+str(id)):
               dpg.delete_item(item=driver+"_"+tag+"_"+str(id))
               ann_to_pop.append(j)
             
@@ -614,35 +614,44 @@ class GUI:
             self._annotations_telemetry_plot[driver].remove(self._annotations_telemetry_plot[driver][ann])
           
           for i,idx in zip(range(1,len(maxima)+1),maxima):
-            if times[idx]>last_time_ann or times[idx]<first_time_ann: # adjust parent
+            if times[idx]>last_time_ann or times[idx]<first_time_ann: 
               # print("driver",driver,type(driver))
               # print("time",times[idx],type(times[idx]))
               # print("speed",speeds[idx],type(speeds[idx]))
               # print("last_id",last_id_max,type(last_id_max))
-              dpg.add_plot_annotation(label=str(int(speeds[idx])),tag=driver+"_max_"+str(last_id_max+i), default_value=(times[idx],speeds[idx]), offset=(0,-5), color=[0,0,0,0],parent="speed"+driver)
+              if driver in self._watchlist_drivers:
+                dpg.add_plot_annotation(label=str(int(speeds[idx])),tag=driver+"_max_"+str(last_id_max+i), default_value=(times[idx],speeds[idx]), offset=(0,-5), color=[0,0,0,0],parent="speed"+driver)
               self._annotations_telemetry_plot[driver].append([times[idx],speeds[idx],last_id_max+i,"max"])
               
           for i,idx in zip(range(1,len(minima)+1),minima):
-            if times[idx]>last_time_ann or times[idx]<first_time_ann: # adjust parent
-              dpg.add_plot_annotation(label=str(int(speeds[idx])),tag=driver+"_min_"+str(last_id_min+i), default_value=(times[idx],speeds[idx]), offset=(0,+5), color=[0,0,0,0],parent="speed"+driver)
+            if times[idx]>last_time_ann or times[idx]<first_time_ann: 
+              if driver in self._watchlist_drivers:
+                dpg.add_plot_annotation(label=str(int(speeds[idx])),tag=driver+"_min_"+str(last_id_min+i), default_value=(times[idx],speeds[idx]), offset=(0,+5), color=[0,0,0,0],parent="speed"+driver)
               self._annotations_telemetry_plot[driver].append([times[idx],speeds[idx],last_id_min+i,"min"])
           
-          if len(Laps[driver].keys())>0:
-            for nlap,lap in Laps[driver].items():
-              # if it's inside window displayed
-              if lap["TimeStamp"]>minx and lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
-                # if not exist draw it based on wheter it's fastest etc
-                if not dpg.does_item_exist(item="vline"+driver+lap["ValueString"]):
-                  dpg.add_vline_series(x=[lap["TimeStamp"]],tag="vline"+driver+lap["ValueString"],label=str(nlap)+" "+lap["ValueString"],parent="y_axis_SPEED"+driver)
-                if self.is_overall_fastest_up_to_time(Laps,lap["ValueInt_sec"]):
-                  dpg.bind_item_theme("vline"+driver+lap["ValueString"],"BestOverallLap") 
-                elif self.is_personal_fastest_up_to_now(Laps,lap["ValueInt_sec"],driver):
-                  dpg.bind_item_theme("vline"+driver+lap["ValueString"],"BestPersonalLap")
+          if driver in Laps.keys():
+            if len(Laps[driver].keys())>0:
+              for nlap,lap in Laps[driver].items():
+                # if it's inside window displayed
+                if lap["TimeStamp"]>minx and lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp and driver in self._watchlist_drivers:
+                  # if it does not exist, draw it based on wheter it's fastest etc
+                  if not dpg.does_item_exist(item="vline"+driver+lap["ValueString"]):
+                    dpg.add_vline_series(x=[lap["TimeStamp"]],tag="vline"+driver+lap["ValueString"],label=str(nlap)+" "+lap["ValueString"],parent="y_axis_SPEED"+driver)
+                    dpg.add_plot_annotation(label=lap["ValueString"],tag="vline"+driver+lap["ValueString"]+"_ann", default_value=(lap["TimeStamp"],dpg.get_axis_limits("y_axis_SPEED"+driver)[1]-5), offset=(2,), color=[0,0,0,0],parent="speed"+driver)
+                  if self.is_overall_fastest_up_to_time(Laps,lap["ValueInt_sec"]):
+                    if dpg.get_item_theme(item="vline"+driver+lap["ValueString"])!=dpg.get_alias_id(alias="BestOverallLap"):
+                      dpg.bind_item_theme("vline"+driver+lap["ValueString"],"BestOverallLap") 
+                  elif self.is_personal_fastest_up_to_now(Laps,lap["ValueInt_sec"],driver):
+                    if dpg.get_item_theme(item="vline"+driver+lap["ValueString"])!=dpg.get_alias_id(alias="BestPersonalLap"):
+                      dpg.bind_item_theme("vline"+driver+lap["ValueString"],"BestPersonalLap")
+                  else:
+                    if dpg.get_item_theme(item="vline"+driver+lap["ValueString"])!=dpg.get_alias_id(alias="NormalLap"):
+                      dpg.bind_item_theme("vline"+driver+lap["ValueString"],"NormalLap")
+                # if it is outside the displayed area delete it
                 else:
-                  dpg.bind_item_theme("vline"+driver+lap["ValueString"],"NormalLap")
-              else:
-                if dpg.does_item_exist(item="vline"+driver+lap["ValueString"]):
-                  dpg.delete_item(item="vline"+driver+lap["ValueString"])
+                  if dpg.does_item_exist(item="vline"+driver+lap["ValueString"]):
+                    dpg.delete_item(item="vline"+driver+lap["ValueString"])
+                    dpg.delete_item(item="vline"+driver+lap["ValueString"]+"_ann")
           self.hide_show_tel(driver)
           
           dpg.set_value(item=driver+"s", value=[times,speeds])
