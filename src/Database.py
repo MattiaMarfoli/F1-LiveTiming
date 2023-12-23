@@ -34,22 +34,14 @@ class DATABASE:
     self._LeaderBoard={}
     self._Laps={}
     self._Weather={}
-    self._SessionStatus={"Running":
-                                    {0:
-                                      {
-                                        "StartDateTime": 0,
-                                        "EndDateTime":   0,
-                                        "Duration":       0
-                                      }  
-                          },
-                         "Inactive":
-                                    {0:
-                                      {
-                                        "StartDateTime": 0,
-                                        "EndDateTime":   0,
-                                        "Duration":      0   
-                                      }
-                          }
+    self._LiveSessionStatus="Unknown"
+    self._RunningStatus={
+                          #1:                       # nr of restart
+                          #{
+                          #  "StartDateTime": 0,
+                          #  "EndDateTime":   0,    # just as an example
+                          #  "Duration":      0
+                          #}  
                         }
     self._Nof_Restarts=0
     self._PrevSessionDatetime=0
@@ -164,18 +156,23 @@ class DATABASE:
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
             self._Weather[DT]=WeatherDict    
-        #elif feed=="SessionStatus": # more checks needed
-        #  for DT,Status in msg_decrypted.items():
-        #    if self._PrevSessionStatus==0:
-        #      self._PrevSessionDatetime=DT
-        #      self._PrevSessionStatus=Status["Status"]
-        #      if Status["Status"]=="Finished" or Status["Status"]=="Aborted" or Status["Status"]=="Finalised":
-        #        self._SessionStatus["Running"]["StartDateTime"]=self._first_datetime
-        #        self._SessionStatus["Running"]["EndDateTime"]=DT
-        #        self._SessionStatus["Running"]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
-        #    else: # StartDateTime EndDateTime Duration
-        #      if Status["Status"]==
-                
+            
+        elif feed=="SessionStatus": # more checks needed
+          for DT,Status in msg_decrypted.items():
+            # if finished => before was running. Updating dict
+            if Status["Status"]=="Finished" or Status["Status"]=="Aborted" or Status["Status"]=="Finalised" or Status["Status"]=="Ends":
+              if self._Nof_Restarts==0:
+                self._PrevSessionDatetime=self._first_datetime
+                self._Nof_Restarts=1
+              self._LiveSessionStatus="Inactive"    
+              self._RunningStatus[self._Nof_Restarts]={}
+              self._RunningStatus[self._Nof_Restarts]["StartDateTime"]=self._PrevSessionDatetime
+              self._RunningStatus[self._Nof_Restarts]["EndDateTime"]=DT
+              self._RunningStatus[self._Nof_Restarts]["Duration"]=DT.timestamp()-self._PrevSessionDatetime.timestamp()
+            elif Status["Status"]=="Started":
+                self._PrevSessionDatetime=DT
+                self._Nof_Restarts+=1
+                self._LiveSessionStatus="Running"    
                 
         else: # TODO: update this
           DT=msg_decrypted[list(msg_decrypted.keys())[0]]
@@ -185,13 +182,22 @@ class DATABASE:
         self._logger_file.write("\n")
         self._logger_file.flush()
         
-  #def get_number_of_restarts(self):
-  #  with self._lock:
-  #    return self._Nof_Restarts
-  #
-  #def get_actual_session_status(self,DT: datetime.datetime):
-  #  with self._lock:
-      
+  def get_number_of_restarts(self):
+    with self._lock:
+      return self._Nof_Restarts
+  
+  def get_actual_session_status(self,DT: datetime.datetime):
+    with self._lock:
+      # For replay live timing we have all the data available.
+      # So we know if the given time is inside a running window...
+      for Nr_of_restart,Times in self._RunningStatus.items():
+        if DT.timestamp()>Times["StartDateTime"].timestamp() and DT.timestamp()<Times["EndDateTime"].timestamp():
+          return "Running"
+      # ...otherwise we can be in LiveTiming: then LiveSessionStatus is the way
+      # or we are in replay live timing outside the window. Then all the data are 
+      # processed and  the last message of SessionStatus.jsonStream is "Ends" with 
+      # 100% certainty (I hope!). 
+      return self._LiveSessionStatus
   
   def is_first_RD_arrived(self):
     with self._lock:

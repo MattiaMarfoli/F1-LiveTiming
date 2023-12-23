@@ -77,8 +77,6 @@ class GUI:
     self._TIME_UPDATE_TELEMETRY_PLOT      = 1./_config.FREQ_UPDATE_PLOT
     self._TIME_UPDATE_LISTENER            = 1./(4.*_config.FREQ_UPDATE_PLOT)
     self._PRINT_TIMES                     = _config.PRINT_TIMES
-    self._BEST_LAP                        = 1e6
-    self._PERSONAL_BEST_LAPS              = {}
 
     self._mapScaleX = 1
     self._mapScaleY = 1
@@ -395,7 +393,7 @@ class GUI:
     x_pos=self._TEL_PLOTS_WIDTH*(nr%2) 
     y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._TOP_BAR_HEIGHT
     with dpg.group(pos=(x_pos,y_pos),width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT,tag="wdw"+driver,parent=parent):
-      with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),link_all_x=True,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT):
+      with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),link_all_x=True,no_align=False,no_resize=False,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT):
         with dpg.plot(tag="speed"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_SPEED"+driver,time=True,no_tick_labels=True,no_tick_marks=True)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_SPEED"+driver)
@@ -435,6 +433,9 @@ class GUI:
           dpg.add_text(default_value="WindSpeed:",tag="WindSpeed")
           dpg.add_text(default_value="Pressure:", tag="Pressure")
           dpg.add_text(default_value="Rainfall:", tag="Rainfall")
+        with dpg.group(label="Session_Info",tag="sessioninfo",horizontal=False,pos=(7.75*self._BUTTONS_WIDTH,self._BUTTONS_HEIGHT*(self._BUTTONS_ROWS-0.8))):
+          dpg.add_text(default_value="Current Time:", tag="Actual_Time")
+          dpg.add_text(default_value="Status:", tag="Session_Status")
           # if you add or delete some texts inside "weather" change the value of 
           # 7 in add_drawlist below!
 
@@ -454,8 +455,6 @@ class GUI:
       for team in self._watchlist_teams:
         for driver in self._drivers_list:
           self._annotations_telemetry_plot[driver]=[] # [[time,speed,id,tag=("min"/"max")],[...]]
-          self._PERSONAL_BEST_LAPS[driver]={"ValueString":"",
-                                            "ValueInt_sec":1e6} 
           # initialize dict that is needed later for keeping
           # track of latest id of the annotations in telemetry
           if team==self._DRIVERS_INFO[driver]["team"]:
@@ -540,6 +539,9 @@ class GUI:
       self._last_message_DT            = self._database.get_last_datetime()
       #self._last_message_displayed_DT = self._database.get_last_datetime()     
       self._last_message_displayed_DT  = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
+      
+      dpg.set_value(item="Actual_Time",value="Current Time: "+self._last_message_displayed_DT.strftime("%H:%M:%S"))
+      dpg.set_value(item="Session_Status",value="Status: "+str(self._database.get_actual_session_status(self._last_message_displayed_DT)))
       
       #print("BBB")
       slice_between_times = self._database.get_slice_between_times(
@@ -659,6 +661,8 @@ class GUI:
           dpg.set_value(item=driver+"b", value=[times,telemetry["Brake"][slice_between_times]])
           dpg.set_axis_limits("x_axis_BRAKE"+driver, minx, maxx)
           dpg.set_axis_ticks(axis="x_axis_BRAKE"+driver,label_pairs=x_label)
+          dpg.set_axis_ticks(axis="x_axis_THROTTLE"+driver,label_pairs=x_label)
+          dpg.set_axis_ticks(axis="x_axis_SPEED"+driver,label_pairs=x_label)
           
           
       #print(minx," ",maxx," " ,x_label[:10])

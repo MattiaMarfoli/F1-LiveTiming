@@ -38,8 +38,12 @@ def WRITE_EXCEPTION(err: Exception):
 # Parser
 FORCE_UPDATE=False
 
-# Database  ,"Position.z"
-FEED_LIST=["CarData.z","Position.z","TimingDataF1","WeatherData"] # !! CarData.z needs to be the first ALWAYS (base_timestamp for now taken from this)!!
+# Database  
+FEED_LIST=["CarData.z",  # CarData.z needs to be the first 
+           "Position.z", # ALWAYS (base_timestamp for now taken from this)!!
+           "TimingDataF1",
+           "WeatherData",
+           "SessionStatus"] 
 DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)
 
 # Live Stream Real Time
