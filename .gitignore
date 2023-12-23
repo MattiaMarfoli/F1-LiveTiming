@@ -7,4 +7,5 @@ prova*
 TDF1*
 Timing*
 your*
-
+__pycache__/
+.vs/
