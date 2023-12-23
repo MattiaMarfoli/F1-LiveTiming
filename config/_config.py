@@ -40,10 +40,11 @@ FORCE_UPDATE=False
 
 # Database  
 FEED_LIST=["CarData.z",  # CarData.z needs to be the first 
-           "Position.z", # ALWAYS (base_timestamp for now taken from this)!!
+           #"Position.z", # ALWAYS (base_timestamp for now taken from this)!!
            "TimingDataF1",
            "WeatherData",
-           "SessionStatus"] 
+           "SessionStatus",
+           "RaceControlMessages"] 
 DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)
 
 # Live Stream Real Time

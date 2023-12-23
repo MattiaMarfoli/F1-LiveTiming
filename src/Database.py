@@ -34,6 +34,7 @@ class DATABASE:
     self._LeaderBoard={}
     self._Laps={}
     self._Weather={}
+    self._RaceMessages = {}
     self._LiveSessionStatus="Unknown"
     self._RunningStatus={
                           #1:                       # nr of restart
@@ -173,7 +174,33 @@ class DATABASE:
                 self._PrevSessionDatetime=DT
                 self._Nof_Restarts+=1
                 self._LiveSessionStatus="Running"    
-                
+        elif feed=="RaceControlMessages":
+          for DT,Message in msg_decrypted.items():
+            if "Messages" in Message.keys():
+              if type(Message["Messages"])==list:
+                i=0
+                for msg in Message["Messages"]:
+                  Message_dict={str(i):msg}
+                  i+=1
+              elif type(Message["Messages"])==dict:
+                Message_dict=Message["Messages"]
+              else:
+                print("\n\n\n Type of the message not dict or list but: ",type(Message["Messages"]),"\n\n\n")
+                Message_dict={}
+              for nrMsg,Msg in Message_dict.items():
+                n=1
+                nrThisMsg=nrMsg
+                while nrThisMsg in Msg.keys():
+                  nrThisMsg=str(int(nrThisMsg)+n)
+                  n+=1
+                if "Message" in Msg.keys() and "Category" in Msg.keys():
+                  if "Flag" in Msg.keys():
+                    category=Msg["Category"]+"_"+Msg["Flag"]
+                  else:
+                    category=Msg["Category"]
+                  self._RaceMessages[nrThisMsg]={"DateTime":  DT.timestamp(),
+                                                 "Category":  category,
+                                                 "Message":   Msg["Message"]}
         else: # TODO: update this
           DT=msg_decrypted[list(msg_decrypted.keys())[0]]
         self._last_datetime=DT
@@ -274,6 +301,10 @@ class DATABASE:
         return self._Laps
       elif feed=="WeatherData":
         return self._Weather
+      elif feed=="SessionStatus":
+        return self._RunningStatus
+      elif feed=="RaceControlMessages":
+        return self._RaceMessages
       else:
         return None
   

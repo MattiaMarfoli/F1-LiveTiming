@@ -558,6 +558,8 @@ class GUI:
       minx=max(self._first_message_DT.timestamp()-self._BaseTimestamp,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp-self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT)
       maxx=max(self._first_message_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_RIGHT)
       
+      #print("\n ",self._database.get_dictionary(feed="RaceControlMessages"),"\n")
+      
       x_label=[]
       minute=None
       for Timestamp in np.arange(int(minx),int(maxx),1):
