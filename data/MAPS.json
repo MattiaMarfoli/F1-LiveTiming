@@ -1,22 +1,112 @@
 {
-  "Brazil_23":
-    {
-      "corners":  "Brazil_23.json",
-      "map"    :  "Brazil_23_plot.png",
-      "mapScaleX":  25.5,
-      "mapScaleY":  58,
-      "X-Off"    :  406,
-      "Y-Off"    :  104,
-      "angle"    :   0
-    },
-  "LasVegas_23": 
-  {
-    "corners"  :   "LasVegas_23.json",
-    "map"      :   "LasVegas_23_plot.png",
-    "mapScaleX":  25.5,
-    "mapScaleY":  58,
-    "X-Off"    :  406,
-    "Y-Off"    :  104,
-    "angle"    :   0
-  }
+   "Bahrain Grand Prix": {
+      "map": "Bahrain Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Saudi Arabian Grand Prix": {
+      "map": "Saudi Arabian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Australian Grand Prix": {
+      "map": "Australian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Azerbaijan Grand Prix": {
+      "map": "Azerbaijan Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Miami Grand Prix": {
+      "map": "Miami Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Monaco Grand Prix": {
+      "map": "Monaco Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Spanish Grand Prix": {
+      "map": "Spanish Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Canadian Grand Prix": {
+      "map": "Canadian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Austrian Grand Prix": {
+      "map": "Austrian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "British Grand Prix": {
+      "map": "British Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Hungarian Grand Prix": {
+      "map": "Hungarian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Belgian Grand Prix": {
+      "map": "Belgian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Dutch Grand Prix": {
+      "map": "Dutch Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Italian Grand Prix": {
+      "map": "Italian Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Singapore Grand Prix": {
+      "map": "Singapore Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Japanese Grand Prix": {
+      "map": "Japanese Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Qatar Grand Prix": {
+      "map": "Qatar Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "United States Grand Prix": {
+      "map": "United States Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Mexico City Grand Prix": {
+      "map": "Mexico City Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "S\u00e3o Paulo Grand Prix": {
+      "map": "S\u00e3o Paulo Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Las Vegas Grand Prix": {
+      "map": "Las Vegas Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   },
+   "Abu Dhabi Grand Prix": {
+      "map": "Abu Dhabi Grand Prix_2023_plot.png",
+      "corners": [],
+      "marshallSectors": []
+   }
 }

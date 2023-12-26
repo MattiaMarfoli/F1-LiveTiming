@@ -354,11 +354,11 @@ class GUI:
     map_dict=str(_config.paths.DATA_PATH / self._maps[dpg.get_value("Race_Map")]["map"])
     width, height, channels, data = dpg.load_image(map_dict)
 
-    self._mapScaleX = self._maps[dpg.get_value("Race_Map")]["mapScaleX"]
-    self._mapScaleY = self._maps[dpg.get_value("Race_Map")]["mapScaleY"]
-    self._Xoff      = self._maps[dpg.get_value("Race_Map")]["X-Off"]
-    self._Yoff      = self._maps[dpg.get_value("Race_Map")]["Y-Off"]
-    self._angle     = self._maps[dpg.get_value("Race_Map")]["angle"]
+    #self._mapScaleX = self._maps[dpg.get_value("Race_Map")]["mapScaleX"]
+    #self._mapScaleY = self._maps[dpg.get_value("Race_Map")]["mapScaleY"]
+    #self._Xoff      = self._maps[dpg.get_value("Race_Map")]["X-Off"]
+    #self._Yoff      = self._maps[dpg.get_value("Race_Map")]["Y-Off"]
+    #self._angle     = self._maps[dpg.get_value("Race_Map")]["angle"]
     
     with dpg.texture_registry():
       dpg.add_static_texture(width=width, height=height, default_value=data, tag="map_background_texture")
@@ -422,7 +422,7 @@ class GUI:
     # telemetry view tab    
     with dpg.group(label=self._YEAR+"-"+" ".join(self._RACE.split("_"))+"-"+self._SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
       
-      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=630,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True):
+      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=630,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
         # weather group
         with dpg.group(label="Weather1",tag="weather1",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH,0)):  
           dpg.add_text(default_value="AirTemp:",  tag="AirTemp")
@@ -444,7 +444,7 @@ class GUI:
         self.add_buttons()
         self._y_scroll=dpg.get_y_scroll(item="Primary window")
       
-      with dpg.window(label="Track_Map",tag="Track_Map",width=630,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True):
+      with dpg.window(label="Track_Map",tag="Track_Map",width=630,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
         #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
           dpg.add_drawlist(width=630,height=480,pos=(0,0),tag="drawlist_map_position")
           dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
