@@ -29,6 +29,9 @@ class GUI:
     self._database = _config.DATABASE
     self._client = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
     
+    self._map_width=630
+    self._map_height=480
+    self._drivers_prev_position={}
     
     #if self._FORCE_UPDATE:
     #  self._parser.update_urls()
@@ -66,17 +69,18 @@ class GUI:
     self._TEL_PLOTS_WIDTH  = _config.TELEMETRY_PLOTS_WIDTH
     
     # Useful variables (Datetime)
-    self._last_message_DT                 = None
-    self._last_message_displayed_DT       = None
-    self._first_message_DT                = None
-    self._time_skipped                    = 0
-    self._time_paused                     = 0
-    self._BaseTimestamp                   = None
-    self._seconds_to_skip                 = 5
-    self._delay_T                         = _config.DELAY
-    self._TIME_UPDATE_TELEMETRY_PLOT      = 1./_config.FREQ_UPDATE_PLOT
-    self._TIME_UPDATE_LISTENER            = 1./(4.*_config.FREQ_UPDATE_PLOT)
-    self._PRINT_TIMES                     = _config.PRINT_TIMES
+    self._last_message_DT                    = None
+    self._last_message_displayed_DT          = None
+    self._last_message_displayed_DT_position = None
+    self._first_message_DT                   = None
+    self._time_skipped                       = 0
+    self._time_paused                        = 0
+    self._BaseTimestamp                      = None
+    self._seconds_to_skip                    = 5
+    self._delay_T                            = _config.DELAY
+    self._TIME_UPDATE_TELEMETRY_PLOT         = 1./_config.FREQ_UPDATE_PLOT
+    self._TIME_UPDATE_LISTENER               = 1./(4.*_config.FREQ_UPDATE_PLOT)
+    self._PRINT_TIMES                        = _config.PRINT_TIMES
 
     self._mapScaleX = 1
     self._mapScaleY = 1
@@ -90,6 +94,7 @@ class GUI:
     self._driver_compare = [ None , None]
     self._sleeptime  = _config.SLEEPTIME
     self._start_compare = False
+    self._start_position = False
     
     self._update_telemetry_thread = threading.Thread(target=self.update_telemetry_plot)
     self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry)
@@ -360,33 +365,24 @@ class GUI:
     #self._Yoff      = self._maps[dpg.get_value("Race_Map")]["Y-Off"]
     #self._angle     = self._maps[dpg.get_value("Race_Map")]["angle"]
     
+    #self._map_width,self._map_height=width,height
     with dpg.texture_registry():
       dpg.add_static_texture(width=width, height=height, default_value=data, tag="map_background_texture")
 
     
-    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(640,480),show=True)
+    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(630,480),show=True)
 
-  def rotate_map(self):
-    if dpg.does_item_exist(item="map_background"):
-      dpg.delete_item(item="map_background") 
-    if dpg.does_item_exist(item="map_background_texture"):
-      dpg.delete_item(item="map_background_texture")
-      
-    map_dict=str(_config.paths.DATA_PATH / self._maps[dpg.get_value("Race_Map")]["map"])
-    im = cv2.imread(map_dict, cv2.IMREAD_UNCHANGED)
-    (h, w) = im.shape[:2]
-    (cX, cY) = (w // 2, h // 2)
-    M = cv2.getRotationMatrix2D((cX, cY), dpg.get_value("angle"), 1.0)
-    rotated = cv2.warpAffine(im, M, (w, h))
+  def transform_position_from_F1_to_dpg(self,x,y):
+    xlims=self._maps[dpg.get_value("Race_Map")]["xlim"]
+    ylims=self._maps[dpg.get_value("Race_Map")]["ylim"]
+    x_shifted=x-xlims[0]
+    x_scaled=x_shifted/self._maps[dpg.get_value("Race_Map")]["xscale"]
 
-    #data = np.flip(rotated, 2)  # because the camera data comes in as BGR and we need RGB
-    data = rotated.ravel()  # flatten camera data to a 1 d stricture
-    data = np.asfarray(data, dtype='f')  # change data type to 32bit floats
-    texture_data = np.true_divide(data, 255.0)  # normalize image data to prepare for GPU
-        
-    with dpg.texture_registry():
-      cv2_stem_stop_texture_id = dpg.add_static_texture(im.shape[1], im.shape[0], texture_data, tag="map_background_texture")
-    dpg.draw_image(texture_tag=cv2_stem_stop_texture_id,tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(640,480),show=True)
+    y_shifted=y-ylims[0]
+    y_scaled=y_shifted/self._maps[dpg.get_value("Race_Map")]["yscale"]
+    y_updown=self._map_height-y_scaled
+
+    return x_scaled,y_updown
 
   def add_driver_tel_plot(self,number,parent,driver):
     nr=int(number) # 0 -> 19 !
@@ -447,7 +443,7 @@ class GUI:
       with dpg.window(label="Track_Map",tag="Track_Map",width=630,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
         #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
           dpg.add_drawlist(width=630,height=480,pos=(0,0),tag="drawlist_map_position")
-          dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+          #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
       
       # telemetry plots
       self._annotations_telemetry_plot = {}
@@ -522,6 +518,7 @@ class GUI:
     time.sleep(self._delay_T)
     self._time_paused+=self._delay_T
     self._start_compare=True
+    self._start_position=True
     # ok now we have everything and we can start!
     while True:
       while self._task_state=="pause":
@@ -551,9 +548,6 @@ class GUI:
       Telemetry_to_be_plotted = self._database.get_dictionary(feed="CarData.z")
       Laps = self._database.get_dictionary(feed="TimingDataF1")
       
-      #Pos_drivers = self._database.get_last_msg_before_time("Position.z",self._last_message_displayed_DT)
-      #dpg.delete_item("circle")
-      #dpg.draw_circle(color=(255,0,0,255),center=(Pos_drivers["1"][0]/self._mapScaleX+self._Xoff,Pos_drivers["1"][1]/self._mapScaleY+self._Yoff),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
       
       minx=max(self._first_message_DT.timestamp()-self._BaseTimestamp,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp-self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT)
       maxx=max(self._first_message_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_RIGHT)
@@ -1082,12 +1076,37 @@ class GUI:
 ###################################################################################################################  
   
   def Listener(self):
-    while not dpg.does_item_exist(item="Telemetry_view"):
+    while not self._start_position:
       time.sleep(0.5)
-      
     while True:
-      if self._y_scroll!=dpg.get_y_scroll(item="Primary window"):
-        self.move_menu_bar_when_scrolling()
+      while self._task_state=="pause":
+        time.sleep(self._sleeptime)
+      self._last_message_displayed_DT_position = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
+      if dpg.get_value("Race_Map")!="None" and dpg.does_item_exist("drawlist_map_position"):
+        xyz_F1 =self._database.get_last_msg_before_time(feed="Position.z",sel_time=self._last_message_displayed_DT_position)
+        for driver,xyz in xyz_F1.items():
+          xyz_dpg=self.transform_position_from_F1_to_dpg(xyz[0]/10.,xyz[1]/10.)
+          if not dpg.does_item_exist("node"+driver):
+            with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
+              dpg.draw_circle(color=self._DRIVERS_INFO[driver]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=12,fill=self._DRIVERS_INFO[driver]["color"],tag="circle"+driver)
+              dpg.draw_text(tag="text"+driver,pos=(xyz_dpg[0]-12/2,xyz_dpg[1]-12/2.),text=self._DRIVERS_INFO[driver]["abbreviation"],color=[255,255,255])
+              dpg.bind_item_font(item="text"+driver,font="drawNodeFont")
+          else:
+            prev_pos=dpg.get_item_configuration("circle"+driver)['center']
+            dpg.apply_transform(item="node"+driver, transform=dpg.create_translation_matrix([xyz_dpg[0]-prev_pos[0], 
+                                                                                             xyz_dpg[1]-prev_pos[1]]))
+            
+          
+          #if driver not in self._drivers_prev_position.keys():
+          #  self._drivers_prev_position[driver]=[xyz_dpg[0],xyz_dpg[1]]
+          #  with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
+          #    dpg.draw_circle(color=self._DRIVERS_INFO[driver]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=5,fill=self._DRIVERS_INFO[driver]["color"],tag="circle"+driver)
+          #else:
+          #  dpg.apply_transform(item="node"+driver, transform=dpg.create_translation_matrix([xyz_dpg[0]-self._drivers_prev_position[driver][0], 
+          #                                                                                  xyz_dpg[1]-self._drivers_prev_position[driver][1]]))
+          #  self._drivers_prev_position[driver]=[xyz_dpg[0],xyz_dpg[1]]
+          #  print(dpg.get_item_pos("node"+driver))
+          #  dpg.get_item_configuration("my_circle_tag")['center']
       time.sleep(self._TIME_UPDATE_TELEMETRY_PLOT)
     
   
@@ -1147,6 +1166,10 @@ class GUI:
     with dpg.theme(tag="white"):
       with dpg.theme_component():
         dpg.add_theme_color(dpg.mvPlotCol_Line, [255,255,255,255] , category=dpg.mvThemeCat_Plots)
+    
+    with dpg.font_registry():
+      # first argument ids the path to the .ttf or .otf file
+      dpg.add_font("Fonts/Roboto-Bold.ttf", 40,tag="drawNodeFont")
     
     dpg.set_primary_window(window="Primary window",value=True)
     dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around for a known bug!

@@ -40,7 +40,7 @@ FORCE_UPDATE=False
 
 # Database  
 FEED_LIST=["CarData.z",  # CarData.z needs to be the first 
-           #"Position.z", # ALWAYS (base_timestamp for now taken from this)!!
+           "Position.z", # ALWAYS (base_timestamp for now taken from this)!!
            "TimingDataF1",
            "WeatherData",
            "SessionStatus",
