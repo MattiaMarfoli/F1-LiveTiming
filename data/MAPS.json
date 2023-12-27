@@ -1,111 +1,331 @@
 {
    "Bahrain Grand Prix": {
       "map": "Bahrain Grand Prix_2023_plot.png",
+      "xlim": [
+         -98.075,
+         790.175
+      ],
+      "ylim": [
+         -409.345,
+         894.045
+      ],
+      "xscale": 1.409920634920635,
+      "yscale": 2.715395833333333,
       "corners": [],
       "marshallSectors": []
    },
    "Saudi Arabian Grand Prix": {
       "map": "Saudi Arabian Grand Prix_2023_plot.png",
+      "xlim": [
+         -613.6600000000001,
+         36.660000000000004
+      ],
+      "ylim": [
+         -701.4000000000001,
+         2317.0
+      ],
+      "xscale": 1.0322539682539684,
+      "yscale": 6.288333333333333,
       "corners": [],
       "marshallSectors": []
    },
    "Australian Grand Prix": {
       "map": "Australian Grand Prix_2023_plot.png",
+      "xlim": [
+         -794.6700000000001,
+         823.87
+      ],
+      "ylim": [
+         -643.49,
+         1272.49
+      ],
+      "xscale": 2.569111111111111,
+      "yscale": 3.991625,
       "corners": [],
       "marshallSectors": []
    },
    "Azerbaijan Grand Prix": {
       "map": "Azerbaijan Grand Prix_2023_plot.png",
+      "xlim": [
+         -1794.075,
+         475.77500000000003
+      ],
+      "ylim": [
+         -1187.945,
+         443.245
+      ],
+      "xscale": 3.6029365079365077,
+      "yscale": 3.3983125000000003,
       "corners": [],
       "marshallSectors": []
    },
    "Miami Grand Prix": {
       "map": "Miami Grand Prix_2023_plot.png",
+      "xlim": [
+         -516.935,
+         1131.635
+      ],
+      "ylim": [
+         -508.775,
+         137.475
+      ],
+      "xscale": 2.6167777777777776,
+      "yscale": 1.3463541666666667,
       "corners": [],
       "marshallSectors": []
    },
    "Monaco Grand Prix": {
       "map": "Monaco Grand Prix_2023_plot.png",
+      "xlim": [
+         -805.69,
+         19.090000000000003
+      ],
+      "ylim": [
+         -1025.325,
+         31.225000000000005
+      ],
+      "xscale": 1.3091746031746032,
+      "yscale": 2.2011458333333334,
       "corners": [],
       "marshallSectors": []
    },
    "Spanish Grand Prix": {
       "map": "Spanish Grand Prix_2023_plot.png",
+      "xlim": [
+         -722.55,
+         336.75
+      ],
+      "ylim": [
+         -803.585,
+         472.08500000000004
+      ],
+      "xscale": 1.6814285714285713,
+      "yscale": 2.6576458333333335,
       "corners": [],
       "marshallSectors": []
    },
    "Canadian Grand Prix": {
       "map": "Canadian Grand Prix_2023_plot.png",
+      "xlim": [
+         -276.58500000000004,
+         420.485
+      ],
+      "ylim": [
+         -322.47,
+         1771.27
+      ],
+      "xscale": 1.1064603174603176,
+      "yscale": 4.361958333333333,
       "corners": [],
       "marshallSectors": []
    },
    "Austrian Grand Prix": {
       "map": "Austrian Grand Prix_2023_plot.png",
+      "xlim": [
+         -885.805,
+         487.105
+      ],
+      "ylim": [
+         -264.02,
+         607.62
+      ],
+      "xscale": 2.179222222222222,
+      "yscale": 1.8159166666666666,
       "corners": [],
       "marshallSectors": []
    },
    "British Grand Prix": {
       "map": "British Grand Prix_2023_plot.png",
+      "xlim": [
+         -282.025,
+         829.525
+      ],
+      "ylim": [
+         -497.97,
+         1397.77
+      ],
+      "xscale": 1.7643650793650794,
+      "yscale": 3.9494583333333333,
       "corners": [],
       "marshallSectors": []
    },
    "Hungarian Grand Prix": {
       "map": "Hungarian Grand Prix_2023_plot.png",
+      "xlim": [
+         -661.7850000000001,
+         508.285
+      ],
+      "ylim": [
+         -209.66000000000003,
+         1116.06
+      ],
+      "xscale": 1.8572539682539686,
+      "yscale": 2.7619166666666666,
       "corners": [],
       "marshallSectors": []
    },
    "Belgian Grand Prix": {
       "map": "Belgian Grand Prix_2023_plot.png",
+      "xlim": [
+         -497.06,
+         894.66
+      ],
+      "ylim": [
+         -1678.6999999999998,
+         556.5
+      ],
+      "xscale": 2.209079365079365,
+      "yscale": 4.656666666666666,
       "corners": [],
       "marshallSectors": []
    },
    "Dutch Grand Prix": {
       "map": "Dutch Grand Prix_2023_plot.png",
+      "xlim": [
+         -150.095,
+         918.995
+      ],
+      "ylim": [
+         -202.14499999999998,
+         711.8449999999999
+      ],
+      "xscale": 1.6969682539682538,
+      "yscale": 1.9041458333333332,
       "corners": [],
       "marshallSectors": []
    },
    "Italian Grand Prix": {
       "map": "Italian Grand Prix_2023_plot.png",
+      "xlim": [
+         -212.84,
+         1169.6399999999999
+      ],
+      "ylim": [
+         -688.6300000000001,
+         1696.8300000000002
+      ],
+      "xscale": 2.194412698412698,
+      "yscale": 4.969708333333333,
       "corners": [],
       "marshallSectors": []
    },
    "Singapore Grand Prix": {
       "map": "Singapore Grand Prix_2023_plot.png",
+      "xlim": [
+         -1392.2949999999998,
+         191.59499999999997
+      ],
+      "ylim": [
+         -535.685,
+         453.985
+      ],
+      "xscale": 2.5141111111111107,
+      "yscale": 2.0618125,
       "corners": [],
       "marshallSectors": []
    },
    "Japanese Grand Prix": {
       "map": "Japanese Grand Prix_2023_plot.png",
+      "xlim": [
+         -1469.605,
+         704.105
+      ],
+      "ylim": [
+         -781.525,
+         334.425
+      ],
+      "xscale": 3.4503333333333335,
+      "yscale": 2.3248958333333336,
       "corners": [],
       "marshallSectors": []
    },
    "Qatar Grand Prix": {
       "map": "Qatar Grand Prix_2023_plot.png",
+      "xlim": [
+         -509.92,
+         867.72
+      ],
+      "ylim": [
+         -535.175,
+         1079.075
+      ],
+      "xscale": 2.186730158730159,
+      "yscale": 3.363020833333333,
       "corners": [],
       "marshallSectors": []
    },
    "United States Grand Prix": {
       "map": "United States Grand Prix_2023_plot.png",
+      "xlim": [
+         -346.08500000000004,
+         1648.985
+      ],
+      "ylim": [
+         -460.08,
+         696.6800000000001
+      ],
+      "xscale": 3.1667777777777775,
+      "yscale": 2.4099166666666667,
       "corners": [],
       "marshallSectors": []
    },
    "Mexico City Grand Prix": {
       "map": "Mexico City Grand Prix_2023_plot.png",
+      "xlim": [
+         -315.54,
+         1273.74
+      ],
+      "ylim": [
+         -955.845,
+         180.345
+      ],
+      "xscale": 2.522666666666667,
+      "yscale": 2.3670625000000003,
       "corners": [],
       "marshallSectors": []
    },
    "S\u00e3o Paulo Grand Prix": {
       "map": "S\u00e3o Paulo Grand Prix_2023_plot.png",
+      "xlim": [
+         -446.94,
+         273.34
+      ],
+      "ylim": [
+         -904.04,
+         240.84
+      ],
+      "xscale": 1.1433015873015873,
+      "yscale": 2.385166666666666,
       "corners": [],
       "marshallSectors": []
    },
    "Las Vegas Grand Prix": {
       "map": "Las Vegas Grand Prix_2023_plot.png",
+      "xlim": [
+         -831.4549999999999,
+         445.755
+      ],
+      "ylim": [
+         -269.68,
+         1874.88
+      ],
+      "xscale": 2.02731746031746,
+      "yscale": 4.467833333333333,
       "corners": [],
       "marshallSectors": []
    },
    "Abu Dhabi Grand Prix": {
       "map": "Abu Dhabi Grand Prix_2023_plot.png",
+      "xlim": [
+         -259.56,
+         619.5600000000001
+      ],
+      "ylim": [
+         -620.3100000000001,
+         1263.1100000000001
+      ],
+      "xscale": 1.3954285714285717,
+      "yscale": 3.923791666666667,
       "corners": [],
       "marshallSectors": []
    }
