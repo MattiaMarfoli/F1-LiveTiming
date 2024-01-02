@@ -61,8 +61,8 @@ class GUI:
     else:
       self._TERMINAL_SPACE=0
       dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._MAX_HEIGHT - self._BOTTOM_BAR_HEIGHT - self._TOP_BAR_HEIGHT - self._TERMINAL_SPACE,decorated=False)
-    self._VIEWPORT_WIDTH = dpg.get_viewport_width()
-    self._VIEWPORT_HEIGHT = dpg.get_viewport_height()
+    self._VIEWPORT_WIDTH = max(dpg.get_viewport_width(),1920)
+    self._VIEWPORT_HEIGHT = max(dpg.get_viewport_height(),1080)
     dpg.show_viewport()
     dpg.setup_dearpygui()
     self._TEL_PLOTS_HEIGHT = _config.TELEMETRY_PLOTS_HEIGHT
@@ -445,6 +445,11 @@ class GUI:
           dpg.add_drawlist(width=630,height=480,pos=(0,0),tag="drawlist_map_position")
           #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
       
+      with dpg.window(label="RaceMessages",tag="Race_Messages",width=630/2,height=420,pos=(self._TEL_PLOTS_WIDTH*2+10+630/2,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10+485),no_title_bar=True,no_resize=True,no_move=True):
+        #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
+          dpg.add_text(tag="race_msgs",default_value="",wrap=308)
+          #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+      
       # telemetry plots
       self._annotations_telemetry_plot = {}
       self._drivers_watchlist_telemetry=[]
@@ -662,12 +667,17 @@ class GUI:
           
           
       #print(minx," ",maxx," " ,x_label[:10])
+      msgs=self._database.get_race_messages_before_time(self._last_message_displayed_DT)
+      if msgs!=dpg.get_value(item="race_msgs"):
+        dpg.set_value(item="race_msgs",value=msgs)
+        dpg.set_y_scroll(item="Race_Messages",value=dpg.get_y_scroll_max(item="Race_Messages"))  
       
       weather_data=self._database.get_last_msg_before_time(feed="WeatherData",sel_time=self._last_message_displayed_DT)
       for key,value in weather_data.items():
         #print(key)
         if key in ["AirTemp","TrackTemp","Humidity","WindSpeed","WindDirection","Pressure","Rainfall"]:
           dpg.set_value(item=key,value=str(key)+":"+str(value))
+      
       if self._PRINT_TIMES:
         print(self._last_message_displayed_DT.timestamp()," ",minx, " ",maxx," ",dpg.get_axis_limits("x_axis_SPEED"))
               
@@ -776,7 +786,7 @@ class GUI:
     ymax_LT=61
     xmin_LT=0  #
     xmax_LT=1
-    with dpg.group(label="Compare Telemetry View",tag="Telemetry_compare_view",show=True,parent="Primary window"):
+    with dpg.group(label="Compare Telemetry View",tag="Telemetry_compare_view",show=False,parent="Primary window"):
       with dpg.group(label="map_buttons",tag="map_buttons",horizontal=True):
         dpg.add_combo(items=list(self._maps.keys()),tag="map",width=150,default_value=None,callback=self.Set_Corners)
         dpg.add_input_double(label="Offset_Turns",tag="slide_corner",min_value=-0.5,max_value=0.5,default_value=0,width=150,min_clamped=True,max_clamped=True,step=0.0005,callback=self.Set_Corners)
@@ -1083,8 +1093,10 @@ class GUI:
         time.sleep(self._sleeptime)
       self._last_message_displayed_DT_position = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
       if dpg.get_value("Race_Map")!="None" and dpg.does_item_exist("drawlist_map_position"):
-        xyz_F1 =self._database.get_last_msg_before_time(feed="Position.z",sel_time=self._last_message_displayed_DT_position)
-        for driver,xyz in xyz_F1.items():
+        pos_dict=self._database.get_dictionary(feed="Position.z")
+        last_index_msg =self._database.get_last_msg_before_time(feed="Position.z",sel_time=self._last_message_displayed_DT_position)
+        for driver,full_position in pos_dict.items():
+          xyz=full_position["XYZ"][last_index_msg]
           xyz_dpg=self.transform_position_from_F1_to_dpg(xyz[0]/10.,xyz[1]/10.)
           if not dpg.does_item_exist("node"+driver):
             with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
@@ -1172,7 +1184,7 @@ class GUI:
       dpg.add_font("Fonts/Roboto-Bold.ttf", 40,tag="drawNodeFont")
     
     dpg.set_primary_window(window="Primary window",value=True)
-    dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around for a known bug!
+    dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around for a known dpg bug!
     
     self._update_telemetry_thread.start()    
     self._compare_telemetry_thread.start()

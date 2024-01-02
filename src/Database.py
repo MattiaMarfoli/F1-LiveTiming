@@ -198,7 +198,8 @@ class DATABASE:
                     category=Msg["Category"]+"_"+Msg["Flag"]
                   else:
                     category=Msg["Category"]
-                  self._RaceMessages[nrThisMsg]={"DateTime":  DT.timestamp(),
+                  self._RaceMessages[nrThisMsg]={"Time":     DT,
+                                                 "TimeStamp": DT.timestamp(), # needs checks!
                                                  "Category":  category,
                                                  "Message":   Msg["Message"]}
         else: # TODO: update this
@@ -263,7 +264,17 @@ class DATABASE:
       #        self._CarData[driver]["Throttle"][ST_to_ET],self._CarData[driver]["Brake"][ST_to_ET],
       #        self._CarData[driver]["DRS"][ST_to_ET])
 
-  def get_last_msg_before_time(self,feed: str,sel_time: datetime.datetime):
+  def get_race_messages_before_time(self,sel_time: datetime.datetime):
+    with self._lock:
+      msgs=""
+      for msg_nr,msg_content in self._RaceMessages.items(): # Time TimeStamp Category Message
+        if msg_content["Time"].timestamp()-sel_time.timestamp()<0:
+          msgs += msg_nr + " - " + msg_content["Time"].strftime("%H:%M:%S") + " - " + msg_content["Category"].split("_")[-1] + " : " + msg_content["Message"] +" \n\n" 
+        else:
+          return msgs
+      return msgs
+
+  def get_last_msg_before_time(self,feed: str,sel_time: datetime.datetime): # returns last index for position!
     with self._lock:
       if feed=="WeatherData":
         s_it={}
@@ -277,16 +288,21 @@ class DATABASE:
             return s_it
         return {}
       elif feed=="Position.z":
-        s_it={}
-        for Driver,P_dict in self._Position.items():
-          s_XYZ=[0,0,0]
-          for DT,XYZ in zip(P_dict["Time"],P_dict["XYZ"]):
-            if DT.timestamp()-sel_time.timestamp()<0:
-              s_XYZ=XYZ
-            else:
-              s_it[Driver]=s_XYZ
-              break
-        return s_it
+        last_index=0
+        for index,Time in enumerate(self._Position[list(self._Position.keys())[0]]["Time"]): # Check if CarData are given even for crashed drivers
+          if Time.timestamp()-sel_time.timestamp()<0:
+            last_index=index
+          else:
+            break
+        return last_index
+      elif feed=="RaceControlMessages":
+        msg=""
+        for msg_nr,msg_content in self._RaceMessages.items(): # Time TimeStamp Category Message
+          if msg_content["Time"].timestamp()-sel_time.timestamp()<0:
+            msg = msg_nr + " - " + msg_content["Time"].strftime("%H:%M:%S") + " - " + msg_content["Category"].split("_")[-1] + " : " + msg_content["Message"] +" \n\n" 
+          else:
+            return msg
+        return msg
       else:
         print(feed, " not in case in get_last_msg_before_time")
         return {}
