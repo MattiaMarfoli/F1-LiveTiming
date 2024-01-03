@@ -79,7 +79,7 @@ class GUI:
     self._seconds_to_skip                    = 5
     self._delay_T                            = _config.DELAY
     self._TIME_UPDATE_TELEMETRY_PLOT         = 1./_config.FREQ_UPDATE_PLOT
-    self._TIME_UPDATE_LISTENER               = 1./(4.*_config.FREQ_UPDATE_PLOT)
+    self._TIME_UPDATE_POSITION_PLOT          = 1./_config.FREQ_UPDATE_PLOT
     self._PRINT_TIMES                        = _config.PRINT_TIMES
 
     self._mapScaleX = 1
@@ -98,7 +98,7 @@ class GUI:
     
     self._update_telemetry_thread = threading.Thread(target=self.update_telemetry_plot)
     self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry)
-    self._listener_thread = threading.Thread(target=self.Listener)
+    self._update_position_thread = threading.Thread(target=self.update_position_plot)
     #self._process = multiprocessing.Process(target=self.update_telemetry_plot)
     #self._thread_cl = threading.Thread(target=self.update_classifier)
     #self._thread_lap = threading.Thread(target=self.update_laps)
@@ -445,7 +445,7 @@ class GUI:
           dpg.add_drawlist(width=630,height=480,pos=(0,0),tag="drawlist_map_position")
           #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
       
-      with dpg.window(label="RaceMessages",tag="Race_Messages",width=630/2,height=420,pos=(self._TEL_PLOTS_WIDTH*2+10+630/2,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10+485),no_title_bar=True,no_resize=True,no_move=True):
+      with dpg.window(label="RaceMessages",tag="Race_Messages",width=630/2,height=420,pos=(self._TEL_PLOTS_WIDTH*2+10+630/2,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10+485+5),no_title_bar=True,no_resize=True,no_move=True):
         #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
           dpg.add_text(tag="race_msgs",default_value="",wrap=308)
           #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
@@ -547,7 +547,6 @@ class GUI:
       
       #print("BBB")
       slice_between_times = self._database.get_slice_between_times(
-                                  feed="CarData.z",
                                   start_time=self._last_message_displayed_DT-datetime.timedelta(seconds=self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT),
                                   end_time=self._last_message_displayed_DT)
       Telemetry_to_be_plotted = self._database.get_dictionary(feed="CarData.z")
@@ -899,7 +898,7 @@ class GUI:
           NLAP1=int(dpg.get_value("LAP-1").split(" ")[0])
           self._LAP1=LAPS[self._DRV1][NLAP1] # DateTime , ValueString , ValueInt_sec are the keys
           LapTime1_s=self._LAP1["ValueInt_sec"]
-          SLICE1=self._database.get_slice_between_times(feed="CarData.z",start_time=self._LAP1["DateTime"]-datetime.timedelta(seconds=LapTime1_s),end_time=self._LAP1["DateTime"])
+          SLICE1=self._database.get_slice_between_times(start_time=self._LAP1["DateTime"]-datetime.timedelta(seconds=LapTime1_s),end_time=self._LAP1["DateTime"])
           ##SLICE1_pos=self._database.get_slice_between_times(feed="Position.z",start_time=self._LAP1["DateTime"]-datetime.timedelta(seconds=LapTime1_s),end_time=self._LAP1["DateTime"])
           TEL1=self._database.get_dictionary(feed="CarData.z")[self._DRV1]
           ##P1=self._database.get_dictionary(feed="Position.z")[self._DRV1]
@@ -955,7 +954,7 @@ class GUI:
           NLAP2=int(dpg.get_value("LAP-2").split(" ")[0])
           self._LAP2=LAPS[self._DRV2][NLAP2] # DateTime , ValueString , ValueInt_sec are the keys
           LapTime2_s=self._LAP2["ValueInt_sec"]
-          SLICE2=self._database.get_slice_between_times(feed="CarData.z",start_time=self._LAP2["DateTime"]-datetime.timedelta(seconds=LapTime2_s),end_time=self._LAP2["DateTime"])
+          SLICE2=self._database.get_slice_between_times(start_time=self._LAP2["DateTime"]-datetime.timedelta(seconds=LapTime2_s),end_time=self._LAP2["DateTime"])
           TEL2=self._database.get_dictionary(feed="CarData.z")[self._DRV2]     
           Times2=[TS-TEL2["TimeStamp"][SLICE2][0] for TS in TEL2["TimeStamp"][SLICE2]]
           self._Speeds2=np.array(TEL2["Speed"][SLICE2])
@@ -1085,7 +1084,7 @@ class GUI:
   
 ###################################################################################################################  
   
-  def Listener(self):
+  def update_position_plot(self):
     while not self._start_position:
       time.sleep(0.5)
     while True:
@@ -1094,7 +1093,7 @@ class GUI:
       self._last_message_displayed_DT_position = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
       if dpg.get_value("Race_Map")!="None" and dpg.does_item_exist("drawlist_map_position"):
         pos_dict=self._database.get_dictionary(feed="Position.z")
-        last_index_msg =self._database.get_last_msg_before_time(feed="Position.z",sel_time=self._last_message_displayed_DT_position)
+        last_index_msg =self._database.get_position_index_before_time(sel_time=self._last_message_displayed_DT_position)
         for driver,full_position in pos_dict.items():
           xyz=full_position["XYZ"][last_index_msg]
           xyz_dpg=self.transform_position_from_F1_to_dpg(xyz[0]/10.,xyz[1]/10.)
@@ -1108,18 +1107,7 @@ class GUI:
             dpg.apply_transform(item="node"+driver, transform=dpg.create_translation_matrix([xyz_dpg[0]-prev_pos[0], 
                                                                                              xyz_dpg[1]-prev_pos[1]]))
             
-          
-          #if driver not in self._drivers_prev_position.keys():
-          #  self._drivers_prev_position[driver]=[xyz_dpg[0],xyz_dpg[1]]
-          #  with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
-          #    dpg.draw_circle(color=self._DRIVERS_INFO[driver]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=5,fill=self._DRIVERS_INFO[driver]["color"],tag="circle"+driver)
-          #else:
-          #  dpg.apply_transform(item="node"+driver, transform=dpg.create_translation_matrix([xyz_dpg[0]-self._drivers_prev_position[driver][0], 
-          #                                                                                  xyz_dpg[1]-self._drivers_prev_position[driver][1]]))
-          #  self._drivers_prev_position[driver]=[xyz_dpg[0],xyz_dpg[1]]
-          #  print(dpg.get_item_pos("node"+driver))
-          #  dpg.get_item_configuration("my_circle_tag")['center']
-      time.sleep(self._TIME_UPDATE_TELEMETRY_PLOT)
+      time.sleep(self._TIME_UPDATE_POSITION_PLOT)
     
   
   def showTab(self,sender):
@@ -1188,7 +1176,7 @@ class GUI:
     
     self._update_telemetry_thread.start()    
     self._compare_telemetry_thread.start()
-    self._listener_thread.start()
+    self._update_position_thread.start()
     
     with dpg.theme() as global_theme:
       with dpg.theme_component(dpg.mvAll):

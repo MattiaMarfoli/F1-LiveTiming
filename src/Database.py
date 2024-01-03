@@ -49,6 +49,15 @@ class DATABASE:
     self._PrevSessionStatus=0
     self._Laps[None]={}
     
+    self._sample_position_list               = [] # exploiting the fact that positions data are given with the same Datetime for every driver
+    self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
+    self._sample_driver                      = ""
+    
+    self._last_datetime_checked_position     = 0
+    self._last_datetime_checked_cardata      = 0
+    self._last_position_index_found          = 0
+    
+    self._last_racedata_starting_index_found = 0
     
   def get_feeds(self):
     """
@@ -92,6 +101,8 @@ class DATABASE:
             if self._first_datetime==None:
               self._first_datetime=DT
               self._BaseTimestamp=DT.timestamp()
+              self._last_datetime_checked_cardata  = DT
+              self._last_datetime_checked_position = DT
               #print(DT.timestamp()," ",self._BaseTimestamp)
             #print(DT,RD)
             for driver,channels in RD.items():
@@ -108,6 +119,8 @@ class DATABASE:
                 self._CarData[driver]["Throttle"]=[]
                 self._CarData[driver]["Brake"]=[]
                 self._CarData[driver]["DRS"]=[]
+                if self._sample_driver == "":
+                  self._sample_driver = driver
               self._CarData[driver]["Time"].append(DT)
               self._CarData[driver]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
               self._CarData[driver]["RPM"].append(channels["Channels"]["0"])
@@ -116,6 +129,8 @@ class DATABASE:
               self._CarData[driver]["Throttle"].append(channels["Channels"]["4"] if channels["Channels"]["4"]<101 else 0)
               self._CarData[driver]["Brake"].append(int(channels["Channels"]["5"]) if int(channels["Channels"]["5"])<101 else 0)
               self._CarData[driver]["DRS"].append(1 if channels["Channels"]["45"]%2==0 else 0)
+              if driver == self._sample_driver:
+                self._sample_cardata_list.append(DT)
               #print(self._CarData[driver].keys())
             self._is_first_RD_msg=True
           #print(self._drivers_list,self._drivers_list_provisional)
@@ -133,9 +148,13 @@ class DATABASE:
                     self._Position[DRIVER]["Time"]=[]
                     self._Position[DRIVER]["TimeStamp"]=[]
                     self._Position[DRIVER]["XYZ"]=[]
+                    if self._sample_driver == "":
+                      self._sample_driver = DRIVER
                 self._Position[DRIVER]["Time"].append(DT)
                 self._Position[DRIVER]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
                 self._Position[DRIVER]["XYZ"].append([P_dict["X"],P_dict["Y"],P_dict["Z"]])
+                if DRIVER == self._sample_driver:
+                  self._sample_position_list.append(DT)
                 #print(DRIVER," ",P_dict["X"],P_dict["Y"],P_dict["Z"])
         elif feed=="TimingDataF1":
           for DT,TDF1 in msg_decrypted.items():
@@ -235,34 +254,29 @@ class DATABASE:
     with self._lock:
       return self._is_merge_ended
   
-  def get_slice_between_times(self,feed: str,start_time: datetime.datetime,end_time: datetime.datetime):
+  def get_slice_between_times(self,start_time: datetime.datetime,end_time: datetime.datetime):
     with self._lock:
       first_index_flag=True
-      if feed=="CarData.z":
-        dictionary=self._CarData
-      elif feed=="Position.z":
-        dictionary=self._Position
-      #print("AAAA: ",dictionary[list(dictionary.keys())[0]])
-      first_index=0
-      for index,Time in enumerate(dictionary[list(dictionary.keys())[0]]["Time"]): # Check if CarData are given even for crashed drivers
-        #print(Time, " ",start_time," ",end_time)
-        #print(Time, " ",end_time)
-        if first_index_flag and Time>=start_time:
-          first_index=index
-          self._first_index_RD=index #TODO optimization with this for next search
-          first_index_flag=False
-          #print(first_index)
-        elif Time>=end_time:
-          last_index=index # index not included so it should work like this!
-          #print(first_index,last_index,slice(first_index,last_index))
-          return slice(first_index,last_index)
-        
-      return slice(first_index,first_index)
       
-      #return (self._CarData[driver]["Time"][ST_to_ET],self._CarData[driver]["RPM"][ST_to_ET],
-      #        self._CarData[driver]["Speed"][ST_to_ET],self._CarData[driver]["Gear"][ST_to_ET],
-      #        self._CarData[driver]["Throttle"][ST_to_ET],self._CarData[driver]["Brake"][ST_to_ET],
-      #        self._CarData[driver]["DRS"][ST_to_ET])
+      if start_time.timestamp()-self._last_datetime_checked_cardata.timestamp()>0:
+        for index,Time in zip(range(self._last_racedata_starting_index_found,len(self._sample_cardata_list)),self._sample_cardata_list[self._last_racedata_starting_index_found:]):
+          if first_index_flag and Time>=start_time:
+            self._last_racedata_starting_index_found=index
+            self._last_datetime_checked_cardata = Time
+            first_index_flag=False
+          elif Time>=end_time:
+            return slice(self._last_racedata_starting_index_found,index)
+     
+      else:
+        for index,Time in enumerate(self._sample_cardata_list): 
+          if first_index_flag and Time>=start_time:
+            self._last_racedata_starting_index_found=index
+            self._last_datetime_checked_cardata = Time
+            first_index_flag=False
+          elif Time>=end_time:
+            return slice(self._last_racedata_starting_index_found,index)
+
+      return slice(self._last_racedata_starting_index_found,index)
 
   def get_race_messages_before_time(self,sel_time: datetime.datetime):
     with self._lock:
@@ -273,6 +287,27 @@ class DATABASE:
         else:
           return msgs
       return msgs
+
+  def get_position_index_before_time(self,sel_time: datetime.datetime):
+    with self._lock:
+      if sel_time.timestamp()-self._last_datetime_checked_position.timestamp()>0:
+        for index,Time in zip(range(self._last_position_index_found,len(self._sample_position_list)),self._sample_position_list[self._last_position_index_found:]):
+          if Time.timestamp()-sel_time.timestamp()<0:
+            self._last_position_index_found=index
+            self._last_datetime_checked_position=Time
+          else:
+            break
+        return self._last_position_index_found
+      else:
+        for index,Time in enumerate(self._sample_position_list): 
+          if Time.timestamp()-sel_time.timestamp()<0:
+            self._last_position_index_found=index
+            self._last_datetime_checked_position=Time
+          else:
+            break
+        return self._last_position_index_found
+    # check if sel_time>last_time_check -> start from last_index_found the search in THE list
+    # otherwise do this above
 
   def get_last_msg_before_time(self,feed: str,sel_time: datetime.datetime): # returns last index for position!
     with self._lock:
@@ -287,14 +322,6 @@ class DATABASE:
           else:
             return s_it
         return {}
-      elif feed=="Position.z":
-        last_index=0
-        for index,Time in enumerate(self._Position[list(self._Position.keys())[0]]["Time"]): # Check if CarData are given even for crashed drivers
-          if Time.timestamp()-sel_time.timestamp()<0:
-            last_index=index
-          else:
-            break
-        return last_index
       elif feed=="RaceControlMessages":
         msg=""
         for msg_nr,msg_content in self._RaceMessages.items(): # Time TimeStamp Category Message
@@ -304,7 +331,7 @@ class DATABASE:
             return msg
         return msg
       else:
-        print(feed, " not in case in get_last_msg_before_time")
+        print(feed, " not in get_last_msg_before_time")
         return {}
 
   def get_dictionary(self,feed: str):
