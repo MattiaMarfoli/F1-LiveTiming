@@ -317,6 +317,19 @@ class PARSER:
                                                                                                                                                                 stints["NumberOfLaps"],
                                                                                                                                                                 stints["LastLapTime"]["Value"]])
           return body_exp
+        elif feed=="TimingAppData":
+          line_noBOM=line_noBOM.replace("\ufeff","")
+          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
+          body=json.loads(line_noBOM[12:])
+          body_exp={}
+          if "Lines" in body.keys():
+            for driver,info in body["Lines"].items():
+              if "Stints" in info.keys():
+                  if type(info["Stints"])==dict:
+                    if self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond) not in body_exp.keys():
+                      body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)]=[]
+                    body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)].append([driver,info["Stints"]])
+          return body_exp
         elif feed=="WeatherData":
           line_noBOM=line_noBOM.replace("\ufeff","")
           date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")

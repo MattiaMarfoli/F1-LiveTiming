@@ -33,6 +33,7 @@ class DATABASE:
     self._Position={}
     self._LeaderBoard={}
     self._Laps={}
+    self._Tyres={}
     self._Weather={}
     self._RaceMessages = {}
     self._LiveSessionStatus="Unknown"
@@ -173,6 +174,33 @@ class DATABASE:
                                         "ValueString":    Value,
                                         "ValueInt_sec":   Value_int,
                                         "TimeStamp": DT.timestamp()-self._BaseTimestamp}
+        elif feed=="TimingAppData":
+          for DT,TAD in msg_decrypted.items():
+            for tyre_update in TAD:
+              driver=tyre_update[0]
+              info_stint=tyre_update[1]
+              if driver not in self._Tyres.keys():
+                self._Tyres[driver]={}
+              for stint,info_stint in info_stint.items():
+                if stint not in self._Tyres[driver].keys():
+                  self._Tyres[driver][stint]={"TotalLaps":0,
+                                              "Compound":"Unknown",
+                                              "New":False,
+                                              "CompoundAge":0,
+                                              "StartingLap":1 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"],
+                                              "EndingLap":1}
+                if "Compound" in info_stint.keys():
+                  self._Tyres[driver][stint]["Compound"]=info_stint["Compound"]
+                  if "New" in info_stint.keys():
+                    self._Tyres[driver][stint]["New"] = True if info_stint["New"]=="true" else False
+                  if "StartLaps" in info_stint.keys():
+                    self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
+                    self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
+                if "TotalLaps" in info_stint.keys():
+                  self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
+                  self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
+                  #current_lap[driver]+=1
+                    
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
             self._Weather[DT]=WeatherDict    
@@ -253,6 +281,22 @@ class DATABASE:
   def is_merge_ended(self):
     with self._lock:
       return self._is_merge_ended
+  
+  def get_driver_tyres(self,driver: str,sel_time: datetime.datetime):
+    with self._lock:
+      sel_lap=None
+      for lap,info_lap in self._Laps[driver].items():
+        if sel_time.timestamp()-info_lap["DateTime"].timestamp()>0:
+          sel_lap=int(lap)
+        else:
+          break
+      if sel_lap==None:
+        return["-","-","-","-"]
+      for stint,info_stint in self._Tyres[driver].items():
+        if sel_lap >= info_stint["StartingLap"] and sel_lap <= info_stint["EndingLap"]:
+          return [info_stint["Compound"],info_stint["New"],stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
+      print("Cannot find lap number ",sel_lap," for driver: ",driver," !")
+      return ["Unknown","Unknown","Unknown","Unknown"]
   
   def get_slice_between_times(self,start_time: datetime.datetime,end_time: datetime.datetime):
     with self._lock:

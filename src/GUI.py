@@ -664,6 +664,8 @@ class GUI:
           dpg.set_axis_ticks(axis="x_axis_THROTTLE"+driver,label_pairs=x_label)
           dpg.set_axis_ticks(axis="x_axis_SPEED"+driver,label_pairs=x_label)
           
+          compound,isnew,stint,age=self._database.get_driver_tyres(driver,self._last_message_displayed_DT)
+          dpg.set_item_label(item=self._DRIVERS_INFO[driver]["full_name"],label=self._DRIVERS_INFO[driver]["full_name"]+" "+compound+" "+str(isnew)+" "+str(stint)+" "+str(age))
           
       #print(minx," ",maxx," " ,x_label[:10])
       msgs=self._database.get_race_messages_before_time(self._last_message_displayed_DT)

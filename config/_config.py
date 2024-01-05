@@ -44,7 +44,8 @@ FEED_LIST=["CarData.z",  # CarData.z needs to be the first
            "TimingDataF1",
            "WeatherData",
            "SessionStatus",
-           "RaceControlMessages"] 
+           "RaceControlMessages",
+           "TimingAppData"] 
 DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)
 
 # Live Stream Real Time
