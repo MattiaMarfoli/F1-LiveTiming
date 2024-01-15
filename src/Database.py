@@ -54,6 +54,31 @@ class DATABASE:
     self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
     self._sample_driver                      = ""
     
+    self._finish_count=0 # 0= SQ1/Q1,  1= SQ2/Q2, 2=SQ3,Q3
+    self._detected_session_type="Qualifying" #Qualifying, Sprint Qualifying, Race, Sprint Race, Practice
+    self._finish_status={
+                          "Qualifying":{
+                                        1: "Q1",
+                                        2: "Q2",
+                                        3: "Q3"
+                          },
+                          "Sprint_Qualifying":{
+                                        1: "SQ1",
+                                        2: "SQ2",
+                                        3: "SQ3"
+                          },
+                          "Race":{
+                                        1: "Race"
+                          },
+                          "Sprint_Race":{
+                                        1: "Sprint Race"
+                          },
+                          "Practice":{
+                                        0: "Practice Session"
+                          }
+                            
+                        }
+    
     self._last_datetime_checked_position     = 0
     self._last_datetime_checked_cardata      = 0
     self._last_position_index_found          = 0
@@ -214,13 +239,19 @@ class DATABASE:
                 self._Nof_Restarts=1
               self._LiveSessionStatus="Inactive"    
               self._RunningStatus[self._Nof_Restarts]={}
+              if Status["Status"]=="Finished":
+                self._finish_count+=1
+              try:
+                self._RunningStatus[self._Nof_Restarts]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+              except:
+                print("Not possible to determine detected session: ",self._detected_session_type," or finish_count: ",self._finish_count," not in finish_status keys: ",self._finish_status)
               self._RunningStatus[self._Nof_Restarts]["StartDateTime"]=self._PrevSessionDatetime
               self._RunningStatus[self._Nof_Restarts]["EndDateTime"]=DT
               self._RunningStatus[self._Nof_Restarts]["Duration"]=DT.timestamp()-self._PrevSessionDatetime.timestamp()
             elif Status["Status"]=="Started":
-                self._PrevSessionDatetime=DT
-                self._Nof_Restarts+=1
-                self._LiveSessionStatus="Running"    
+              self._PrevSessionDatetime=DT
+              self._Nof_Restarts+=1
+              self._LiveSessionStatus="Running"    
         elif feed=="RaceControlMessages":
           for DT,Message in msg_decrypted.items():
             if "Messages" in Message.keys():
@@ -267,7 +298,7 @@ class DATABASE:
       # So we know if the given time is inside a running window...
       for Nr_of_restart,Times in self._RunningStatus.items():
         if DT.timestamp()>Times["StartDateTime"].timestamp() and DT.timestamp()<Times["EndDateTime"].timestamp():
-          return "Running"
+          return Times["Type"]
       # ...otherwise we can be in LiveTiming: then LiveSessionStatus is the way
       # or we are in replay live timing outside the window. Then all the data are 
       # processed and  the last message of SessionStatus.jsonStream is "Ends" with 

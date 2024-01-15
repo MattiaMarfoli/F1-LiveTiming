@@ -41,10 +41,10 @@ FORCE_UPDATE=False
 # Database  
 FEED_LIST=["CarData.z",  # CarData.z needs to be the first 
            "Position.z", # ALWAYS (base_timestamp for now taken from this)!!
+           "RaceControlMessages",
            "TimingDataF1",
            "WeatherData",
            "SessionStatus",
-           "RaceControlMessages",
            "TimingAppData"] 
 DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)
 
