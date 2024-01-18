@@ -105,6 +105,8 @@ class GUI:
     
     self._laps=None
     
+    self._session_name,self._event_name,self._meeting_key = "","",""
+    
     if self._LIVE_SIM:
       self._tabs={"choose_race": "Race_Selector",
                   "update_telemetry": "Telemetry_view",
@@ -432,6 +434,7 @@ class GUI:
         with dpg.group(label="Session_Info",tag="sessioninfo",horizontal=False,pos=(7.75*self._BUTTONS_WIDTH,self._BUTTONS_HEIGHT*(self._BUTTONS_ROWS-0.8))):
           dpg.add_text(default_value="Current Time:", tag="Actual_Time")
           dpg.add_text(default_value="Status:", tag="Session_Status")
+          dpg.add_text(default_value="Session: "+self._database.get_session_type(), tag="Session_Name")
           # if you add or delete some texts inside "weather" change the value of 
           # 7 in add_drawlist below!
 
@@ -489,7 +492,6 @@ class GUI:
       #print("Still no messages..")
       time.sleep(1)
     # ok now we can start..
-   
     # .. maybe.. (weird but for now it should works)
     while self._database.get_drivers_list() is None:
       #print(self._database.get_dictionary("CarData.z"))

@@ -1,6 +1,8 @@
 import PARSER
 import Analyzer
 import datetime
+import arrow
+import requests
 import threading
 import logging
 
@@ -54,15 +56,25 @@ class DATABASE:
     self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
     self._sample_driver                      = ""
     
+    # api requests to identify session played
+    self._available_years=["2023","2022","2021","2020","2019","2018"]
+    self._base_url = "https://api.formula1.com/v1"
+    self._eventListing_url="editorial-eventlisting"
+    self._sessionResults_url="fom-results"
+    self._headers = {
+      "apikey": "t3DrvCuXvjDX8nIvPpcSNTbB9kae1DPs",
+      "locale": "en"
+               }
+    self._detected_session_type,self._event_name,self._meeting_key = "","",""
     self._finish_count=0 # 0= SQ1/Q1,  1= SQ2/Q2, 2=SQ3,Q3
-    self._detected_session_type="Qualifying" #Qualifying, Sprint Qualifying, Race, Sprint Race, Practice
+    #self._detected_session_type="Unknown" #Qualifying, Sprint Qualifying, Race, Sprint Race, Practice
     self._finish_status={
                           "Qualifying":{
                                         1: "Q1",
                                         2: "Q2",
                                         3: "Q3"
                           },
-                          "Sprint_Qualifying":{
+                          "Sprint Shootout":{
                                         1: "SQ1",
                                         2: "SQ2",
                                         3: "SQ3"
@@ -70,13 +82,18 @@ class DATABASE:
                           "Race":{
                                         1: "Race"
                           },
-                          "Sprint_Race":{
+                          "Sprint":{
                                         1: "Sprint Race"
                           },
-                          "Practice":{
-                                        0: "Practice Session"
-                          }
-                            
+                          "Practice 1":{
+                                        1: "Practice 1"
+                          },
+                          "Practice 2":{
+                                        1: "Practice 2"
+                          },
+                          "Practice 3":{
+                                        1: "Practice 3"
+                          },
                         }
     
     self._last_datetime_checked_position     = 0
@@ -129,6 +146,7 @@ class DATABASE:
               self._BaseTimestamp=DT.timestamp()
               self._last_datetime_checked_cardata  = DT
               self._last_datetime_checked_position = DT
+              self._detected_session_type,self._event_name,self._meeting_key = self.detect_session_type(DT)
               #print(DT.timestamp()," ",self._BaseTimestamp)
             #print(DT,RD)
             for driver,channels in RD.items():
@@ -472,5 +490,58 @@ class DATABASE:
         print("SKIPPED!")
     self._is_merge_ended=True
 
+  def detect_session_type(self,first_datetime):
+    print(first_datetime)
+    for season in self._available_years:
+      print("Checking year: ",season)
+      events_query="events?season="+season
+      events_url="/".join([self._base_url,self._eventListing_url,events_query])
+      events_request=requests.get(events_url, headers=self._headers)
+      if events_request.ok:
+        events=events_request.json()["events"]
+        for event in events:
+          start_DT=arrow.get(event["meetingStartDate"]).datetime-datetime.timedelta(hours=int(event["gmtOffset"].split(":")[0]))
+          end_DT=arrow.get(event["meetingEndDate"]).datetime-datetime.timedelta(hours=int(event["gmtOffset"].split(":")[0]))
+          if (first_datetime-start_DT).total_seconds()>0 and (first_datetime-end_DT).total_seconds()<0:
+            event_name=event["meetingOfficialName"]
+            meeting_key=event["meetingKey"]
+            timetables_query="timetables?meeting="+event["meetingKey"]+"&season="+season
+            timetables_url="/".join([self._base_url,self._sessionResults_url,timetables_query])
+            proceed_flag=True
+            break
+          else:
+            proceed_flag=False
+        if proceed_flag:
+          sessions=requests.get(timetables_url, headers=self._headers).json()["timetables"]
+          max_time=1e9
+          for session in sessions:
+            start_DT=arrow.get(session["startTime"]).datetime-datetime.timedelta(hours=int(session["gmtOffset"].split(":")[0]))
+            end_DT=arrow.get(session["endTime"]).datetime-datetime.timedelta(hours=int(session["gmtOffset"].split(":")[0]))
+            if (first_datetime-start_DT).total_seconds()>=0 and (first_datetime-end_DT).total_seconds()<=0:
+              session_name=session["description"]
+              inside_outside="inside the event!"
+              print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
+              return session_name,event_name,meeting_key
+            else:
+              if abs((first_datetime-start_DT).total_seconds())<max_time and (first_datetime-end_DT).total_seconds()<=0:
+                max_time=abs((first_datetime-start_DT).total_seconds())
+                session_name=session["description"]
+                inside_outside="close to the event, just "+str(round(max_time/60.))+" minutes away from the start!"
+                print(session["description"]," ",abs((first_datetime-start_DT).total_seconds())," ",(first_datetime-end_DT).total_seconds())
+          print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
+          return session_name,event_name,meeting_key
+      print("...failed search. Passing to next year!")
+    print("Session not found! There is evidently a problem since you are seeing data from a session...")    
+    return "Unknown","Unknown","Unknown"
 
+  def get_session_type(self):
+    with self._lock:
+      return self._detected_session_type
   
+  def get_event_name(self):
+    with self._lock:
+      return self._event_name
+  
+  def get_meeting_key(self):
+    with self._lock:
+      return self._meeting_key
