@@ -15,7 +15,8 @@ class GUI:
   def __init__(self, FORCE_UPDATE: bool=False):
     
     # to be taken from buttons 
-    self._YEAR           = "none"            
+    self._YEAR           = "none"          
+    self._detected_year  = None  
     self._RACE           = "none"           
     self._SESSION        = "none"
     self._FORCE_UPDATE   = FORCE_UPDATE  
@@ -52,6 +53,7 @@ class GUI:
     self._watchlist_drivers = _config.WATCHLIST_DRIVERS
     self._watchlist_teams = _config.WATCHLIST_TEAMS
     self._maps = _config.MAPS
+    self._sessions_duration = _config.SESSION_DURATION
     if not self._LIVE_SIM:
       self._IO_thread = threading.Thread(target=self._client.start)
     dpg.create_context()
@@ -73,6 +75,8 @@ class GUI:
     self._last_message_displayed_DT          = None
     self._last_message_displayed_DT_position = None
     self._first_message_DT                   = None
+    self._last_session_status                = "Inactive"
+    self._starting_session_DT                = None
     self._time_skipped                       = 0
     self._time_paused                        = 0
     self._BaseTimestamp                      = None
@@ -422,26 +426,27 @@ class GUI:
       
       with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=630,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
         # weather group
-        with dpg.group(label="Weather1",tag="weather1",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH,0)):  
-          dpg.add_text(default_value="AirTemp:",  tag="AirTemp")
-          dpg.add_text(default_value="TrackTemp:",tag="TrackTemp")
-          dpg.add_text(default_value="Humidity:", tag="Humidity")
-          dpg.add_text(default_value="WindDirection:", tag="WindDirection")
-        with dpg.group(label="Weather2",tag="weather2",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH+130,0)):
-          dpg.add_text(default_value="WindSpeed:",tag="WindSpeed")
-          dpg.add_text(default_value="Pressure:", tag="Pressure")
-          dpg.add_text(default_value="Rainfall:", tag="Rainfall")
-        with dpg.group(label="Session_Info",tag="sessioninfo",horizontal=False,pos=(7.75*self._BUTTONS_WIDTH,self._BUTTONS_HEIGHT*(self._BUTTONS_ROWS-0.8))):
+        with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH,0)):  
+          dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
+          dpg.add_text(default_value="TrackTemp:",tag="TrackTemp") #
+          dpg.add_text(default_value="Rainfall:", tag="Rainfall") #
           dpg.add_text(default_value="Current Time:", tag="Actual_Time")
-          dpg.add_text(default_value="Status:", tag="Session_Status")
           dpg.add_text(default_value="Session: "+self._database.get_session_type(), tag="Session_Name")
-          # if you add or delete some texts inside "weather" change the value of 
-          # 7 in add_drawlist below!
+          dpg.add_text(default_value="Session time remaining: ", tag="Session_TimeRemaining")
+          #dpg.add_text(default_value="WindDirection:", tag="WindDirection") 
+        with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH+130,0)):
+          dpg.add_text(default_value="WindSpeed:",tag="WindSpeed") #
+          dpg.add_text(default_value="Humidity:", tag="Humidity") #
+          dpg.add_text(default_value="Status:", tag="Session_Status")
+          #dpg.add_text(default_value="Pressure:", tag="Pressure") 
+          
+
 
         # buttons
         self._drivers_list=sorted(self._drivers_list,key=int)
         self.add_buttons()
         self._y_scroll=dpg.get_y_scroll(item="Primary window")
+        self._detected_year = self._database.get_year()
       
       with dpg.window(label="Track_Map",tag="Track_Map",width=630,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
         #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
@@ -544,8 +549,13 @@ class GUI:
       #self._last_message_displayed_DT = self._database.get_last_datetime()     
       self._last_message_displayed_DT  = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
       
+      status=self._database.get_actual_session_status(self._last_message_displayed_DT)
+      time_session_duration=self._sessions_duration[self._detected_year][status]
+      time_remaining=time_session_duration-int(self._database.get_passed_time_into_session(DT=self._last_message_displayed_DT))
       dpg.set_value(item="Actual_Time",value="Current Time: "+self._last_message_displayed_DT.strftime("%H:%M:%S"))
-      dpg.set_value(item="Session_Status",value="Status: "+str(self._database.get_actual_session_status(self._last_message_displayed_DT)))
+      dpg.set_value(item="Session_Status",value="Status: "+str(status))
+      dpg.set_value(item="Session_TimeRemaining",value="Time remaining: "+str(time_remaining//3600).zfill(2)+":"+str((time_remaining%3600)//60).zfill(2)+":"+str((time_remaining%60)).zfill(2))
+      
       
       #print("BBB")
       slice_between_times = self._database.get_slice_between_times(
@@ -678,7 +688,7 @@ class GUI:
       weather_data=self._database.get_last_msg_before_time(feed="WeatherData",sel_time=self._last_message_displayed_DT)
       for key,value in weather_data.items():
         #print(key)
-        if key in ["AirTemp","TrackTemp","Humidity","WindSpeed","WindDirection","Pressure","Rainfall"]:
+        if dpg.does_item_exist(item=key):
           dpg.set_value(item=key,value=str(key)+":"+str(value))
       
       if self._PRINT_TIMES:

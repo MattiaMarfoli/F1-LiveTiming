@@ -38,6 +38,9 @@ class DATABASE:
     self._Tyres={}
     self._Weather={}
     self._RaceMessages = {}
+    
+    self._last_aborted_is_compatible = False
+    self._list_of_not_resuming_datetimes=[]
     self._LiveSessionStatus="Unknown"
     self._RunningStatus={
                           #1:                       # nr of restart
@@ -47,9 +50,6 @@ class DATABASE:
                           #  "Duration":      0
                           #}  
                         }
-    self._Nof_Restarts=0
-    self._PrevSessionDatetime=0
-    self._PrevSessionStatus=0
     self._Laps[None]={}
     
     self._sample_position_list               = [] # exploiting the fact that positions data are given with the same Datetime for every driver
@@ -65,9 +65,11 @@ class DATABASE:
       "apikey": "t3DrvCuXvjDX8nIvPpcSNTbB9kae1DPs",
       "locale": "en"
                }
+    
+    # Session Status
     self._detected_session_type,self._event_name,self._meeting_key = "","",""
-    self._finish_count=0 # 0= SQ1/Q1,  1= SQ2/Q2, 2=SQ3,Q3
-    #self._detected_session_type="Unknown" #Qualifying, Sprint Qualifying, Race, Sprint Race, Practice
+    self._Nof_Restarts=0
+    self._finish_count=1
     self._finish_status={
                           "Qualifying":{
                                         1: "Q1",
@@ -146,7 +148,7 @@ class DATABASE:
               self._BaseTimestamp=DT.timestamp()
               self._last_datetime_checked_cardata  = DT
               self._last_datetime_checked_position = DT
-              self._detected_session_type,self._event_name,self._meeting_key = self.detect_session_type(DT)
+              self._detected_session_type,self._event_name,self._meeting_key,self._year = self.detect_session_type(DT)
               #print(DT.timestamp()," ",self._BaseTimestamp)
             #print(DT,RD)
             for driver,channels in RD.items():
@@ -250,26 +252,71 @@ class DATABASE:
             
         elif feed=="SessionStatus": # more checks needed
           for DT,Status in msg_decrypted.items():
-            # if finished => before was running. Updating dict
-            if Status["Status"]=="Finished" or Status["Status"]=="Aborted" or Status["Status"]=="Finalised" or Status["Status"]=="Ends":
-              if self._Nof_Restarts==0:
-                self._PrevSessionDatetime=self._first_datetime
-                self._Nof_Restarts=1
-              self._LiveSessionStatus="Inactive"    
-              self._RunningStatus[self._Nof_Restarts]={}
-              if Status["Status"]=="Finished":
-                self._finish_count+=1
-              try:
-                self._RunningStatus[self._Nof_Restarts]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
-              except:
-                print("Not possible to determine detected session: ",self._detected_session_type," or finish_count: ",self._finish_count," not in finish_status keys: ",self._finish_status)
-              self._RunningStatus[self._Nof_Restarts]["StartDateTime"]=self._PrevSessionDatetime
-              self._RunningStatus[self._Nof_Restarts]["EndDateTime"]=DT
-              self._RunningStatus[self._Nof_Restarts]["Duration"]=DT.timestamp()-self._PrevSessionDatetime.timestamp()
-            elif Status["Status"]=="Started":
-              self._PrevSessionDatetime=DT
+            if Status["Status"]=="Started": 
+              
+              # displayed instantly as zero time remaining in telemetry tab even if race message arrives 
+              # seconds later.. do not know a fast solution right now. Therefore for now it will remain
+              # as it is 
+              if self._last_aborted_is_compatible:
+                if DT>self._list_of_not_resuming_datetimes[0]:
+                  self._last_aborted_is_compatible = False
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
+                  self._list_of_not_resuming_datetimes.pop(0)
+                  self._finish_count+=1
+                  self._Nof_Restarts=0
+                else:
+                  self._last_aborted_is_compatible = False
+              
               self._Nof_Restarts+=1
-              self._LiveSessionStatus="Running"    
+              self._LiveSessionStatus=self._finish_status[self._detected_session_type][self._finish_count]
+            
+              if self._finish_count not in self._RunningStatus.keys():
+                self._RunningStatus[self._finish_count]={}
+              if self._Nof_Restarts not in self._RunningStatus[self._finish_count].keys():
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]={}
+                
+              self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"]=DT
+              self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=None
+              self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=None
+              self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=False
+              self._RunningStatus[self._finish_count][self._Nof_Restarts]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+            
+            elif Status["Status"]=="Aborted":
+              self._LiveSessionStatus="Off"
+              if self._Nof_Restarts==0:
+                self._RunningStatus[self._finish_count][1]["StartDateTime"]=self._first_datetime
+                self._RunningStatus[self._finish_count][1]["EndDateTime"]=DT
+                self._RunningStatus[self._finish_count][1]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
+                self._RunningStatus[self._finish_count][1]["Is_session_completed"]=False
+                self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+              else:
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
+              
+              if len(self._list_of_not_resuming_datetimes)>0:
+                if DT<self._list_of_not_resuming_datetimes[0]:
+                  self._last_aborted_is_compatible=True
+              
+            elif Status["Status"]=="Finished":  
+              self._LiveSessionStatus="Off"
+              if self._Nof_Restarts==0:
+                self._RunningStatus[self._finish_count][1]["StartDateTime"]=self._first_datetime
+                self._RunningStatus[self._finish_count][1]["EndDateTime"]=DT
+                self._RunningStatus[self._finish_count][1]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
+                self._RunningStatus[self._finish_count][1]["Is_session_completed"]=True
+                self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+              else:
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
+
+              self._last_aborted_is_compatible=False
+              self._finish_count+=1
+              self._Nof_Restarts=0
+            
+            else:
+              self._LiveSessionStatus = "Off"
+       
         elif feed=="RaceControlMessages":
           for DT,Message in msg_decrypted.items():
             if "Messages" in Message.keys():
@@ -298,6 +345,9 @@ class DATABASE:
                                                  "TimeStamp": DT.timestamp(), # needs checks!
                                                  "Category":  category,
                                                  "Message":   Msg["Message"]}
+                  if "WILL NOT BE RESUMED" in Msg["Message"]:
+                    self._list_of_not_resuming_datetimes.append(DT)
+                    
         else: # TODO: update this
           DT=msg_decrypted[list(msg_decrypted.keys())[0]]
         self._last_datetime=DT
@@ -314,15 +364,32 @@ class DATABASE:
     with self._lock:
       # For replay live timing we have all the data available.
       # So we know if the given time is inside a running window...
-      for Nr_of_restart,Times in self._RunningStatus.items():
-        if DT.timestamp()>Times["StartDateTime"].timestamp() and DT.timestamp()<Times["EndDateTime"].timestamp():
-          return Times["Type"]
-      # ...otherwise we can be in LiveTiming: then LiveSessionStatus is the way
-      # or we are in replay live timing outside the window. Then all the data are 
-      # processed and  the last message of SessionStatus.jsonStream is "Ends" with 
-      # 100% certainty (I hope!). 
-      return self._LiveSessionStatus
-  
+      for session,nr_of_restarts_dict in self._RunningStatus.items():
+        for nr_of_restart,Times in nr_of_restarts_dict.items():
+          if Times["EndDateTime"]!=None:
+            if DT.timestamp()>Times["StartDateTime"].timestamp() and DT.timestamp()<Times["EndDateTime"].timestamp():
+              return Times["Type"]
+          else:
+            return self._LiveSessionStatus
+      return "Off"
+      
+  def get_passed_time_into_session(self,DT: datetime.datetime):
+    with self._lock:
+      for n_session,session_dict in self._RunningStatus.items():
+        time_passed=0
+        for n_restart,timing_info in session_dict.items():
+          if timing_info["EndDateTime"]!=None:
+            if DT.timestamp()>=timing_info["StartDateTime"].timestamp():
+              if DT.timestamp()<=timing_info["EndDateTime"].timestamp():
+                return time_passed+DT.timestamp()-timing_info["StartDateTime"].timestamp()
+              else:
+                time_passed+=timing_info["Duration"]
+            else:
+              return time_passed
+          else:
+            return time_passed+(DT.timestamp()-timing_info["StartDateTime"].timestamp())
+      return time_passed
+          
   def is_first_RD_arrived(self):
     with self._lock:
       return self._is_first_RD_msg
@@ -521,7 +588,7 @@ class DATABASE:
               session_name=session["description"]
               inside_outside="inside the event!"
               print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
-              return session_name,event_name,meeting_key
+              return session_name,event_name,meeting_key,season
             else:
               if abs((first_datetime-start_DT).total_seconds())<max_time and (first_datetime-end_DT).total_seconds()<=0:
                 max_time=abs((first_datetime-start_DT).total_seconds())
@@ -529,10 +596,10 @@ class DATABASE:
                 inside_outside="close to the event, just "+str(round(max_time/60.))+" minutes away from the start!"
                 print(session["description"]," ",abs((first_datetime-start_DT).total_seconds())," ",(first_datetime-end_DT).total_seconds())
           print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
-          return session_name,event_name,meeting_key
+          return session_name,event_name,meeting_key,season
       print("...failed search. Passing to next year!")
     print("Session not found! There is evidently a problem since you are seeing data from a session...")    
-    return "Unknown","Unknown","Unknown"
+    return "Unknown","Unknown","Unknown","Unknown"
 
   def get_session_type(self):
     with self._lock:
@@ -545,3 +612,7 @@ class DATABASE:
   def get_meeting_key(self):
     with self._lock:
       return self._meeting_key
+  
+  def get_year(self):
+    with self._lock:
+      return self._year

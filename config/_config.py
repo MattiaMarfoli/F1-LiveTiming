@@ -19,6 +19,7 @@ FILENAME_FEEDS="FEEDS.json"
 FILENAME_URLS="SESSION_URLS.json"
 FILENAME_COLORS="COLORS.json"
 FILENAME_MAPS="MAPS.json"
+FILENAME_DURATION="SESSION_DURATION.json"
 FILENAME_LOGGER="log/myapp.log"
 
 # Logger Info
@@ -41,7 +42,7 @@ FORCE_UPDATE=False
 # Database  
 FEED_LIST=["CarData.z",  # CarData.z needs to be the first 
            "Position.z", # ALWAYS (base_timestamp for now taken from this)!!
-           "RaceControlMessages",
+           "RaceControlMessages", # this before sessionStatus!!!
            "TimingDataF1",
            "WeatherData",
            "SessionStatus",
@@ -72,6 +73,7 @@ DEBUG_PRINT    = True
 PRINT_TIMES    = False
 COLOR_DRIVERS  = json.load(open(paths.DATA_PATH / FILENAME_COLORS,"r"))
 MAPS  = json.load(open(paths.DATA_PATH / FILENAME_MAPS,"r"))
+SESSION_DURATION =  json.load(open(paths.DATA_PATH / FILENAME_DURATION,"r"))
 WATCHLIST_DRIVERS = ["1","11","4","16","55","44","63"]
 WATCHLIST_DRIVERS = [str(i) for i in range(1,100)] # all drivers
 WATCHLIST_TEAMS   = ["Red Bull","Ferrari","Mercedes","McLaren","Aston Martin","Alpine","AlphaTauri","Williams","Alfa Romeo","Haas"]
