@@ -10,3 +10,4 @@ your*
 __pycache__/
 .vs/
 *jsonStream
+log/*.json

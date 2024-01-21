@@ -480,10 +480,11 @@ class GUI:
       
   def is_overall_fastest_up_to_time(self,Laps,laptime):    
     for driver in self._drivers_list:
-      for nlap,lap in Laps[driver].items():
-        if lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
-          if laptime>lap["ValueInt_sec"]:
-            return False
+      if driver in Laps.keys():
+        for nlap,lap in Laps[driver].items():
+          if lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
+            if laptime>lap["ValueInt_sec"]:
+              return False
     return True 
 
   def update_telemetry_plot(self):
