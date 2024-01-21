@@ -179,6 +179,7 @@ class DATABASE:
                 self._sample_cardata_list.append(DT)
               #print(self._CarData[driver].keys())
             self._is_first_RD_msg=True
+            self._last_datetime=DT
           #print(self._drivers_list,self._drivers_list_provisional)
           if self._drivers_list==None:
             self._drivers_list=list(self._drivers_list_provisional)
@@ -187,6 +188,8 @@ class DATABASE:
           for DT,P in msg_decrypted.items():
             if DT.timestamp()-self._BaseTimestamp<0:
               print(DT, " in Position.z in update_database is discarded: message sent before the first CarData message!")
+            elif DT.timestamp()-self._last_datetime.timestamp()>0:
+              print(DT, " in Position.z in update_database is discarded: message sent after the last CarData message!")
             else:
               for DRIVER,P_dict in P.items():
                 if DRIVER not in self._Position.keys():
@@ -204,153 +207,168 @@ class DATABASE:
                 #print(DRIVER," ",P_dict["X"],P_dict["Y"],P_dict["Z"])
         elif feed=="TimingDataF1":
           for DT,TDF1 in msg_decrypted.items():
-            for LAP in TDF1:
-              #print(LAP)
-              driver=LAP[0]
-              NLap=LAP[1]
-              Value=LAP[2]
-              if self._Display_LapTimes:
-                print(driver,NLap,Value)
-              if driver not in self._Laps:
-                self._Laps[driver]={}
-              mins,secs=Value.split(":")
-              Value_int=int(mins)*60. + float(secs) # s
-              self._Laps[driver][NLap]={"DateTime":       DT, 
-                                        "ValueString":    Value,
-                                        "ValueInt_sec":   Value_int,
-                                        "TimeStamp": DT.timestamp()-self._BaseTimestamp}
+            if DT.timestamp()-self._last_datetime.timestamp()>0:
+              print(DT, " in TimingDataF1 in update_database is discarded: message sent after the last CarData message!")
+            else:
+              for LAP in TDF1:
+                #print(LAP)
+                driver=LAP[0]
+                NLap=LAP[1]
+                Value=LAP[2]
+                if self._Display_LapTimes:
+                  print(driver,NLap,Value)
+                if driver not in self._Laps:
+                  self._Laps[driver]={}
+                mins,secs=Value.split(":")
+                Value_int=int(mins)*60. + float(secs) # s
+                self._Laps[driver][NLap]={"DateTime":       DT, 
+                                          "ValueString":    Value,
+                                          "ValueInt_sec":   Value_int,
+                                          "TimeStamp": DT.timestamp()-self._BaseTimestamp}
         elif feed=="TimingAppData":
           for DT,TAD in msg_decrypted.items():
-            for tyre_update in TAD:
-              driver=tyre_update[0]
-              info_stint=tyre_update[1]
-              if driver not in self._Tyres.keys():
-                self._Tyres[driver]={}
-              for stint,info_stint in info_stint.items():
-                if stint not in self._Tyres[driver].keys():
-                  self._Tyres[driver][stint]={"TotalLaps":0,
-                                              "Compound":"Unknown",
-                                              "New":False,
-                                              "CompoundAge":0,
-                                              "StartingLap":1 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"],
-                                              "EndingLap":1}
-                if "Compound" in info_stint.keys():
-                  self._Tyres[driver][stint]["Compound"]=info_stint["Compound"]
-                  if "New" in info_stint.keys():
-                    self._Tyres[driver][stint]["New"] = True if info_stint["New"]=="true" else False
-                  if "StartLaps" in info_stint.keys():
-                    self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
-                    self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
-                if "TotalLaps" in info_stint.keys():
-                  self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
-                  self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
-                  #current_lap[driver]+=1
+            if DT.timestamp()-self._last_datetime.timestamp()>0:
+              print(DT, " in TimingAppData in update_database is discarded: message sent after the last CarData message!")
+            else:
+              for tyre_update in TAD:
+                driver=tyre_update[0]
+                info_stint=tyre_update[1]
+                if driver not in self._Tyres.keys():
+                  self._Tyres[driver]={}
+                for stint,info_stint in info_stint.items():
+                  if stint not in self._Tyres[driver].keys():
+                    self._Tyres[driver][stint]={"TotalLaps":0,
+                                                "Compound":"Unknown",
+                                                "New":False,
+                                                "CompoundAge":0,
+                                                "StartingLap":1 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"],
+                                                "EndingLap":1,
+                                                "StartingStint_DateTime": DT}
+                  if "Compound" in info_stint.keys():
+                    self._Tyres[driver][stint]["Compound"]=info_stint["Compound"]
+                    if "New" in info_stint.keys():
+                      self._Tyres[driver][stint]["New"] = True if info_stint["New"]=="true" else False
+                    if "StartLaps" in info_stint.keys():
+                      self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
+                      self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
+                  if "TotalLaps" in info_stint.keys():
+                    self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
+                    self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
+                    #current_lap[driver]+=1
                     
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
-            self._Weather[DT]=WeatherDict    
+            if DT.timestamp()-self._last_datetime.timestamp()>0:
+              print(DT, " in WeatherData in update_database is discarded: message sent after the last CarData message!")
+            else:
+              self._Weather[DT]=WeatherDict    
             
         elif feed=="SessionStatus": # more checks needed
           for DT,Status in msg_decrypted.items():
-            if Status["Status"]=="Started": 
-              
-              # displayed instantly as zero time remaining in telemetry tab even if race message arrives 
-              # seconds later.. do not know a fast solution right now. Therefore for now it will remain
-              # as it is 
-              if self._last_aborted_is_compatible:
-                if DT>self._list_of_not_resuming_datetimes[0]:
-                  self._last_aborted_is_compatible = False
-                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
-                  self._list_of_not_resuming_datetimes.pop(0)
-                  self._finish_count+=1
-                  self._Nof_Restarts=0
-                else:
-                  self._last_aborted_is_compatible = False
-              
-              self._Nof_Restarts+=1
-              self._LiveSessionStatus=self._finish_status[self._detected_session_type][self._finish_count]
-            
-              if self._finish_count not in self._RunningStatus.keys():
-                self._RunningStatus[self._finish_count]={}
-              if self._Nof_Restarts not in self._RunningStatus[self._finish_count].keys():
-                self._RunningStatus[self._finish_count][self._Nof_Restarts]={}
-                
-              self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"]=DT
-              self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=None
-              self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=None
-              self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=False
-              self._RunningStatus[self._finish_count][self._Nof_Restarts]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
-            
-            elif Status["Status"]=="Aborted":
-              self._LiveSessionStatus="Off"
-              if self._Nof_Restarts==0:
-                self._RunningStatus[self._finish_count][1]["StartDateTime"]=self._first_datetime
-                self._RunningStatus[self._finish_count][1]["EndDateTime"]=DT
-                self._RunningStatus[self._finish_count][1]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
-                self._RunningStatus[self._finish_count][1]["Is_session_completed"]=False
-                self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
-              else:
-                self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
-                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
-              
-              if len(self._list_of_not_resuming_datetimes)>0:
-                if DT<self._list_of_not_resuming_datetimes[0]:
-                  self._last_aborted_is_compatible=True
-              
-            elif Status["Status"]=="Finished":  
-              self._LiveSessionStatus="Off"
-              if self._Nof_Restarts==0:
-                self._RunningStatus[self._finish_count][1]["StartDateTime"]=self._first_datetime
-                self._RunningStatus[self._finish_count][1]["EndDateTime"]=DT
-                self._RunningStatus[self._finish_count][1]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
-                self._RunningStatus[self._finish_count][1]["Is_session_completed"]=True
-                self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
-              else:
-                self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
-                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
-                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
-
-              self._last_aborted_is_compatible=False
-              self._finish_count+=1
-              self._Nof_Restarts=0
-            
+            if DT.timestamp()-self._last_datetime.timestamp()>0:
+              print(DT, " in SessionStatus in update_database is discarded: message sent after the last CarData message!")
             else:
-              self._LiveSessionStatus = "Off"
+              if Status["Status"]=="Started": 
+
+                # displayed instantly as zero time remaining in telemetry tab even if race message arrives 
+                # seconds later.. do not know a fast solution right now. Therefore for now it will remain
+                # as it is 
+                if self._last_aborted_is_compatible:
+                  if DT>self._list_of_not_resuming_datetimes[0]:
+                    self._last_aborted_is_compatible = False
+                    self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
+                    self._list_of_not_resuming_datetimes.pop(0)
+                    self._finish_count+=1
+                    self._Nof_Restarts=0
+                  else:
+                    self._last_aborted_is_compatible = False
+
+                self._Nof_Restarts+=1
+                self._LiveSessionStatus=self._finish_status[self._detected_session_type][self._finish_count]
+
+                if self._finish_count not in self._RunningStatus.keys():
+                  self._RunningStatus[self._finish_count]={}
+                if self._Nof_Restarts not in self._RunningStatus[self._finish_count].keys():
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]={}
+
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"]=DT
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=None
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=None
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=False
+                self._RunningStatus[self._finish_count][self._Nof_Restarts]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+
+              elif Status["Status"]=="Aborted":
+                self._LiveSessionStatus="Off"
+                if self._Nof_Restarts==0:
+                  self._RunningStatus[self._finish_count][1]["StartDateTime"]=self._first_datetime
+                  self._RunningStatus[self._finish_count][1]["EndDateTime"]=DT
+                  self._RunningStatus[self._finish_count][1]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
+                  self._RunningStatus[self._finish_count][1]["Is_session_completed"]=False
+                  self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+                else:
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
+
+                if len(self._list_of_not_resuming_datetimes)>0:
+                  if DT<self._list_of_not_resuming_datetimes[0]:
+                    self._last_aborted_is_compatible=True
+
+              elif Status["Status"]=="Finished":  
+                self._LiveSessionStatus="Off"
+                if self._Nof_Restarts==0:
+                  self._RunningStatus[self._finish_count][1]["StartDateTime"]=self._first_datetime
+                  self._RunningStatus[self._finish_count][1]["EndDateTime"]=DT
+                  self._RunningStatus[self._finish_count][1]["Duration"]=DT.timestamp()-self._first_datetime.timestamp()
+                  self._RunningStatus[self._finish_count][1]["Is_session_completed"]=True
+                  self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
+                else:
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
+
+                self._last_aborted_is_compatible=False
+                self._finish_count+=1
+                self._Nof_Restarts=0
+
+              else:
+                self._LiveSessionStatus = "Off"
        
         elif feed=="RaceControlMessages":
           for DT,Message in msg_decrypted.items():
-            if "Messages" in Message.keys():
-              if type(Message["Messages"])==list:
-                i=0
-                for msg in Message["Messages"]:
-                  Message_dict={str(i):msg}
-                  i+=1
-              elif type(Message["Messages"])==dict:
-                Message_dict=Message["Messages"]
-              else:
-                print("\n\n\n Type of the message not dict or list but: ",type(Message["Messages"]),"\n\n\n")
-                Message_dict={}
-              for nrMsg,Msg in Message_dict.items():
-                n=1
-                nrThisMsg=nrMsg
-                while nrThisMsg in Msg.keys():
-                  nrThisMsg=str(int(nrThisMsg)+n)
-                  n+=1
-                if "Message" in Msg.keys() and "Category" in Msg.keys():
-                  if "Flag" in Msg.keys():
-                    category=Msg["Category"]+"_"+Msg["Flag"]
-                  else:
-                    category=Msg["Category"]
-                  self._RaceMessages[nrThisMsg]={"Time":     DT,
-                                                 "TimeStamp": DT.timestamp(), # needs checks!
-                                                 "Category":  category,
-                                                 "Message":   Msg["Message"]}
-                  if "WILL NOT BE RESUMED" in Msg["Message"]:
-                    self._list_of_not_resuming_datetimes.append(DT)
+            if DT.timestamp()-self._last_datetime.timestamp()>0:
+              print(DT, " in RaceControlMessages in update_database is discarded: message sent after the last CarData message!")
+            else:
+              if "Messages" in Message.keys():
+                if type(Message["Messages"])==list:
+                  i=0
+                  for msg in Message["Messages"]:
+                    Message_dict={str(i):msg}
+                    i+=1
+                elif type(Message["Messages"])==dict:
+                  Message_dict=Message["Messages"]
+                else:
+                  print("\n\n\n Type of the message not dict or list but: ",type(Message["Messages"]),"\n\n\n")
+                  Message_dict={}
+                for nrMsg,Msg in Message_dict.items():
+                  n=1
+                  nrThisMsg=nrMsg
+                  while nrThisMsg in Msg.keys():
+                    nrThisMsg=str(int(nrThisMsg)+n)
+                    n+=1
+                  if "Message" in Msg.keys() and "Category" in Msg.keys():
+                    if "Flag" in Msg.keys():
+                      category=Msg["Category"]+"_"+Msg["Flag"]
+                    else:
+                      category=Msg["Category"]
+                    self._RaceMessages[nrThisMsg]={"Time":     DT,
+                                                   "TimeStamp": DT.timestamp(), # needs checks!
+                                                   "Category":  category,
+                                                   "Message":   Msg["Message"]}
+                    if "WILL NOT BE RESUMED" in Msg["Message"]:
+                      self._list_of_not_resuming_datetimes.append(DT)
                     
         else: # TODO: update this
           DT=msg_decrypted[list(msg_decrypted.keys())[0]]
-        self._last_datetime=DT
       except Exception as err:
         self._logger.exception(err)
         self._logger_file.write("\n")
@@ -401,17 +419,18 @@ class DATABASE:
   def get_driver_tyres(self,driver: str,sel_time: datetime.datetime):
     with self._lock:
       sel_lap=None
-      for lap,info_lap in self._Laps[driver].items():
-        if sel_time.timestamp()-info_lap["DateTime"].timestamp()>0:
-          sel_lap=int(lap)
-        else:
-          break
-      if sel_lap==None:
-        return["-","-","-","-"]
-      for stint,info_stint in self._Tyres[driver].items():
-        if sel_lap >= info_stint["StartingLap"] and sel_lap <= info_stint["EndingLap"]:
-          return [info_stint["Compound"],info_stint["New"],stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
-      print("Cannot find lap number ",sel_lap," for driver: ",driver," !")
+      if driver in self._Laps.keys() and driver in self._Tyres.keys():
+        for lap,info_lap in self._Laps[driver].items():
+          if sel_time.timestamp()-info_lap["DateTime"].timestamp()>0:
+            sel_lap=int(lap)
+          else:
+            break
+        if sel_lap==None:
+          return["-","-","-","-"]
+        for stint,info_stint in self._Tyres[driver].items():
+          if sel_lap >= info_stint["StartingLap"] and sel_lap <= info_stint["EndingLap"]:
+            return [info_stint["Compound"],info_stint["New"],stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
+        print("Cannot find lap number ",sel_lap," in Tyres dict for driver: ",driver," !")
       return ["Unknown","Unknown","Unknown","Unknown"]
   
   def get_slice_between_times(self,start_time: datetime.datetime,end_time: datetime.datetime):
@@ -508,6 +527,8 @@ class DATABASE:
         return self._RunningStatus
       elif feed=="RaceControlMessages":
         return self._RaceMessages
+      elif feed=="TimingAppData":
+        return self._Tyres
       else:
         return None
   
@@ -567,7 +588,7 @@ class DATABASE:
       if events_request.ok:
         events=events_request.json()["events"]
         for event in events:
-          start_DT=arrow.get(event["meetingStartDate"]).datetime-datetime.timedelta(hours=int(event["gmtOffset"].split(":")[0]))
+          start_DT=arrow.get(event["meetingStartDate"]).datetime-datetime.timedelta(hours=int(event["gmtOffset"].split(":")[0]))-datetime.timedelta(hours=2) # just to include Practice 1 if the live timing data inflow starts some minutes before the first official datetime's session! 
           end_DT=arrow.get(event["meetingEndDate"]).datetime-datetime.timedelta(hours=int(event["gmtOffset"].split(":")[0]))
           if (first_datetime-start_DT).total_seconds()>0 and (first_datetime-end_DT).total_seconds()<0:
             event_name=event["meetingOfficialName"]
