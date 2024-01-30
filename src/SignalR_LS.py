@@ -12,32 +12,9 @@ import fastf1
 
 
 class SignalRClient:
-  """A client for receiving and saving F1 timing data which is streamed
-  live over the SignalR protocol.
-
-  During an F1 session, timing data and telemetry data are streamed live
-  using the SignalR protocol. This class can be used to connect to the
-  stream and save the received data into a file.
-
-  The data will be saved in a raw text format without any postprocessing.
-  It is **not** possible to use this data during a session. Instead, the
-  data can be processed after the session using the :mod:`fastf1.api` and
-  :mod:`fastf1.core`
-
-  Args:
-    filename: filename (opt. with path) for the output file
-    filemode: one of 'w' or 'a'; append to or overwrite
-      file content it the file already exists. Append-mode may be useful
-      if the client is restarted during a session.
-    debug: When set to true, the complete SignalR
-      message is saved. By default, only the actual data from a
-      message is saved.
-    timeout: Number of seconds after which the client
-      will automatically exit when no message data is received.
-      Set to zero to disable.
-    logger: By default, errors are logged to the console. If you wish to
-      customize logging, you can pass an instance of
-      :class:`logging.Logger` (see: :mod:`logging`).
+  """ Base structure taken from FAST-F1 package. 
+      Updated with additional checks when receiving messages.
+      TODO: add the reconnection after the 2 hours limit
   """
   def __init__(self, filename: str, timeout: int = 5):
 
