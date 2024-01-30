@@ -1,5 +1,4 @@
 import PARSER
-import Analyzer
 import datetime
 import arrow
 import requests
@@ -16,7 +15,6 @@ class DATABASE:
   def __init__(self,FEED_LIST: str,logger: logging,logger_file):
 
     self._parser=PARSER.PARSER()
-    self._analyzer=Analyzer.analyzer()
     self._feed_list=FEED_LIST
     self._logger=logger
     self._logger_file=logger_file
