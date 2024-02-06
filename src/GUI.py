@@ -527,6 +527,41 @@ class GUI:
     self._BaseTimestamp           = self._database.get_base_timestamp()
     self._first_message_DT_myTime = datetime.datetime.now() 
     
+    if _config.DEBUG_TYRES:
+      tyres=self._database.get_dictionary("TimingAppData")
+      tyres_2={}
+      for drv,stints_info in tyres.items():
+        tyres_2[drv]={}
+        for stint,stint_info in stints_info.items():
+          tyres_2[drv][stint]={}
+          for key,value in stint_info.items():
+            if key=="New":
+              tyres_2[drv][stint][key]="False" if value==False else "True"
+            elif key=="StartingStint_DateTime":
+              tyres_2[drv][stint][key]=value.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+              tyres_2[drv][stint][key]=value
+      save_file = open(self._YEAR+"_"+self._RACE+"_"+self._SESSION+"_tyres.json", "w")  
+      json.dump(tyres_2, save_file, indent = 2)  
+      save_file.close()  
+      
+      laps=self._database.get_dictionary("TimingDataF1")
+      laps_2={}
+      for drv,laps_info in laps.items():
+        laps_2[drv]={}
+        for lap,lap_info in laps_info.items():
+          laps_2[drv][lap]={}
+          for key,value in lap_info.items():
+            if key=="DateTime":
+              laps_2[drv][lap][key]=value.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+              laps_2[drv][lap][key]=value
+      save_file = open(self._YEAR+"_"+self._RACE+"_"+self._SESSION+"_laps.json", "w")  
+      json.dump(laps_2, save_file, indent = 2)  
+      save_file.close()  
+      
+      
+    
     # sleep initial delay
     time.sleep(self._delay_T)
     self._time_paused+=self._delay_T

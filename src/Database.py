@@ -239,7 +239,7 @@ class DATABASE:
                                                 "Compound":"Unknown",
                                                 "New":False,
                                                 "CompoundAge":0,
-                                                "StartingLap":1 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"],
+                                                "StartingLap":1 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
                                                 "EndingLap":1,
                                                 "StartingStint_DateTime": DT}
                   if "Compound" in info_stint.keys():
