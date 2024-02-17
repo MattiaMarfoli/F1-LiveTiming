@@ -99,8 +99,10 @@ class DATABASE:
     self._last_datetime_checked_position     = 0
     self._last_datetime_checked_cardata      = 0
     self._last_position_index_found          = 0
+    self._last_lapnumber_found               = {}
+    self._last_stint_found                   = {}
     
-    self._last_racedata_starting_index_found = 0
+    self._last_racedata_starting_index_found = 0 
     
   def get_feeds(self):
     """
@@ -209,20 +211,97 @@ class DATABASE:
               print(DT, " in TimingDataF1 in update_database is discarded: message sent after the last CarData message!")
             else:
               for LAP in TDF1:
-                #print(LAP)
                 driver=LAP[0]
-                NLap=LAP[1]
-                Value=LAP[2]
-                if self._Display_LapTimes:
-                  print(driver,NLap,Value)
-                if driver not in self._Laps:
+                stints=LAP[1]
+                #print("\n",stints,"\n")
+                if driver not in self._Laps.keys():
                   self._Laps[driver]={}
-                mins,secs=Value.split(":")
-                Value_int=int(mins)*60. + float(secs) # s
-                self._Laps[driver][NLap]={"DateTime":       DT, 
-                                          "ValueString":    Value,
-                                          "ValueInt_sec":   Value_int,
-                                          "TimeStamp": DT.timestamp()-self._BaseTimestamp}
+                if driver not in self._last_stint_found.keys():
+                  self._last_stint_found[driver]=0
+                if driver not in self._last_lapnumber_found.keys():
+                  self._last_lapnumber_found[driver]=0
+                PitIn=False
+                if "InPit" in stints.keys():
+                  if stints["InPit"]==True:
+                    PitIn=True # add pitin true to next lap 
+                if "NumberOfLaps" in stints.keys():
+                  LAP=stints["NumberOfLaps"]
+                  self._last_lapnumber_found[driver]=LAP
+                  if LAP in self._Laps[driver].keys():
+                    print("Lap: ",LAP," for driver: ",driver," already present! Maybe it is ok.")
+                  else:
+                    self._Laps[driver][LAP]={"DateTime":          DT,
+                                             "ValueInt_sec":      0,
+                                             "ValueString":       "",
+                                             "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                             "Stint":             self._last_stint_found[driver],
+                                             "PitOutLap":         False,
+                                             "PitInLap":          PitIn}
+                if "LastLapTime" in stints.keys():
+                  if "Value" in stints["LastLapTime"].keys():
+                    Value=stints["LastLapTime"]["Value"]
+                    if Value!="":
+                      mins,secs=Value.split(":")
+                      Value_int=int(mins)*60. + float(secs) # s
+                    else:
+                      Value_int=0
+                    if self._last_lapnumber_found[driver] in self._Laps[driver].keys():
+                      if self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=="":                         
+                        self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=Value
+                        self._Laps[driver][self._last_lapnumber_found[driver]]["ValueInt_sec"]=Value_int
+                        self._Laps[driver][self._last_lapnumber_found[driver]]["DateTime"]=DT
+                        self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._BaseTimestamp
+                      else:
+                        self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
+                                                                                  "ValueInt_sec":      Value_int,
+                                                                                  "ValueString":       Value,
+                                                                                  "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                  "Stint":             self._last_stint_found[driver],
+                                                                                  "PitOutLap":         False,
+                                                                                  "PitInLap":          PitIn}
+                        self._last_lapnumber_found[driver]+=1
+                    else:
+                      print("Weird problem! LastLapTime is coming firstly with respect to NumberOfLaps!\n Maybe at the start of the jsonStream...")                               
+                if "NumberOfPitStops" in stints.keys():
+                  if "InPit" in stints.keys():
+                    if self._last_lapnumber_found[driver] in self._Laps[driver].keys() and stints["InPit"]==True:                    
+                      self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
+                                                                                "ValueInt_sec":      0,
+                                                                                "ValueString":       "",
+                                                                                "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                "Stint":             stints["NumberOfPitStops"],
+                                                                                "PitOutLap":         False,
+                                                                                "PitInLap":          True}
+                      self._last_lapnumber_found[driver]+=1
+                    else:
+                      print("\nCase not understood! Last number of lap not in the lap dict when InPit is true... need to check! \n Driver: ",driver, " Lap: ",self._last_lapnumber_found[driver],"\n")
+                  self._last_stint_found[driver]=stints["NumberOfPitStops"]
+                if "PitOut" in stints.keys():
+                  if stints["PitOut"]==True:
+                    self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":            DT,
+                                                                                "ValueInt_sec":      0,
+                                                                                "ValueString":       "",
+                                                                                "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+          
+                                                                                "PitOutLap":         True,
+                                                                                "PitInLap":          False}
+                    self._last_lapnumber_found[driver]+=1
+              #for LAP in TDF1:
+              #  #print(LAP)
+              #  driver=LAP[0]
+              #  NLap=LAP[1]
+              #  Value=LAP[2]
+              #  if self._Display_LapTimes:
+              #    print(driver,NLap,Value)
+              #  if driver not in self._Laps:
+              #    self._Laps[driver]={}
+              #  mins,secs=Value.split(":")
+              #  Value_int=int(mins)*60. + float(secs) # s
+              #  self._Laps[driver][NLap]={"DateTime":       DT, 
+              #                            "ValueString":    Value,
+              #                            "ValueInt_sec":   Value_int,
+              #                            "TimeStamp": DT.timestamp()-self._BaseTimestamp}
+        
         elif feed=="TimingAppData":
           for DT,TAD in msg_decrypted.items():
             if DT.timestamp()-self._last_datetime.timestamp()>0:

@@ -244,6 +244,8 @@ class PARSER:
                   print("Live Parser: Value_dict not a dict -> ", Value_dict)      
                 body_exp[DT].append([driver,NLap,Value])
                 #print(driver,NLap,Value)
+              # elif check other cases.. like pitin/pitout etc.
+              # also NrOfPitStops for the matching with the fitted tyres 
         return body_exp
       elif feed=="WeatherData":
         DT=arrow.get(date).datetime
@@ -288,7 +290,10 @@ class PARSER:
             #print(entry[list(entry.keys())[0]])
             time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
             if self._DT_BASETIME==None:
-              self._DT_BASETIME=time_entry
+              date_splitted=date.split(":")
+              sec_from_first_cardata_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
+              print("\n Offset of: ",sec_from_first_cardata_message," seconds! \n")
+              self._DT_BASETIME=time_entry-datetime.timedelta(seconds=sec_from_first_cardata_message)
             body_exp[time_entry]=entry[list(entry.keys())[1]]
           return body_exp
         elif feed=="DriverList":
@@ -308,14 +313,11 @@ class PARSER:
               #if lines!="Withheld" and lines!="NoEntries" and lines!="SessionPart":
               #  print(line_noBOM,lines,lines_value)
               for driver,stints in body["Lines"].items():
-                if "LastLapTime" in stints.keys() and "NumberOfLaps" in stints.keys():
-                  if "Value" in stints["LastLapTime"]:
-                    #print(driver,stints)
-                    if self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond) not in body_exp.keys():
-                      body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)]=[]
-                    body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)].append([driver,
-                                                                                                                                                                stints["NumberOfLaps"],
-                                                                                                                                                                stints["LastLapTime"]["Value"]])
+                if "LastLapTime" in stints.keys() or "NumberOfLaps" in stints.keys() or "inPit" in stints.keys() or "PitOut" in stints.keys() or "NumberOfPitStops" in stints.keys():
+                  if self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond) not in body_exp.keys():
+                    body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)]=[]
+                  body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)].append([driver,
+                                                                                                                                                                stints])
           return body_exp
         elif feed=="TimingAppData":
           line_noBOM=line_noBOM.replace("\ufeff","")
