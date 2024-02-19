@@ -65,7 +65,7 @@ class DATABASE:
                }
     
     # Session Status
-    self._detected_session_type,self._event_name,self._meeting_key = "","",""
+    self._detected_session_type,self._event_name,self._meeting_key,self._meeting_name = "","","",""
     self._Nof_Restarts=0
     self._finish_count=1
     self._finish_status={
@@ -149,7 +149,7 @@ class DATABASE:
               self._BaseTimestamp=DT.timestamp()
               self._last_datetime_checked_cardata  = DT
               self._last_datetime_checked_position = DT
-              self._detected_session_type,self._event_name,self._meeting_key,self._year = self.detect_session_type(DT)
+              self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name = self.detect_session_type(DT)
               #print(DT.timestamp()," ",self._BaseTimestamp)
             #print(DT,RD)
             for driver,channels in RD.items():
@@ -503,13 +503,17 @@ class DATABASE:
         for lap,info_lap in self._Laps[driver].items():
           if sel_time.timestamp()-info_lap["DateTime"].timestamp()>0:
             sel_lap=int(lap)
+            sel_stint=str(info_lap["Stint"])
           else:
             break
         if sel_lap==None:
           return["-","-","-","-"]
-        for stint,info_stint in self._Tyres[driver].items():
-          if sel_lap >= info_stint["StartingLap"] and sel_lap <= info_stint["EndingLap"]:
-            return [info_stint["Compound"],info_stint["New"],stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
+        if sel_stint in self._Tyres[driver].keys():
+          info_stint=self._Tyres[driver][sel_stint]
+          return [info_stint["Compound"],info_stint["New"],sel_stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
+        #for stint,info_stint in self._Tyres[driver].items():
+        #  if sel_lap >= info_stint["StartingLap"] and sel_lap <= info_stint["EndingLap"]:
+        #    return [info_stint["Compound"],info_stint["New"],stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
         print("Cannot find lap number ",sel_lap," in Tyres dict for driver: ",driver," !")
       return ["Unknown","Unknown","Unknown","Unknown"]
   
@@ -673,6 +677,7 @@ class DATABASE:
           if (first_datetime-start_DT).total_seconds()>0 and (first_datetime-end_DT).total_seconds()<0:
             event_name=event["meetingOfficialName"]
             meeting_key=event["meetingKey"]
+            meeting_name=event["meetingName"]
             timetables_query="timetables?meeting="+event["meetingKey"]+"&season="+season
             timetables_url="/".join([self._base_url,self._sessionResults_url,timetables_query])
             proceed_flag=True
@@ -697,7 +702,7 @@ class DATABASE:
                 inside_outside="close to the event, just "+str(round(max_time/60.))+" minutes away from the start!"
                 print(session["description"]," ",abs((first_datetime-start_DT).total_seconds())," ",(first_datetime-end_DT).total_seconds())
           print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
-          return session_name,event_name,meeting_key,season
+          return session_name,event_name,meeting_key,season,meeting_name
       print("...failed search. Passing to next year!")
     print("Session not found! There is evidently a problem since you are seeing data from a session...")    
     return "Unknown","Unknown","Unknown","Unknown"
@@ -717,3 +722,7 @@ class DATABASE:
   def get_year(self):
     with self._lock:
       return self._year
+  
+  def get_meeting_name(self):
+    with self._lock:
+      return self._meeting_name

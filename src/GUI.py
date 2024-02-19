@@ -243,7 +243,7 @@ class GUI:
     with dpg.group(label="buttons2",tag="buttons2",horizontal=True,pos=(10,self._BUTTONS_HEIGHT)):  
       dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=self._seconds_to_skip,width=self._BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_skip_time)
       dpg.add_input_int(label="Delay [s]",tag="delay",width=self._BUTTONS_WIDTH,min_value=0,max_value=300,default_value=self._delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_delay_time)
-      dpg.add_combo(tag="Race_Map",default_value="None",items=list(self._maps.keys()),width=self._BUTTONS_WIDTH,callback=self.change_map_background)
+      #dpg.add_combo(tag="Race_Map",default_value="None",items=list(self._maps.keys()),width=self._BUTTONS_WIDTH,callback=self.change_map_background)
       #dpg.add_input_float(label="Map_Scale_X",tag="mapScaleX",width=50,min_value=10,max_value=100,default_value=50,min_clamped=True,max_clamped=True,step=0,step_fast=0)
       #dpg.add_input_float(label="Map_Scale_Y",tag="mapScaleY",width=50,min_value=10,max_value=100,default_value=50,min_clamped=True,max_clamped=True,step=0,step_fast=0)
       #dpg.add_input_float(label="X-Off",tag="XOFF",width=50,min_value=-640,max_value=640,default_value=320,min_clamped=True,max_clamped=True,step=0,step_fast=0)
@@ -362,7 +362,7 @@ class GUI:
       dpg.delete_item(item="map_background") 
       dpg.delete_item(item="map_background_texture")
     
-    map_dict=str(_config.paths.DATA_PATH / self._maps[dpg.get_value("Race_Map")]["map"])
+    map_dict=str(_config.paths.DATA_PATH / self._maps[self._event_name]["map"])
     width, height, channels, data = dpg.load_image(map_dict)
 
     #self._mapScaleX = self._maps[dpg.get_value("Race_Map")]["mapScaleX"]
@@ -379,13 +379,13 @@ class GUI:
     dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(630,480),show=True)
 
   def transform_position_from_F1_to_dpg(self,x,y):
-    xlims=self._maps[dpg.get_value("Race_Map")]["xlim"]
-    ylims=self._maps[dpg.get_value("Race_Map")]["ylim"]
+    xlims=self._maps[self._event_name]["xlim"]
+    ylims=self._maps[self._event_name]["ylim"]
     x_shifted=x-xlims[0]
-    x_scaled=x_shifted/self._maps[dpg.get_value("Race_Map")]["xscale"]
+    x_scaled=x_shifted/self._maps[self._event_name]["xscale"]
 
     y_shifted=y-ylims[0]
-    y_scaled=y_shifted/self._maps[dpg.get_value("Race_Map")]["yscale"]
+    y_scaled=y_shifted/self._maps[self._event_name]["yscale"]
     y_updown=self._map_height-y_scaled
 
     return x_scaled,y_updown
@@ -559,12 +559,14 @@ class GUI:
       save_file = open(self._YEAR+"_"+self._RACE+"_"+self._SESSION+"_laps.json", "w")  
       json.dump(laps_2, save_file, indent = 2)  
       save_file.close()  
-      
-      
     
     # sleep initial delay
     time.sleep(self._delay_T)
     self._time_paused+=self._delay_T
+    while self._database.get_meeting_name()=="":
+      time.sleep(self._sleeptime)
+    self._event_name=self._database.get_meeting_name()
+    self.change_map_background()
     self._start_compare=True
     self._start_position=True
     # ok now we have everything and we can start!
@@ -1141,7 +1143,7 @@ class GUI:
       while self._task_state=="pause":
         time.sleep(self._sleeptime)
       self._last_message_displayed_DT_position = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
-      if dpg.get_value("Race_Map")!="None" and dpg.does_item_exist("drawlist_map_position"):
+      if self._event_name!="" and dpg.does_item_exist("drawlist_map_position"):
         pos_dict=self._database.get_dictionary(feed="Position.z")
         last_index_msg =self._database.get_position_index_before_time(sel_time=self._last_message_displayed_DT_position)
         for driver,full_position in pos_dict.items():
