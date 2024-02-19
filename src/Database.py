@@ -101,6 +101,7 @@ class DATABASE:
     self._last_position_index_found          = 0
     self._last_lapnumber_found               = {}
     self._last_stint_found                   = {}
+    self._PitIn                              = {}
     
     self._last_racedata_starting_index_found = 0 
     
@@ -220,14 +221,14 @@ class DATABASE:
                   self._last_stint_found[driver]=0
                 if driver not in self._last_lapnumber_found.keys():
                   self._last_lapnumber_found[driver]=0
-                PitIn=False
+                if driver not in self._PitIn.keys():
+                  self._PitIn[driver]=False
                 if "InPit" in stints.keys():
-                  if stints["InPit"]==True:
-                    PitIn=True # add pitin true to next lap 
+                  self._PitIn[driver]=stints["InPit"]
                 if "NumberOfLaps" in stints.keys():
                   LAP=stints["NumberOfLaps"]
                   self._last_lapnumber_found[driver]=LAP
-                  if LAP not in self._Laps[driver].keys():
+                  if LAP not in self._Laps[driver].keys() and LAP!=1:
                     #print("Lap: ",LAP," for driver: ",driver," already present! Maybe it is ok.")
                   #else:
                     self._Laps[driver][LAP]={"DateTime":          DT,
@@ -236,9 +237,16 @@ class DATABASE:
                                              "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
                                              "Stint":             self._last_stint_found[driver],
                                              "PitOutLap":         False,
-                                             "PitInLap":          PitIn}
+                                             "PitInLap":          False
+                                             }
                     if LAP==2:
                       self._Laps[driver][LAP]["PitOutLap"]=True
+                  elif LAP!=1:
+                    if "PitInLap" not in self._Laps[driver][LAP].keys():
+                      self._Laps[driver][LAP]["PitInLap"]=False
+                    if "PitOutLap" not in self._Laps[driver][LAP].keys():
+                      self._Laps[driver][LAP]["PitOutLap"]=False
+                      
                 if "LastLapTime" in stints.keys():
                   if "Value" in stints["LastLapTime"].keys():
                     Value=stints["LastLapTime"]["Value"]
@@ -259,17 +267,13 @@ class DATABASE:
                                                                                   "ValueString":       Value,
                                                                                   "TimeStamp":         DT.timestamp()-self._BaseTimestamp,
                                                                                   "Stint":             self._last_stint_found[driver],
-                                                                                  "PitOutLap":         False,
-                                                                                  "PitInLap":          PitIn}
+                                                                                  #"PitOutLap":         False,
+                                                                                  #"PitInLap":          self._PitIn[driver]}
+                                                                                  }    
                         self._last_lapnumber_found[driver]+=1
                     elif self._last_lapnumber_found[driver]==0:
-                      self._Laps[driver][1]={"DateTime":        DT,
-                                             "ValueInt_sec":    0,
-                                             "ValueString":     "",
-                                             "TimeStamp":       DT.timestamp()-self._BaseTimestamp,
-                                             "Stint":           0,
-                                             "PitOutLap":       False,
-                                             "PitInLap":        False}
+                      self._last_lapnumber_found[driver]+=1
+                      print("Skipping lap 1 for driver: ",driver, "! Should be correct but maybe it will require further checks.")
                     else:
                       print("Weird problem! LastLapTime is coming firstly with respect to NumberOfLaps!\n Maybe at the start of the jsonStream...")                               
                 if "NumberOfPitStops" in stints.keys():
@@ -294,7 +298,11 @@ class DATABASE:
                                                                                 "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
                                                                                 "Stint":             self._last_stint_found[driver],
                                                                                 "PitOutLap":         True,
-                                                                                "PitInLap":          False}
+                                                                                #"PitInLap":          self._PitIn[driver]
+                                                                                }
+                    if self._last_lapnumber_found[driver]!=1:
+                      if self._Laps[driver][self._last_lapnumber_found[driver]]["PitInLap"]==False:
+                        self._Laps[driver][self._last_lapnumber_found[driver]]["PitInLap"]=True
                     self._last_lapnumber_found[driver]+=1
                     
         elif feed=="TimingAppData":
@@ -313,7 +321,7 @@ class DATABASE:
                                                 "Compound":"Unknown",
                                                 "New":False,
                                                 "CompoundAge":0,
-                                                "StartingLap":1 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
+                                                "StartingLap":2 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
                                                 "EndingLap":1,
                                                 "StartingStint_DateTime": DT}
                   if "Compound" in info_stint.keys():
@@ -324,7 +332,7 @@ class DATABASE:
                       self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
                       self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
                   if "TotalLaps" in info_stint.keys():
-                    self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
+                    self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+(info_stint["TotalLaps"]-1)-self._Tyres[driver][stint]["CompoundAge"]
                     self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
                     #current_lap[driver]+=1
                     
