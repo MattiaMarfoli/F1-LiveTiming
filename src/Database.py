@@ -227,9 +227,9 @@ class DATABASE:
                 if "NumberOfLaps" in stints.keys():
                   LAP=stints["NumberOfLaps"]
                   self._last_lapnumber_found[driver]=LAP
-                  if LAP in self._Laps[driver].keys():
-                    print("Lap: ",LAP," for driver: ",driver," already present! Maybe it is ok.")
-                  else:
+                  if LAP not in self._Laps[driver].keys():
+                    #print("Lap: ",LAP," for driver: ",driver," already present! Maybe it is ok.")
+                  #else:
                     self._Laps[driver][LAP]={"DateTime":          DT,
                                              "ValueInt_sec":      0,
                                              "ValueString":       "",
@@ -237,6 +237,8 @@ class DATABASE:
                                              "Stint":             self._last_stint_found[driver],
                                              "PitOutLap":         False,
                                              "PitInLap":          PitIn}
+                    if LAP==2:
+                      self._Laps[driver][LAP]["PitOutLap"]=True
                 if "LastLapTime" in stints.keys():
                   if "Value" in stints["LastLapTime"].keys():
                     Value=stints["LastLapTime"]["Value"]
@@ -255,11 +257,19 @@ class DATABASE:
                         self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
                                                                                   "ValueInt_sec":      Value_int,
                                                                                   "ValueString":       Value,
-                                                                                  "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                  "TimeStamp":         DT.timestamp()-self._BaseTimestamp,
                                                                                   "Stint":             self._last_stint_found[driver],
                                                                                   "PitOutLap":         False,
                                                                                   "PitInLap":          PitIn}
                         self._last_lapnumber_found[driver]+=1
+                    elif self._last_lapnumber_found[driver]==0:
+                      self._Laps[driver][1]={"DateTime":        DT,
+                                             "ValueInt_sec":    0,
+                                             "ValueString":     "",
+                                             "TimeStamp":       DT.timestamp()-self._BaseTimestamp,
+                                             "Stint":           0,
+                                             "PitOutLap":       False,
+                                             "PitInLap":        False}
                     else:
                       print("Weird problem! LastLapTime is coming firstly with respect to NumberOfLaps!\n Maybe at the start of the jsonStream...")                               
                 if "NumberOfPitStops" in stints.keys():
@@ -269,7 +279,7 @@ class DATABASE:
                                                                                 "ValueInt_sec":      0,
                                                                                 "ValueString":       "",
                                                                                 "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
-                                                                                "Stint":             stints["NumberOfPitStops"],
+                                                                                "Stint":             stints["NumberOfPitStops"]-1,
                                                                                 "PitOutLap":         False,
                                                                                 "PitInLap":          True}
                       self._last_lapnumber_found[driver]+=1
@@ -282,26 +292,11 @@ class DATABASE:
                                                                                 "ValueInt_sec":      0,
                                                                                 "ValueString":       "",
                                                                                 "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
-          
+                                                                                "Stint":             self._last_stint_found[driver],
                                                                                 "PitOutLap":         True,
                                                                                 "PitInLap":          False}
                     self._last_lapnumber_found[driver]+=1
-              #for LAP in TDF1:
-              #  #print(LAP)
-              #  driver=LAP[0]
-              #  NLap=LAP[1]
-              #  Value=LAP[2]
-              #  if self._Display_LapTimes:
-              #    print(driver,NLap,Value)
-              #  if driver not in self._Laps:
-              #    self._Laps[driver]={}
-              #  mins,secs=Value.split(":")
-              #  Value_int=int(mins)*60. + float(secs) # s
-              #  self._Laps[driver][NLap]={"DateTime":       DT, 
-              #                            "ValueString":    Value,
-              #                            "ValueInt_sec":   Value_int,
-              #                            "TimeStamp": DT.timestamp()-self._BaseTimestamp}
-        
+                    
         elif feed=="TimingAppData":
           for DT,TAD in msg_decrypted.items():
             if DT.timestamp()-self._last_datetime.timestamp()>0:
