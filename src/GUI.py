@@ -567,6 +567,9 @@ class GUI:
       time.sleep(self._sleeptime)
     self._event_name=self._database.get_meeting_name()
     self.change_map_background()
+    self._database.update_drivers_list_from_api()
+    print(self._database.get_drivers_list_from_api())
+    print(self._drivers_list)
     self._start_compare=True
     self._start_position=True
     # ok now we have everything and we can start!
@@ -1147,17 +1150,40 @@ class GUI:
         pos_dict=self._database.get_dictionary(feed="Position.z")
         last_index_msg =self._database.get_position_index_before_time(sel_time=self._last_message_displayed_DT_position)
         for driver,full_position in pos_dict.items():
-          xyz=full_position["XYZ"][last_index_msg]
-          xyz_dpg=self.transform_position_from_F1_to_dpg(xyz[0]/10.,xyz[1]/10.)
-          if not dpg.does_item_exist("node"+driver):
-            with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
-              dpg.draw_circle(color=self._DRIVERS_INFO[driver]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=12,fill=self._DRIVERS_INFO[driver]["color"],tag="circle"+driver)
-              dpg.draw_text(tag="text"+driver,pos=(xyz_dpg[0]-12/2,xyz_dpg[1]-12/2.),text=self._DRIVERS_INFO[driver]["abbreviation"],color=[255,255,255])
-              dpg.bind_item_font(item="text"+driver,font="drawNodeFont")
-          else:
-            prev_pos=dpg.get_item_configuration("circle"+driver)['center']
-            dpg.apply_transform(item="node"+driver, transform=dpg.create_translation_matrix([xyz_dpg[0]-prev_pos[0], 
-                                                                                             xyz_dpg[1]-prev_pos[1]]))
+          if driver in self._drivers_list:
+            xyz=full_position["XYZ"][last_index_msg]
+            xyz_dpg=self.transform_position_from_F1_to_dpg(xyz[0]/10.,xyz[1]/10.)
+            if not dpg.does_item_exist("node"+driver):
+              with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
+                dpg.draw_circle(color=self._DRIVERS_INFO[driver]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=12,fill=self._DRIVERS_INFO[driver]["color"],tag="circle"+driver)
+                dpg.draw_text(tag="text"+driver,pos=(xyz_dpg[0]-12/2,xyz_dpg[1]-12/2.),text=self._DRIVERS_INFO[driver]["abbreviation"],color=[255,255,255])
+                dpg.bind_item_font(item="text"+driver,font="drawNodeFont")
+            else:
+              prev_pos=dpg.get_item_configuration("circle"+driver)['center']
+              dpg.apply_transform(item="node"+driver, transform=dpg.create_translation_matrix([xyz_dpg[0]-prev_pos[0], 
+                                                                                               xyz_dpg[1]-prev_pos[1]]))
+              
+        if self._database.isSC_deployed(sel_time=self._last_message_displayed_DT_position):
+          last_index_msgSC =self._database.get_position_index_before_time_SC(sel_time=self._last_message_displayed_DT_position)
+          pos_dictSC=self._database.get_dictionary(feed="PositionSC.z")
+          for drSC,full_positionSC in pos_dictSC.items():
+            xyz=full_positionSC["XYZ"][last_index_msgSC]
+            if xyz[0]!=0 and xyz[1]!=0:
+              xyz_dpg=self.transform_position_from_F1_to_dpg(xyz[0]/10.,xyz[1]/10.)
+              if not dpg.does_item_exist("node"+drSC):
+                with dpg.draw_node(tag="node"+drSC,parent="drawlist_map_position"):
+                  dpg.draw_circle(color=self._DRIVERS_INFO[drSC]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=12,fill=self._DRIVERS_INFO[drSC]["color"],tag="circle"+drSC)
+                  dpg.draw_text(tag="text"+drSC,pos=(xyz_dpg[0]-12/2,xyz_dpg[1]-12/2.),text=self._DRIVERS_INFO[drSC]["abbreviation"],color=[255,255,255])
+                  dpg.bind_item_font(item="text"+drSC,font="drawNodeFont")
+              else:
+                prev_pos=dpg.get_item_configuration("circle"+drSC)['center']
+                dpg.apply_transform(item="node"+drSC, transform=dpg.create_translation_matrix([xyz_dpg[0]-prev_pos[0], 
+                                                                                                 xyz_dpg[1]-prev_pos[1]]))
+        else:
+          sc_list=["241","242","243"]
+          for drSC in sc_list:
+            if dpg.does_item_exist("node"+drSC):
+              dpg.delete_item("node"+drSC)
             
       time.sleep(self._TIME_UPDATE_POSITION_PLOT)
     

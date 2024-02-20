@@ -27,10 +27,13 @@ class DATABASE:
     self._is_merge_ended   = False
     self._Display_LapTimes = False
     
-    self._drivers_list = None
+    self._drivers_list             = None
     self._drivers_list_provisional = set()
+    self._drivers_list_api         = []
+    
     self._CarData={}
     self._Position={}
+    self._Position_SC={}
     self._LeaderBoard={}
     self._Laps={}
     self._Tyres={}
@@ -51,8 +54,10 @@ class DATABASE:
     self._Laps[None]={}
     
     self._sample_position_list               = [] # exploiting the fact that positions data are given with the same Datetime for every driver
+    self._sample_position_list_SC            = []
     self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
     self._sample_driver                      = ""
+    self._sample_driver_SC                   = ""
     
     # api requests to identify session played
     self._available_years=["2023","2022","2021","2020","2019","2018"]
@@ -65,7 +70,7 @@ class DATABASE:
                }
     
     # Session Status
-    self._detected_session_type,self._event_name,self._meeting_key,self._meeting_name = "","","",""
+    self._detected_session_type,self._event_name,self._meeting_key,self._meeting_name,self._session_name_api = "","","","",""
     self._Nof_Restarts=0
     self._finish_count=1
     self._finish_status={
@@ -96,9 +101,13 @@ class DATABASE:
                           },
                         }
     
+    self._SafetyCar_Ranges = []
+    
     self._last_datetime_checked_position     = 0
+    self._last_datetime_checked_position_SC  = 0
     self._last_datetime_checked_cardata      = 0
     self._last_position_index_found          = 0
+    self._last_position_index_found_SC       = 0
     self._last_lapnumber_found               = {}
     self._last_stint_found                   = {}
     self._PitIn                              = {}
@@ -149,7 +158,8 @@ class DATABASE:
               self._BaseTimestamp=DT.timestamp()
               self._last_datetime_checked_cardata  = DT
               self._last_datetime_checked_position = DT
-              self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name = self.detect_session_type(DT)
+              self._last_datetime_checked_position_SC = DT
+              self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name,self._session_name_api = self.detect_session_type(DT)
               #print(DT.timestamp()," ",self._BaseTimestamp)
             #print(DT,RD)
             for driver,channels in RD.items():
@@ -193,18 +203,34 @@ class DATABASE:
               print(DT, " in Position.z in update_database is discarded: message sent after the last CarData message!")
             else:
               for DRIVER,P_dict in P.items():
-                if DRIVER not in self._Position.keys():
-                    self._Position[DRIVER]={}
-                    self._Position[DRIVER]["Time"]=[]
-                    self._Position[DRIVER]["TimeStamp"]=[]
-                    self._Position[DRIVER]["XYZ"]=[]
-                    if self._sample_driver == "":
-                      self._sample_driver = DRIVER
-                self._Position[DRIVER]["Time"].append(DT)
-                self._Position[DRIVER]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
-                self._Position[DRIVER]["XYZ"].append([P_dict["X"],P_dict["Y"],P_dict["Z"]])
-                if DRIVER == self._sample_driver:
-                  self._sample_position_list.append(DT)
+                if len(DRIVER)<3:
+                  if DRIVER not in self._Position.keys():
+                      self._Position[DRIVER]={}
+                      self._Position[DRIVER]["Time"]=[]
+                      self._Position[DRIVER]["TimeStamp"]=[]
+                      self._Position[DRIVER]["XYZ"]=[]
+                      if self._sample_driver == "":
+                        self._sample_driver = DRIVER
+                  self._Position[DRIVER]["Time"].append(DT)
+                  self._Position[DRIVER]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
+                  self._Position[DRIVER]["XYZ"].append([P_dict["X"],P_dict["Y"],P_dict["Z"]])
+                  if DRIVER == self._sample_driver:
+                    self._sample_position_list.append(DT)
+                elif len(DRIVER)>2:
+                  if DRIVER not in self._Position_SC.keys():
+                      self._Position_SC[DRIVER]={}
+                      self._Position_SC[DRIVER]["Time"]=[]
+                      self._Position_SC[DRIVER]["TimeStamp"]=[]
+                      self._Position_SC[DRIVER]["XYZ"]=[]
+                      self._Position_SC[DRIVER]["Range"]=[DT,DT]
+                      if self._sample_driver_SC == "":
+                        self._sample_driver_SC = DRIVER
+                  self._Position_SC[DRIVER]["Time"].append(DT)
+                  self._Position_SC[DRIVER]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
+                  self._Position_SC[DRIVER]["XYZ"].append([P_dict["X"],P_dict["Y"],P_dict["Z"]])
+                  self._Position_SC[DRIVER]["Range"][1]=DT
+                  if DRIVER == self._sample_driver_SC:
+                    self._sample_position_list_SC.append(DT)
                 #print(DRIVER," ",P_dict["X"],P_dict["Y"],P_dict["Z"])
         elif feed=="TimingDataF1":
           for DT,TDF1 in msg_decrypted.items():
@@ -446,7 +472,12 @@ class DATABASE:
                                                    "Message":   Msg["Message"]}
                     if "WILL NOT BE RESUMED" in Msg["Message"]:
                       self._list_of_not_resuming_datetimes.append(DT)
-                    
+                    if Msg["Category"].upper()=="SAFETYCAR":
+                      if Msg["Mode"].upper()=="SAFETY CAR":
+                        if Msg["Status"].upper()=="DEPLOYED":
+                          self._SafetyCar_Ranges.append([DT])
+                        elif Msg["Status"].upper()=="IN THIS LAP":
+                          self._SafetyCar_Ranges[-1].append(DT)
         else: # TODO: update this
           DT=msg_decrypted[list(msg_decrypted.keys())[0]]
       except Exception as err:
@@ -613,6 +644,8 @@ class DATABASE:
         return self._RaceMessages
       elif feed=="TimingAppData":
         return self._Tyres
+      elif feed=="PositionSC.z":
+        return self._Position_SC
       else:
         return None
   
@@ -691,6 +724,12 @@ class DATABASE:
             start_DT=arrow.get(session["startTime"]).datetime-datetime.timedelta(hours=int(session["gmtOffset"].split(":")[0]))
             end_DT=arrow.get(session["endTime"]).datetime-datetime.timedelta(hours=int(session["gmtOffset"].split(":")[0]))
             if (first_datetime-start_DT).total_seconds()>=0 and (first_datetime-end_DT).total_seconds()<=0:
+              if "day" in session["description"].lower():
+                session_name_api="practice "+session["description"].split(" ")[-1]
+              elif "shootout" in session["description"].lower():
+                session_name_api="-".join(session["description"].lower().split(" "))
+              else:
+                session_name_api=session["description"].lower()
               session_name=session["description"]
               inside_outside="inside the event!"
               print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
@@ -698,14 +737,20 @@ class DATABASE:
             else:
               if abs((first_datetime-start_DT).total_seconds())<max_time and (first_datetime-end_DT).total_seconds()<=0:
                 max_time=abs((first_datetime-start_DT).total_seconds())
+                if "day" in session["description"].lower():
+                  session_name_api="practice "+session["description"].split(" ")[-1]
+                elif "shootout" in session["description"].lower():
+                  session_name_api="-".join(session["description"].lower().split(" "))
+                else:
+                  session_name_api=session["description"].lower()
                 session_name=session["description"]
                 inside_outside="close to the event, just "+str(round(max_time/60.))+" minutes away from the start!"
                 print(session["description"]," ",abs((first_datetime-start_DT).total_seconds())," ",(first_datetime-end_DT).total_seconds())
           print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
-          return session_name,event_name,meeting_key,season,meeting_name
+          return session_name,event_name,meeting_key,season,meeting_name,session_name_api
       print("...failed search. Passing to next year!")
     print("Session not found! There is evidently a problem since you are seeing data from a session...")    
-    return "Unknown","Unknown","Unknown","Unknown"
+    return "Unknown","Unknown","Unknown","Unknown","Unknown"
 
   def get_session_type(self):
     with self._lock:
@@ -726,3 +771,73 @@ class DATABASE:
   def get_meeting_name(self):
     with self._lock:
       return self._meeting_name
+    
+  def update_drivers_list_from_api(self):
+    with self._lock:
+      base_url="https://api.formula1.com/v1/fom-results/"
+      query_url =self._session_name_api.split(" ")[0]+"?meeting="+str(self._meeting_key)+"&season="+str(self._year)+"&session="
+      session_num="1"
+      for char in self._session_name_api:
+        if char.isdigit():
+          session_num=str(char)
+          break
+      final_url=base_url+query_url+session_num
+      results_request=requests.get(final_url, headers=self._headers)
+      keyDict_parts=[word.capitalize() for word in self._session_name_api.replace("-"," ").split(" ")]
+      keyDict="raceResults"+"".join(keyDict_parts)
+      if results_request.ok:
+        if keyDict in results_request.json().keys():
+          results=results_request.json()[keyDict]["results"]
+          for driver_dict in results:
+            driverTLA=driver_dict["driverTLA"]
+            teamColourCode=driver_dict["teamColourCode"]
+            teamName=driver_dict["teamName"]
+            racingNumber=driver_dict["racingNumber"]
+            driverFirstName=driver_dict["driverFirstName"]
+            driverLastName=driver_dict["driverLastName"]
+            self._drivers_list_api.append(racingNumber)
+        else:
+          print("Wrong keyDict: ",keyDict," . Components: ",keyDict_parts)
+      
+  def get_drivers_list_from_api(self):
+    with self._lock:
+      return self._drivers_list_api
+      
+  def isSC_deployed(self,sel_time: datetime.datetime):
+    with self._lock:
+      for SC in self._SafetyCar_Ranges:
+        if len(SC)==1:
+          startingTime=SC[0]
+          if sel_time.timestamp()-startingTime.timestamp()>0:
+            return True
+        elif len(SC)==2:
+          startingTime = SC[0]
+          endingTime   = SC[1]
+          if sel_time.timestamp()-startingTime.timestamp()>0 and sel_time.timestamp()-endingTime.timestamp()<0:
+            return True
+        else:
+          print("Length of Safety Car ranges elements is neither 0 or 1 but: ",len(SC))
+      return False
+  
+  def get_position_index_before_time_SC(self,sel_time: datetime.datetime):    
+    with self._lock:
+      if self._sample_driver_SC in self._Position_SC.keys():
+        if sel_time.timestamp()-self._Position_SC[self._sample_driver_SC]["Range"][0].timestamp()>0 and sel_time.timestamp()-self._Position_SC[self._sample_driver_SC]["Range"][1].timestamp()<0:
+          if sel_time.timestamp()-self._last_datetime_checked_position_SC.timestamp()>0:
+            for index,Time in zip(range(self._last_position_index_found_SC,len(self._sample_position_list_SC)),self._sample_position_list_SC[self._last_position_index_found_SC:]):
+              if Time.timestamp()-sel_time.timestamp()<0:
+                self._last_position_index_found_SC=index
+                self._last_datetime_checked_position_SC=Time
+              else:
+                break
+            return self._last_position_index_found_SC
+          else:
+            for index,Time in enumerate(self._sample_position_list_SC): 
+              if Time.timestamp()-sel_time.timestamp()<0:
+                self._last_position_index_found_SC=index
+                self._last_datetime_checked_position_SC=Time
+              else:
+                break
+            return self._last_position_index_found_SC
+      
+      
