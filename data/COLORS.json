@@ -128,7 +128,7 @@
   "55": {
     "abbreviation": "SAI",
     "full_name": "Sainz",
-    "color": [232, 191, 28],
+    "color": [255, 40, 0],
     "team": "Ferrari"
   },
   "39": {
@@ -190,5 +190,25 @@
     "full_name": "Vesti",
     "color": [56, 207, 177],
     "team": "Mercedes"
+  },
+  "241":{
+    "abbreviation": "SC1",
+    "full_name": "Safety Car",
+    "color": [232, 191, 28],
+    "team": "Aston Martin"
+
+  },"242":{
+    "abbreviation": "SC2",
+    "full_name": "Safety Car",
+    "color": [232, 191, 28],
+    "team": "Aston Martin"
+
+  },
+  "243":{
+    "abbreviation": "SC3",
+    "full_name": "Safety Car",
+    "color": [232, 191, 28],
+    "team": "Aston Martin"
+
   }
 }
