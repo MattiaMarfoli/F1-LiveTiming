@@ -13,3 +13,5 @@ __pycache__/
 log/*.json
 *laps.json
 *tyres.json
+20*
+none*
