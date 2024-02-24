@@ -558,6 +558,11 @@
       "Qualifying": "2021/2021-12-12_Abu_Dhabi_Grand_Prix/2021-12-11_Qualifying/",
       "Race": "2021/2021-12-12_Abu_Dhabi_Grand_Prix/2021-12-12_Race/"
    },
+   "2022_Pre-Season_Test": {
+      "Practice_1": "2022/2022-03-12_Pre-Season_Test/2022-03-10_Practice_1/",
+      "Practice_2": "2022/2022-03-12_Pre-Season_Test/2022-03-11_Practice_2/",
+      "Practice_3": "2022/2022-03-12_Pre-Season_Test/2022-03-12_Practice_3/"
+   },
    "2022_Bahrain_Grand_Prix": {
       "Practice_1": "2022/2022-03-20_Bahrain_Grand_Prix/2022-03-18_Practice_1/",
       "Practice_2": "2022/2022-03-20_Bahrain_Grand_Prix/2022-03-18_Practice_2/",
@@ -712,6 +717,11 @@
       "Qualifying": "2022/2022-11-20_Abu_Dhabi_Grand_Prix/2022-11-19_Qualifying/",
       "Race": "2022/2022-11-20_Abu_Dhabi_Grand_Prix/2022-11-20_Race/"
    },
+   "2023_Pre-Season_Testing": {
+      "Practice_1": "2023/2023-02-25_Pre-Season_Testing/2023-02-23_Practice_1/",
+      "Practice_2": "2023/2023-02-25_Pre-Season_Testing/2023-02-24_Practice_2/",
+      "Practice_3": "2023/2023-02-25_Pre-Season_Testing/2023-02-25_Practice_3/"
+   },
    "2023_Bahrain_Grand_Prix": {
       "Practice_1": "2023/2023-03-05_Bahrain_Grand_Prix/2023-03-03_Practice_1/",
       "Practice_2": "2023/2023-03-05_Bahrain_Grand_Prix/2023-03-03_Practice_2/",
@@ -858,5 +868,17 @@
       "Practice_3": "2023/2023-11-18_Las_Vegas_Grand_Prix/2023-11-17_Practice_3/",
       "Qualifying": "2023/2023-11-18_Las_Vegas_Grand_Prix/2023-11-18_Qualifying/",
       "Race": "2023/2023-11-18_Las_Vegas_Grand_Prix/2023-11-18_Race/"
+   },
+   "2023_Abu_Dhabi_Grand_Prix": {
+      "Practice_1": "2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-24_Practice_1/",
+      "Practice_2": "2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-24_Practice_2/",
+      "Practice_3": "2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-25_Practice_3/",
+      "Qualifying": "2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-25_Qualifying/",
+      "Race": "2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-26_Race/"
+   },
+   "2024_Pre-Season_Testing": {
+      "Practice_1": "2024/2024-02-23_Pre-Season_Testing/2024-02-21_Practice_1/",
+      "Practice_2": "2024/2024-02-23_Pre-Season_Testing/2024-02-22_Practice_2/",
+      "Practice_3": "2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/"
    }
 }

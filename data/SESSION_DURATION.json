@@ -13,5 +13,22 @@
     "Sprint Race":  3600,
     "Off"        :  0,
     "Unknown"    :  0
+  },
+  "2024":{
+    "Q1" :          1080,  
+    "Q2" :          900,
+    "Q3" :          720,
+    "SQ1" :         720,
+    "SQ2" :         600,
+    "SQ3" :         480,
+    "Practice 1" :  3600,
+    "Practice 2" :  3600,
+    "Practice 3" :  3600,
+    "Race" :        7200,
+    "Sprint Race":  3600,
+    "Off"        :  0,
+    "Day 1"      :  14400,
+    "Unknown"    :  0
   }
+
 }

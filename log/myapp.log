@@ -1,20 +1,24 @@
-2024-02-20 15:17:29,139 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:29,437 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/CarData.z.jsonStream HTTP/1.1" 200 9574775
-2024-02-20 15:17:36,933 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): api.formula1.com:443
-2024-02-20 15:17:37,159 DEBUG urllib3.connectionpool https://api.formula1.com:443 "GET /v1/editorial-eventlisting/events?season=2023 HTTP/1.1" 200 None
-2024-02-20 15:17:37,167 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): api.formula1.com:443
-2024-02-20 15:17:37,298 DEBUG urllib3.connectionpool https://api.formula1.com:443 "GET /v1/fom-results/timetables?meeting=1217&season=2023 HTTP/1.1" 200 763
-2024-02-20 15:17:39,825 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:40,000 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/Position.z.jsonStream HTTP/1.1" 200 10128835
-2024-02-20 15:17:48,265 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:48,382 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/RaceControlMessages.jsonStream HTTP/1.1" 200 12744
-2024-02-20 15:17:48,459 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:48,690 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/TimingDataF1.jsonStream HTTP/1.1" 200 4471795
-2024-02-20 15:17:49,486 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:49,599 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/WeatherData.jsonStream HTTP/1.1" 200 30098
-2024-02-20 15:17:49,726 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:49,896 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/SessionStatus.jsonStream HTTP/1.1" 200 242
-2024-02-20 15:17:49,901 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
-2024-02-20 15:17:50,019 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/TimingAppData.jsonStream HTTP/1.1" 200 143385
-2024-02-20 15:17:50,265 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): api.formula1.com:443
-2024-02-20 15:17:50,401 DEBUG urllib3.connectionpool https://api.formula1.com:443 "GET /v1/fom-results/race?meeting=1217&season=2023&session=1 HTTP/1.1" 200 None
+2024-02-24 11:54:27,820 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:54:27,980 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/CarData.z.jsonStream HTTP/1.1" 200 17869987
+2024-02-24 11:54:41,600 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): api.formula1.com:443
+2024-02-24 11:54:41,897 DEBUG urllib3.connectionpool https://api.formula1.com:443 "GET /v1/editorial-eventlisting/events?season=2024 HTTP/1.1" 200 None
+2024-02-24 11:54:41,902 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): api.formula1.com:443
+2024-02-24 11:54:42,019 DEBUG urllib3.connectionpool https://api.formula1.com:443 "GET /v1/fom-results/timetables?meeting=1228&season=2024 HTTP/1.1" 200 454
+2024-02-24 11:54:47,070 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:54:47,302 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/Position.z.jsonStream HTTP/1.1" 200 19577375
+2024-02-24 11:55:05,956 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:55:06,145 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/RaceControlMessages.jsonStream HTTP/1.1" 200 3255
+2024-02-24 11:55:06,355 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:55:06,656 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/TimingDataF1.jsonStream HTTP/1.1" 200 4526892
+2024-02-24 11:55:07,297 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:55:07,461 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/WeatherData.jsonStream HTTP/1.1" 200 78993
+2024-02-24 11:55:07,510 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:55:07,658 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/SessionStatus.jsonStream HTTP/1.1" 200 276
+2024-02-24 11:55:07,661 ERROR config._config 'Day 3'
+Traceback (most recent call last):
+  File "/home/marfo99/Projects/F1-LiveTiming/src/Database.py", line 468, in update_database
+    self._LiveSessionStatus=self._finish_status[self._detected_session_type][self._finish_count]
+KeyError: 'Day 3'
+
+2024-02-24 11:55:07,666 DEBUG urllib3.connectionpool Starting new HTTPS connection (1): livetiming.formula1.com:443
+2024-02-24 11:55:07,792 DEBUG urllib3.connectionpool https://livetiming.formula1.com:443 "GET /static/2024/2024-02-23_Pre-Season_Testing/2024-02-23_Practice_3/TimingAppData.jsonStream HTTP/1.1" 200 143254
