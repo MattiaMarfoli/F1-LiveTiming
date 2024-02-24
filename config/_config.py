@@ -37,7 +37,7 @@ def WRITE_EXCEPTION(err: Exception):
   LOGGER_FILE.flush()
 
 # Parser
-FORCE_UPDATE=False
+FORCE_UPDATE=True
 
 # Database  
 FEED_LIST=["CarData.z",  # CarData.z needs to be the first 
@@ -47,7 +47,6 @@ FEED_LIST=["CarData.z",  # CarData.z needs to be the first
            "WeatherData",
            "SessionStatus",
            "TimingAppData"] 
-DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)
 
 # Live Stream Real Time
 QUEUE_LENGTH_LS   = 5   # Number of messages in cache before put send them to analyzer
@@ -70,11 +69,13 @@ WINDOW_DISPLAY_PROPORTION_LEFT = 1. - WINDOW_DISPLAY_PROPORTION_RIGHT
 TERMINAL_SPACE = 600
 TERMINAL_MODE  = False
 DEBUG_PRINT    = True
-DEBUG_TYRES    = True
+DEBUG_TYRES    = False
 PRINT_TIMES    = False
 COLOR_DRIVERS  = json.load(open(paths.DATA_PATH / FILENAME_COLORS,"r"))
 MAPS  = json.load(open(paths.DATA_PATH / FILENAME_MAPS,"r"))
 SESSION_DURATION =  json.load(open(paths.DATA_PATH / FILENAME_DURATION,"r"))
-WATCHLIST_DRIVERS = ["1","11","4","16","55","44","63"]
 WATCHLIST_DRIVERS = [str(i) for i in range(1,100)] # all drivers
 WATCHLIST_TEAMS   = ["Red Bull","Ferrari","Mercedes","McLaren","Aston Martin","Alpine","AlphaTauri","Williams","Alfa Romeo","Haas"]
+YEARS=["2018","2019","2020","2021","2022","2023","2024"]
+
+DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)

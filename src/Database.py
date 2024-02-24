@@ -4,6 +4,7 @@ import arrow
 import requests
 import threading
 import logging
+import json
 
 class DATABASE:
   """
@@ -20,12 +21,14 @@ class DATABASE:
     self._logger_file=logger_file
     
     self._lock= threading.Lock()
-    self._first_datetime   = None
-    self._last_datetime    = None
-    self._BaseTimestamp    = None
-    self._is_first_RD_msg  = False
-    self._is_merge_ended   = False
-    self._Display_LapTimes = False
+    self._first_datetime     = None
+    self._last_datetime      = None
+    self._BaseTimestamp      = None
+    self._is_first_RD_msg    = False
+    self._is_merge_ended     = False
+    self._Display_LapTimes   = False
+    self._first_message_flag = False
+    self._last_tyres_fitted  = {}
     
     self._drivers_list             = None
     self._drivers_list_provisional = set()
@@ -60,7 +63,7 @@ class DATABASE:
     self._sample_driver_SC                   = ""
     
     # api requests to identify session played
-    self._available_years=["2023","2022","2021","2020","2019","2018"]
+    self._available_years=["2024","2023","2022","2021","2020","2019","2018"]
     self._base_url = "https://api.formula1.com/v1"
     self._eventListing_url="editorial-eventlisting"
     self._sessionResults_url="fom-results"
@@ -114,6 +117,54 @@ class DATABASE:
     
     self._last_racedata_starting_index_found = 0 
     
+  def datetime_parser(self,json_dict):
+    for (key, value) in json_dict.items():
+      if key=="Time":
+        json_dict[key]=[]
+        for t in value:
+          json_dict[key].append(arrow.get(t))
+      elif type(value)==dict:
+        for k,v in value.items():
+          if type(v)==dict:
+            if "DateTime" in v.keys():
+              json_dict[key][k]["DateTime"]=arrow.get(json_dict[key][k]["DateTime"])
+        
+    return json_dict  
+    
+  def retrieve_dictionaries(self):
+    year,race,session=self.get_year(),self.get_session_type(),self.get_event_name()
+    print("Base file name: ",year+"_"+race+"_"+session+"_")
+    try:
+      print("Retrieving tyres")
+      self._Tyres=json.load(open(year+"_"+race+"_"+session+"_tyres.json","r"),object_hook=self.datetime_parser)
+      print("Tyres retrieved!")
+    except Exception as err:
+      self._logger.exception(err)
+      self._logger_file.write("\n")
+      self._logger_file.flush()
+    try:
+      print("Retrieving Laps")
+      self._Laps=json.load(open(year+"_"+race+"_"+session+"_laps.json","r"),object_hook=self.datetime_parser)
+      print("Laps retrieved!")
+    except Exception as err:
+      self._logger.exception(err)
+      self._logger_file.write("\n")
+      self._logger_file.flush()
+    #try:
+    #  print("Retrieving CarData")
+    #  self._CarData=json.load(open(year+"_"+race+"_"+session+"_telemetry.json","r"),object_hook=self.datetime_parser)
+    #  print("Telemetry retrieved!")
+    #  if len(self._CarData.keys())>0:
+    #    if "Time" in self._CarData[list(self._CarData.keys())[0]].keys():
+    #      self._BaseTimestamp=self._CarData[list(self._CarData.keys())[0]]["Time"][0].timestamp()
+    #      self._first_datetime=self._CarData[list(self._CarData.keys())[0]]["Time"][0]
+    #  self._sample_driver=list(self._CarData.keys())[0]
+    #  self._sample_cardata_list=self._CarData[list(self._CarData.keys())[0]]["Time"]
+    #except Exception as err:
+    #  self._logger.exception(err)
+    #  self._logger_file.write("\n")
+    #  self._logger_file.flush()  
+    
   def get_feeds(self):
     """
     Brief:
@@ -153,14 +204,24 @@ class DATABASE:
         if feed=="CarData.z":
           for DT,RD in msg_decrypted.items():
             #print(self._first_datetime," ",DT," ",msg_decrypted.keys())
-            if self._first_datetime==None:
+            #print("A ",self._first_datetime)
+            #print("A ",self._first_message_flag)
+            if not self._first_message_flag:
+              #if self._first_datetime!=None:
               self._first_datetime=DT
+              #print("B ", self._first_datetime)
+              #if self._BaseTimestamp!=None:
               self._BaseTimestamp=DT.timestamp()
               self._last_datetime_checked_cardata  = DT
               self._last_datetime_checked_position = DT
               self._last_datetime_checked_position_SC = DT
+              #print("Here in CD")
+              self._first_message_flag=True
+              #print("B ",self._first_message_flag)
               self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name,self._session_name_api = self.detect_session_type(DT)
-              #print(DT.timestamp()," ",self._BaseTimestamp)
+              
+              
+              ##print(DT.timestamp()," ",self._BaseTimestamp)
             #print(DT,RD)
             for driver,channels in RD.items():
               #print(driver," ",channels)
@@ -199,8 +260,9 @@ class DATABASE:
           for DT,P in msg_decrypted.items():
             if DT.timestamp()-self._BaseTimestamp<0:
               print(DT, " in Position.z in update_database is discarded: message sent before the first CarData message!")
-            elif DT.timestamp()-self._last_datetime.timestamp()>0:
-              print(DT, " in Position.z in update_database is discarded: message sent after the last CarData message!")
+            #elif self._last_datetime!=None:
+            elif DT.timestamp()-self._last_datetime.timestamp()>120:
+                print(DT, " in Position.z in update_database is discarded: message sent after the last CarData message!")
             else:
               for DRIVER,P_dict in P.items():
                 if len(DRIVER)<3:
@@ -234,7 +296,7 @@ class DATABASE:
                 #print(DRIVER," ",P_dict["X"],P_dict["Y"],P_dict["Z"])
         elif feed=="TimingDataF1":
           for DT,TDF1 in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>0:
+            if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in TimingDataF1 in update_database is discarded: message sent after the last CarData message!")
             else:
               for LAP in TDF1:
@@ -333,7 +395,7 @@ class DATABASE:
                     
         elif feed=="TimingAppData":
           for DT,TAD in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>0:
+            if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in TimingAppData in update_database is discarded: message sent after the last CarData message!")
             else:
               for tyre_update in TAD:
@@ -343,20 +405,32 @@ class DATABASE:
                   self._Tyres[driver]={}
                 for stint,info_stint in info_stint.items():
                   if stint not in self._Tyres[driver].keys():
-                    self._Tyres[driver][stint]={"TotalLaps":0,
-                                                "Compound":"Unknown",
-                                                "New":False,
-                                                "CompoundAge":0,
-                                                "StartingLap":2 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
-                                                "EndingLap":1,
-                                                "StartingStint_DateTime": DT}
+                    if len(self._Tyres[driver])==0:
+                      self._Tyres[driver][stint]={"TotalLaps":0,
+                                                  "Compound":"Unknown",
+                                                  "New":False,
+                                                  "CompoundAge":0,
+                                                  "StartingLap":2 ,
+                                                  "EndingLap":1,
+                                                  "StartingStint_DateTime": DT}
+                    else:
+                      self._Tyres[driver][stint]={"TotalLaps":0,
+                                                  "Compound":"Unknown",
+                                                  "New":False,
+                                                  "CompoundAge":0,
+                                                  "StartingLap":2 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
+                                                  "EndingLap":1,
+                                                  "StartingStint_DateTime": DT}
                   if "Compound" in info_stint.keys():
                     self._Tyres[driver][stint]["Compound"]=info_stint["Compound"]
+                    self._last_tyres_fitted[driver]=[info_stint["Compound"],False,0,0]
                     if "New" in info_stint.keys():
                       self._Tyres[driver][stint]["New"] = True if info_stint["New"]=="true" else False
+                      self._last_tyres_fitted[driver][1]=True if info_stint["New"]=="true" else False
                     if "StartLaps" in info_stint.keys():
                       self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
                       self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
+                      self._last_tyres_fitted[driver][2]=info_stint["StartLaps"]
                   if "TotalLaps" in info_stint.keys():
                     self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+(info_stint["TotalLaps"]-1)-self._Tyres[driver][stint]["CompoundAge"]
                     self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
@@ -364,14 +438,14 @@ class DATABASE:
                     
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>0:
+            if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in WeatherData in update_database is discarded: message sent after the last CarData message!")
             else:
               self._Weather[DT]=WeatherDict    
             
         elif feed=="SessionStatus": # more checks needed
           for DT,Status in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>0:
+            if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in SessionStatus in update_database is discarded: message sent after the last CarData message!")
             else:
               if Status["Status"]=="Started": 
@@ -441,7 +515,7 @@ class DATABASE:
        
         elif feed=="RaceControlMessages":
           for DT,Message in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>0:
+            if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in RaceControlMessages in update_database is discarded: message sent after the last CarData message!")
             else:
               if "Messages" in Message.keys():
@@ -504,6 +578,7 @@ class DATABASE:
       
   def get_passed_time_into_session(self,DT: datetime.datetime):
     with self._lock:
+      time_passed=0
       for n_session,session_dict in self._RunningStatus.items():
         time_passed=0
         for n_restart,timing_info in session_dict.items():
@@ -545,7 +620,9 @@ class DATABASE:
         #for stint,info_stint in self._Tyres[driver].items():
         #  if sel_lap >= info_stint["StartingLap"] and sel_lap <= info_stint["EndingLap"]:
         #    return [info_stint["Compound"],info_stint["New"],stint,sel_lap-info_stint["StartingLap"]+info_stint["CompoundAge"]]
-        print("Cannot find lap number ",sel_lap," in Tyres dict for driver: ",driver," !")
+        ####if driver in self._last_tyres_fitted.keys():
+        ####  return self._last_tyres_fitted[driver]
+        #print("Cannot find lap number ",sel_lap," in Tyres dict for driver: ",driver," !")
       return ["Unknown","Unknown","Unknown","Unknown"]
   
   def get_slice_between_times(self,start_time: datetime.datetime,end_time: datetime.datetime):
@@ -733,7 +810,7 @@ class DATABASE:
               session_name=session["description"]
               inside_outside="inside the event!"
               print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
-              return session_name,event_name,meeting_key,season
+              return session_name,event_name,meeting_key,season,meeting_name,session_name_api
             else:
               if abs((first_datetime-start_DT).total_seconds())<max_time and (first_datetime-end_DT).total_seconds()<=0:
                 max_time=abs((first_datetime-start_DT).total_seconds())
@@ -746,11 +823,11 @@ class DATABASE:
                 session_name=session["description"]
                 inside_outside="close to the event, just "+str(round(max_time/60.))+" minutes away from the start!"
                 print(session["description"]," ",abs((first_datetime-start_DT).total_seconds())," ",(first_datetime-end_DT).total_seconds())
-          print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
+          print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key, "\n Meeting Name: ",meeting_name)
           return session_name,event_name,meeting_key,season,meeting_name,session_name_api
       print("...failed search. Passing to next year!")
     print("Session not found! There is evidently a problem since you are seeing data from a session...")    
-    return "Unknown","Unknown","Unknown","Unknown","Unknown"
+    return "Unknown","Unknown","Unknown","Unknown","Unknown","Unknown"
 
   def get_session_type(self):
     with self._lock:

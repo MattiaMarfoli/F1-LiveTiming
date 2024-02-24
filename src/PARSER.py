@@ -23,12 +23,14 @@ class PARSER:
       self._filename_urls=_config.FILENAME_URLS
       self._feeds=json.load(open(paths.DATA_PATH / self._filename_feeds,"r"))
       self._urls=json.load(open(paths.DATA_PATH / self._filename_urls,"r"))
-      if _config.FORCE_UPDATE:
-        self.update_urls()
+      self._years = _config.YEARS
       self._sessions_dict=self.get_sessions_dict()
       self._logger=_config.LOGGER
       self._logger_file=_config.LOGGER_FILE
       self._DT_BASETIME=None
+      if _config.FORCE_UPDATE:
+        self.update_urls()
+        self._urls=json.load(open(paths.DATA_PATH / self._filename_urls,"r"))
     
     def get_session_url(self,YEAR: str,NAME: str,SESSION: str):
       """ 
@@ -229,20 +231,14 @@ class PARSER:
       elif feed=="TimingDataF1":
         #print(line,date)
         DT=arrow.get(date).datetime
-        body_exp={DT: [] }
+        body_exp={}
         for Lines,TDF1 in line.items():
           if Lines!="Withheld":
             for Driver,Updates in TDF1.items():
-              if "LastLapTime" in Updates.keys() and "NumberOfLaps" in Updates.keys():
-                driver=Driver
-                NLap=Updates["NumberOfLaps"]
-                Value_dict=Updates["LastLapTime"]
-                try:
-                  if type(Value_dict)==dict:
-                    Value=Updates["LastLapTime"]["Value"]
-                except:
-                  print("Live Parser: Value_dict not a dict -> ", Value_dict)      
-                body_exp[DT].append([driver,NLap,Value])
+              if "LastLapTime" in Updates.keys() or "NumberOfLaps" in Updates.keys() or "inPit" in Updates.keys() or "PitOut" in Updates.keys() or "NumberOfPitStops" in Updates.keys(): 
+                if DT not in body_exp.keys():
+                  body_exp[DT]=[]
+                body_exp[DT].append([Driver,Updates])
                 #print(driver,NLap,Value)
               # elif check other cases.. like pitin/pitout etc.
               # also NrOfPitStops for the matching with the fitted tyres 
@@ -250,7 +246,27 @@ class PARSER:
       elif feed=="WeatherData":
         DT=arrow.get(date).datetime
         body_exp=line
-        return {DT:body_exp}        
+        return {DT:body_exp}      
+      elif feed=="TimingAppData":
+        DT=arrow.get(date).datetime
+        body_exp={}
+        for Lines,TAD in line.items():
+          if Lines!="Withheld":
+            for driver,info in TAD.items():
+              if "Stints" in info.keys():
+                if type(info["Stints"])==dict:
+                  if DT not in body_exp.keys():
+                    body_exp[DT]=[]
+                  body_exp[DT].append([driver,info["Stints"]])
+        return body_exp
+      elif feed=="SessionStatus":
+        DT=arrow.get(date).datetime
+        body_exp=line
+        return {DT:body_exp}  
+      elif feed=="RaceControlMessages":
+        DT=arrow.get(date).datetime
+        body_exp=line
+        return {DT:body_exp}    
       else:
         try:
           body=json.loads(line)
@@ -421,36 +437,36 @@ class PARSER:
         URL for the event, then saves it on session_urls json file.
       """
       SESSION_URLS={}
-      for YEAR in ["2018","2019","2020","2021","2022","2023"]:
+      for YEAR in self._years:
         INDEX_URL=self._base_url+YEAR+self._index_endpoint
         response = requests.get(INDEX_URL)
         INDEX_JSON=json.loads(response.content)
         for meeting in INDEX_JSON["Meetings"]:
           print("\n\t Meeting: {0} - {1} ".format(YEAR,meeting["Name"].replace(" ","_")))
           n=0
-          if "test" not in meeting["Name"].lower():
-            for session in meeting["Sessions"]:
-              if "Path" in session.keys():
-                RACE_DATE=session["Path"][5:15]
-                RACE_DATE_FOUND=True
-                break
-                               
-            if not RACE_DATE_FOUND:
-              print("\t\t RACE DATE not found!")
-            for session in meeting["Sessions"]:
-              if session["Key"]!=-1:
-                n+=1                
-                print("\t\t Session {0}: {1}".format(n,session["Name"].replace(" ","_")))
-                if YEAR+"_"+meeting["Name"].replace(" ","_") not in SESSION_URLS.keys():
-                  SESSION_URLS[YEAR+"_"+meeting["Name"].replace(" ","_")]={}
-                PATH=YEAR+"/"+RACE_DATE+"_"+meeting["Name"].replace(" ","_")+"/"+session["StartDate"][:10]+"_"+session["Name"].replace(" ","_")+"/"
-                if "Path" not in session.keys() or PATH==session["Path"]:
-                  SESSION_URLS[YEAR+"_"+meeting["Name"].replace(" ","_")][session["Name"].replace(" ","_")]=PATH
-                elif "Path" in session.keys():
-                  SESSION_URLS[YEAR+"_"+meeting["Name"].replace(" ","_")][session["Name"].replace(" ","_")]=session["Path"]
-                else:
-                  print(YEAR," ",meeting["Name"]," path not found!")
-                  #logger
+          #if "test" not in meeting["Name"].lower():
+          for session in meeting["Sessions"]:
+            if "Path" in session.keys():
+              RACE_DATE=session["Path"][5:15]
+              RACE_DATE_FOUND=True
+              break
+                             
+          if not RACE_DATE_FOUND:
+            print("\t\t RACE DATE not found!")
+          for session in meeting["Sessions"]:
+            if session["Key"]!=-1:
+              n+=1                
+              print("\t\t Session {0}: {1}".format(n,session["Name"].replace(" ","_")))
+              if YEAR+"_"+meeting["Name"].replace(" ","_") not in SESSION_URLS.keys():
+                SESSION_URLS[YEAR+"_"+meeting["Name"].replace(" ","_")]={}
+              PATH=YEAR+"/"+RACE_DATE+"_"+meeting["Name"].replace(" ","_")+"/"+session["StartDate"][:10]+"_"+session["Name"].replace(" ","_")+"/"
+              if "Path" not in session.keys() or PATH==session["Path"]:
+                SESSION_URLS[YEAR+"_"+meeting["Name"].replace(" ","_")][session["Name"].replace(" ","_")]=PATH
+              elif "Path" in session.keys():
+                SESSION_URLS[YEAR+"_"+meeting["Name"].replace(" ","_")][session["Name"].replace(" ","_")]=session["Path"]
+              else:
+                print(YEAR," ",meeting["Name"]," path not found!")
+                #logger
           
       with open(paths.DATA_PATH / self._filename_urls,"w") as outfile:
           json.dump(SESSION_URLS, outfile,indent=3)

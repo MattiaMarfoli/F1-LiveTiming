@@ -34,6 +34,8 @@ class SignalRClient:
     self.database = _config.DATABASE
     self.parser= self.database._parser
     self._connection_url = _config.LS_URL
+    self._first_connection_time = 0
+    self._timeout_restart=7200-60*10 #after 2 hours it will restart.
     self.is_first_msg=True
     # TODO: Save LS in a file with correct name.
     self.filename = filename
@@ -81,6 +83,8 @@ class SignalRClient:
       if self.is_first_msg:
         self.database._first_datetime=CURR_DT
         self.database._BaseTimestamp=CURR_DT.timestamp()
+        #self.database._detected_session_type,self.database._event_name,self.database._meeting_key,self.database._year,self.database._meeting_name,self.database._session_name_api = self.database.detect_session_type(CURR_DT)
+        #self.database.retrieve_dictionaries()
         self.is_first_msg=False
     for index in range(len(self._prev_msgs_datetime)):
       if CURR_DT < self._prev_msgs_datetime[index][0]:
@@ -127,7 +131,8 @@ class SignalRClient:
     session = requests.Session()
     session.headers = self.headers
     self._connection = Connection(self._connection_url, session=session)
-
+    self._first_connection_time=time.time()
+    print("Connection started at: ",self._first_connection_time)
     # Register hub
     hub = self._connection.register_hub('Streaming')
 
@@ -144,18 +149,20 @@ class SignalRClient:
     hub.server.invoke("Subscribe", self.topics)
 
     # Start the client
-    loop = asyncio.get_event_loop()
+    self.loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
-      await loop.run_in_executor(pool, self._connection.start)
+      await self.loop.run_in_executor(pool, self._connection.start)
 
   async def _supervise(self):
     self._t_last_message = time.time()
     i=0
     while True:
-      if (self.timeout != 0
-          and time.time() - self._t_last_message > self.timeout):
+      if (   (self.timeout != 0 and time.time() - self._t_last_message > self.timeout) 
+          or (time.time() - self._first_connection_time > self._timeout_restart and self._first_connection_time!=0) ):
         self.logger.warning(f"Timeout - received no data for more "
                   f"than {self.timeout} seconds!")
+        self._first_connection_time=0
+        self._t_last_message=0
         self._connection.close()
         return
       #elif int(time.time()-self._t_last_message)%self._verbose==0:
@@ -171,15 +178,26 @@ class SignalRClient:
     self._output_file.close()
     self.logger.warning("Exiting...")
 
-  def start(self):
+  async def start_async(self):
     """Connect to the data stream and start writing the data to a file."""
     try:
-      print("Started listening..")
-      asyncio.run(self._async_start())
+      while True:
+        print("Started listening..")
+        await self._async_start()
+        print("finished! Closing all..\n Restarting...")
     except KeyboardInterrupt:
-      self.logger.warning("Keyboard interrupt - exiting...")
-      return
+        self.logger.warning("Keyboard interrupt - exiting...")
+        return
 
+  def start(self):
+        """Start the asyncio event loop."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            asyncio.run(self.start_async())
+        finally:
+            loop.close()
 #if __name__ == '__main__':
 #    client = SignalRClient(filename="0710-SprintRace.txt")
 #    client.start()
