@@ -102,6 +102,7 @@ class GUI:
     self._update_telemetry_thread = threading.Thread(target=self.update_telemetry_plot)
     self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry)
     self._update_position_thread = threading.Thread(target=self.update_position_plot)
+    self.iterator = threading.Thread(target=self.iterator_handler)
     #self._process = multiprocessing.Process(target=self.update_telemetry_plot)
     #self._thread_cl = threading.Thread(target=self.update_classifier)
     #self._thread_lap = threading.Thread(target=self.update_laps)
@@ -509,6 +510,154 @@ class GUI:
               return False
     return True 
 
+
+
+
+
+
+  def time_flow_handler(self):
+    # more checks to be added..
+    time.sleep(self._delay_T)
+    self._time_paused+=self._delay_T
+    self._first_message_DT        = self._database.get_first_datetime()
+    self._BaseTimestamp           = self._database.get_base_timestamp()
+    self._first_message_DT_myTime = datetime.datetime.now() 
+    self._last_message_displayed_DT = self._FIRSTMESSAGE_DT
+    
+    if self._LIVE:
+      # start receiving msgs
+      # It means: run livesignalr and start collecting msgs in something.
+      pass
+    else:
+      # merge the jsonStreams. Easy as that
+      pass
+    
+    while True:
+      while self._task_state=="pause":
+        time.sleep(self._sleeptime)
+        self._time_paused+=self._sleeptime
+        # if it's paused than... sleep
+        if self._StopUpdateThread.is_set():
+          # if kill_buttons is called then we kill the run..
+          break      
+      if self._StopUpdateThread.is_set():
+        # .. maybe redundant but this prevent the GUI to not kill itself if the run is paused. 
+        break      
+      
+      ### here i manage the flow of time ###
+      self._last_message_DT            = self._database.get_last_datetime() # maybe dont needed
+      
+      self._previous_message_displayed_UTC = self._last_message_displayed_UTC
+      self._last_message_displayed_UTC  =  datetime.datetime.utcnow() \
+                                         + datetime.timedelta(seconds=self._time_skipped) \
+                                         - datetime.timedelta(seconds=self._time_paused) \
+                                         - self._first_message_UTC * (not self._LIVE) #FirstMessageUtc = DT in UTC of 00:00:00.000 from jsonStream
+                                                                                      # self._LIVE = True if Live else False
+      # self.iteration(time_start = self._previous_message_displayed_UTC, \
+        #               time_end   = self._last_message_displayed_UTC)
+    return True
+  
+  def iteration(self, time_start, time_end):
+    """
+      list_of_msgs is a list of sorted messages in time [DateTime,Feed,Body] where:
+        -) DateTime has the following format: '%H:%M:%S.%f'
+        -) Feed is the string taken from the official F1 livetiming site
+        -) Body is a dictionary. Originally it is a string where json.loads is applied.
+           !! NB: If the feed contains .z (CarData and Position) then before applying 
+                  json.loads a decription passage is performed.   
+    """ 
+    
+    for index,content in enumerate(self._list_of_msgs[self._last_index:]): # last_index based on FW,BW also
+      time,feed,msg = content[0],content[1],content[2]
+      if time>time_start and time<time_end:
+        ### Here I update the constants ready to be displayed ###
+        self.processer_and_databaseUpdater(feed,msg) 
+        
+        # saving last_index for speeding purposes
+        self.last_index=index
+        self._last_datetime_processed=time
+    return True
+  
+  def processer_and_databaseUpdater(self,feed,msg):
+    # feed filtering
+    if feed=="CarData.z":
+      self.update_variables_CarData(feed,msg)
+      self.update_database_CarData(feed,msg)
+        
+    elif feed=="Position.z":
+      self.update_variables_Position(feed,msg)
+      self.update_database_Position(feed,msg)
+      
+    elif feed=="TimingDataF1":
+      self.update_variables_TimingDataF1(feed,msg)
+      self.update_database_TimingDataF1(feed,msg)
+            
+    elif feed=="WeatherData":
+      self.update_variables_WeatherData(feed,msg)
+      self.update_database_WeatherData(feed,msg)
+      
+    elif feed=="SessionStatus":
+      self.update_variables_SessionStatus(feed,msg)
+      
+    elif feed=="RaceControlMessages":
+      self.update_variables_RaceControlMessages(feed,msg)
+      
+    elif feed=="TimingAppData":
+      self.update_variables_TimingAppData(feed,msg)
+      self.update_database_TimingAppData(feed,msg)
+      
+    else:
+      return None
+  
+  #####################################################################################
+  
+  #####       CarData.z     #####
+  def update_variables_CarData(self,feed,msg):
+    pass
+  
+  def update_database_CarData(self,feed,msg):
+    pass
+  
+  #####      Position.z     #####
+  def update_variables_Position(self,feed,msg):
+    pass
+  
+  def update_database_Position(self,feed,msg):
+    pass
+  
+  
+  #####     TimingDataF1    #####
+  def update_variables_TimingDataF1(self,feed,msg):
+    pass
+  
+  def update_database_TimingDataF1(self,feed,msg):
+    pass
+  
+  #####      WeatherData    #####
+  def update_variables_WeatherData(self,feed,msg):
+    pass
+  
+  def update_database_WeatherData(self,feed,msg):
+    pass
+  
+  #####     SessionStatus   #####
+  def update_variables_SessionStatus(self,feed,msg):
+    pass
+  
+  ##### RaceControlMessages #####
+  def update_variables_RaceControlMessages(self,feed,msg):
+    pass
+  
+  #####     TimingAppData   #####
+  def update_variables_TimingAppData(self,feed,msg):
+    pass
+  
+  def update_database_TimingAppData(self,feed,msg):
+    pass
+  
+  #####################################################################################
+  
+  
   def update_telemetry_plot(self):
     if self._LIVE_SIM:
       while not self._LIVESIM_READY: # LiveSim ready to be updated
@@ -1228,32 +1377,11 @@ class GUI:
         print(self._tabs[tab]," show set to False")
         dpg.configure_item(self._tabs[tab],show=False)
 
-
-  def run(self):
-    """
-      Rewrite this. Needs to create in order: Window to choose race if necessary, 
-      telemetry display of all drivers and comparison plot. Last 2 need to be built 
-      in 2 tabs in the same window. 
-    """
-    
-    if not self._LIVE_SIM:
-      self._IO_thread.start()
-    # No bring focus is a temporary workaround. It will be fixed in the future with the windows restyle                                                                                                  
-    with dpg.window(tag="Primary window",width=self._VIEWPORT_WIDTH,height=self._VIEWPORT_HEIGHT,pos=[0,0],no_bring_to_front_on_focus=True):
-      with dpg.menu_bar():
-        with dpg.tab_bar():
-          for tab in self._tabs.keys():
-            dpg.add_tab_button(label=tab,tag=tab,callback=self.showTab)
-          #dpg.add_tab_button(label="Telemetry")
-          #dpg.add_tab_button(label="Compare Telemetry")
-      if self._LIVE_SIM:
-        with dpg.group(label="Race selector",tag="Race_Selector",show=True):
-          dpg.add_combo(items=list(self._parser._sessions_dict.keys()),tag="year",default_value="None",callback=self.choose_session)
-    
+  def initialize_themes_and_fonts(self):
     # Colors for laps based on laptime
     with dpg.theme(tag="BestOverallLap"): 
-        with dpg.theme_component():
-          dpg.add_theme_color(dpg.mvPlotCol_Line, [255,0,255] , category=dpg.mvThemeCat_Plots)
+      with dpg.theme_component():
+        dpg.add_theme_color(dpg.mvPlotCol_Line, [255,0,255] , category=dpg.mvThemeCat_Plots)
     with dpg.theme(tag="BestPersonalLap"):
       with dpg.theme_component():
         dpg.add_theme_color(dpg.mvPlotCol_Line, [0,255,0] , category=dpg.mvThemeCat_Plots)
@@ -1281,13 +1409,6 @@ class GUI:
       # first argument ids the path to the .ttf or .otf file
       dpg.add_font("Fonts/Roboto-Bold.ttf", 40,tag="drawNodeFont")
     
-    dpg.set_primary_window(window="Primary window",value=True)
-    dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around for a known dpg bug!
-    
-    self._update_telemetry_thread.start()    
-    self._compare_telemetry_thread.start()
-    self._update_position_thread.start()
-    
     with dpg.theme() as global_theme:
       with dpg.theme_component(dpg.mvAll):
         # Core Style
@@ -1305,6 +1426,36 @@ class GUI:
     
     dpg.bind_theme(global_theme)
     
+  def initialize_windows_and_tabs(self):
+    if not self._LIVE_SIM:
+      self._IO_thread.start()
+    # No bring focus is a temporary workaround. It will be fixed in the future with the windows restyle                                                                                                  
+    with dpg.window(tag="Primary window",width=self._VIEWPORT_WIDTH,height=self._VIEWPORT_HEIGHT,pos=[0,0],no_bring_to_front_on_focus=True):
+      with dpg.menu_bar():
+        with dpg.tab_bar():
+          for tab in self._tabs.keys():
+            dpg.add_tab_button(label=tab,tag=tab,callback=self.showTab)
+          #dpg.add_tab_button(label="Telemetry")
+          #dpg.add_tab_button(label="Compare Telemetry")
+      if self._LIVE_SIM:
+        with dpg.group(label="Race selector",tag="Race_Selector",show=True):
+          dpg.add_combo(items=list(self._parser._sessions_dict.keys()),tag="year",default_value="None",callback=self.choose_session)
+  
+  def run(self):
+    """
+      Rewrite this. Needs to create in order: Window to choose race if necessary, 
+      telemetry display of all drivers and comparison plot. Last 2 need to be built 
+      in 2 tabs in the same window. 
+    """
+    
+    self.initialize_windows_and_tabs()
+    self.initialize_themes_and_fonts()
+    
+    dpg.set_primary_window(window="Primary window",value=True)
+    dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around for a known dpg bug!
+    
+    self.iterator.start()   
+     
     #dpg.show_style_editor()
     dpg.start_dearpygui()  
     dpg.destroy_context()
