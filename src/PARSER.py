@@ -212,70 +212,20 @@ class PARSER:
       Returns:
         dict: datetime: msg
       """
-      if feed[-2:]==".z":
-        body=json.loads(self.pako_inflate_raw(base64.b64decode(line)).decode('utf-8'))
-        body_exp={}
-        for entry in body[list(body.keys())[0]]: 
-          # entry -> RaceData: "Utc" and  "Cars" -> "n" -> "Channels" -> "0","2","3","4","5","45"
-          #       -> Position: "Timestamp" and  "Entries" -> "n" -> "Status" , "X" , "Y" , "Z"
-          time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
-          body_exp[time_entry]=entry[list(entry.keys())[1]]
-        return body_exp
-      #elif feed=="DriverList":
-      #  date_body=str(line).split("{")
-      #  body=""
-      #  for term in date_body[1:]:
-      #    body+="{"+term
-      #  body=json.loads(body)
-      #  return body
-      elif feed=="TimingDataF1":
-        #print(line,date)
-        DT=arrow.get(date).datetime
-        body_exp={}
-        for Lines,TDF1 in line.items():
-          if Lines!="Withheld":
-            for Driver,Updates in TDF1.items():
-              if "LastLapTime" in Updates.keys() or "NumberOfLaps" in Updates.keys() or "inPit" in Updates.keys() or "PitOut" in Updates.keys() or "NumberOfPitStops" in Updates.keys(): 
-                if DT not in body_exp.keys():
-                  body_exp[DT]=[]
-                body_exp[DT].append([Driver,Updates])
-                #print(driver,NLap,Value)
-              # elif check other cases.. like pitin/pitout etc.
-              # also NrOfPitStops for the matching with the fitted tyres 
-        return body_exp
-      elif feed=="WeatherData":
-        DT=arrow.get(date).datetime
-        body_exp=line
-        return {DT:body_exp}      
-      elif feed=="TimingAppData":
-        DT=arrow.get(date).datetime
-        body_exp={}
-        for Lines,TAD in line.items():
-          if Lines!="Withheld":
-            for driver,info in TAD.items():
-              if "Stints" in info.keys():
-                if type(info["Stints"])==dict:
-                  if DT not in body_exp.keys():
-                    body_exp[DT]=[]
-                  body_exp[DT].append([driver,info["Stints"]])
-        return body_exp
-      elif feed=="SessionStatus":
-        DT=arrow.get(date).datetime
-        body_exp=line
-        return {DT:body_exp}  
-      elif feed=="RaceControlMessages":
-        DT=arrow.get(date).datetime
-        body_exp=line
-        return {DT:body_exp}    
-      else:
-        try:
-          body=json.loads(line)
-          date_in = arrow.get(date).datetime
-          return {date_in:body}
-        except:
-          print(feed, " not well parsed")
-          date_in = arrow.get(date).datetime
-          return {date_in: None }
+      try:
+        if feed[-2:]==".z":
+          body_exp=[]
+          body=json.loads(self.pako_inflate_raw(base64.b64decode(line)).decode('utf-8'))
+          for entry in body[list(body.keys())[0]]:
+            time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
+            body_exp.append([feed,entry[list(entry.keys())[1]],time_entry])
+          return body_exp
+        else:
+          DT=arrow.get(date).datetime
+          body_exp=line
+          return [feed,body_exp,DT]    
+      except Exception as err:
+        _config.WRITE_EXCEPTION(err)
 
     def OneLineParser(self,line: str,feed: str):
       """
@@ -297,84 +247,28 @@ class PARSER:
       try:
         line_noBOM=line.decode("utf-8")
         if feed[-2:]==".z":
+          body_exp=[]
           line_noBOM=line_noBOM.split('"')
           date=line_noBOM[0].replace("\ufeff","")
           body=line_noBOM[1]
           body=json.loads(self.pako_inflate_raw(base64.b64decode(body)).decode('utf-8'))
-          body_exp={}
           for entry in body[list(body.keys())[0]]:
             #print(entry[list(entry.keys())[0]])
             time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
-            if self._DT_BASETIME==None:
-              date_splitted=date.split(":")
-              sec_from_first_cardata_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
-              print("\n Offset of: ",sec_from_first_cardata_message," seconds! \n")
-              self._DT_BASETIME=time_entry-datetime.timedelta(seconds=sec_from_first_cardata_message)
-            body_exp[time_entry]=entry[list(entry.keys())[1]]
+            body_exp.append([feed,entry[list(entry.keys())[1]],time_entry])
           return body_exp
-        elif feed=="DriverList":
-          date_body=line_noBOM.split("{")
-          body=""
-          for term in date_body[1:]:
-            body+="{"+term
-          body=json.loads(body)
-          return body 
-        elif feed=="TimingDataF1":
+        elif feed=="Heartbeat":
           line_noBOM=line_noBOM.replace("\ufeff","")
           date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
           body=json.loads(line_noBOM[12:])
-          body_exp={}
-          if "Lines" in body.keys():
-            #for lines,lines_value in body.items():
-              #if lines!="Withheld" and lines!="NoEntries" and lines!="SessionPart":
-              #  print(line_noBOM,lines,lines_value)
-              for driver,stints in body["Lines"].items():
-                if "LastLapTime" in stints.keys() or "NumberOfLaps" in stints.keys() or "inPit" in stints.keys() or "PitOut" in stints.keys() or "NumberOfPitStops" in stints.keys():
-                  if self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond) not in body_exp.keys():
-                    body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)]=[]
-                  body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)].append([driver,
-                                                                                                                                                                stints])
-          return body_exp
-        elif feed=="TimingAppData":
-          line_noBOM=line_noBOM.replace("\ufeff","")
-          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
-          body=json.loads(line_noBOM[12:])
-          body_exp={}
-          if "Lines" in body.keys():
-            for driver,info in body["Lines"].items():
-              if "Stints" in info.keys():
-                  if type(info["Stints"])==dict:
-                    if self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond) not in body_exp.keys():
-                      body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)]=[]
-                    body_exp[self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)].append([driver,info["Stints"]])
-          return body_exp
-        elif feed=="WeatherData":
-          line_noBOM=line_noBOM.replace("\ufeff","")
-          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
-          date_key=self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)
-          body=json.loads(line_noBOM[12:])
-          return {date_key:body}
-        elif feed=="SessionStatus":
-          line_noBOM=line_noBOM.replace("\ufeff","")
-          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
-          date_key=self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)
-          body=json.loads(line_noBOM[12:])
-          return {date_key:body}
-        elif feed=="RaceControlMessages":
-          line_noBOM=line_noBOM.replace("\ufeff","")
-          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
-          date_key=self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)
-          body=json.loads(line_noBOM[12:])
-          return {date_key:body}
+          first_DT=arrow.get(body["Utc"]).datetime
+          return [feed,first_DT,date]
         else:
-          date_body=line_noBOM.split("{")
-          date=date_body[0].replace("\ufeff","")
-          body=""
-          for term in date_body[1:]:
-            body+="{"+term
-          body=json.loads(body)
-          date_time=arrow.get(date).datetime
-          return {date_time:body}
+          line_noBOM=line_noBOM.replace("\ufeff","")
+          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
+          DateTime=self._DT_BASETIME+datetime.timedelta(hours=date.hour,minutes=date.minute,seconds=date.second,microseconds=date.microsecond)
+          body=json.loads(line_noBOM[12:])
+          return [feed,body,DateTime]
       except Exception as err:
         _config.WRITE_EXCEPTION(err)
         
@@ -419,13 +313,15 @@ class PARSER:
                 returns -1
       """
       jsonStream_txt=self.get_response_content(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED=FEED,TYPE="jsonStream")
-      if jsonStream_txt!=-1:
-        data_stream={}     
-        for line in jsonStream_txt.splitlines():
-          dictionary=self.OneLineParser(line,FEED)
-          for date,body in dictionary.items():
-            data_stream[date]=body
-        return data_stream
+      if jsonStream_txt!=-1: 
+        if FEED!="Heartbeat":
+          msgs=[]
+          for line in jsonStream_txt.splitlines():
+            msgs.append(self.OneLineParser(line,FEED))
+          return msgs
+        else:
+          line=jsonStream_txt.splitlines()[0]
+          return self.OneLineParser(line,FEED)
       else:
          return -1
     

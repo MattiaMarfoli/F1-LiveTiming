@@ -30,6 +30,8 @@ class DATABASE:
     self._first_message_flag = False
     self._last_tyres_fitted  = {}
     
+    self._list_of_msgs=[]
+    
     self._drivers_list             = None
     self._drivers_list_provisional = set()
     self._drivers_list_api         = []
@@ -172,14 +174,14 @@ class DATABASE:
     """
     return list(self._parser._feeds.keys())
 
-  def feed_dictionary(self,feed: str,YEAR: str,NAME: str,SESSION: str):
+  def feed_list(self,feed: str,YEAR: str,NAME: str,SESSION: str):
     """
     Brief:
       Basically overrides jsonStream_parser of Parser class.
     """
-    f_dict=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED=feed)
-    if f_dict!=-1:
-      return f_dict
+    f_list=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED=feed)
+    if f_list!=-1:
+      return f_list
     else:
       return -1 
 
@@ -299,143 +301,145 @@ class DATABASE:
             if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in TimingDataF1 in update_database is discarded: message sent after the last CarData message!")
             else:
-              for LAP in TDF1:
-                driver=LAP[0]
-                stints=LAP[1]
-                #print("\n",stints,"\n")
-                if driver not in self._Laps.keys():
-                  self._Laps[driver]={}
-                if driver not in self._last_stint_found.keys():
-                  self._last_stint_found[driver]=0
-                if driver not in self._last_lapnumber_found.keys():
-                  self._last_lapnumber_found[driver]=0
-                if driver not in self._PitIn.keys():
-                  self._PitIn[driver]=False
-                if "InPit" in stints.keys():
-                  self._PitIn[driver]=stints["InPit"]
-                if "NumberOfLaps" in stints.keys():
-                  LAP=stints["NumberOfLaps"]
-                  self._last_lapnumber_found[driver]=LAP
-                  if LAP not in self._Laps[driver].keys() and LAP!=1:
-                    #print("Lap: ",LAP," for driver: ",driver," already present! Maybe it is ok.")
-                  #else:
-                    self._Laps[driver][LAP]={"DateTime":          DT,
-                                             "ValueInt_sec":      0,
-                                             "ValueString":       "",
-                                             "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
-                                             "Stint":             self._last_stint_found[driver],
-                                             "PitOutLap":         False,
-                                             "PitInLap":          False
-                                             }
-                    if LAP==2:
-                      self._Laps[driver][LAP]["PitOutLap"]=True
-                  elif LAP!=1:
-                    if "PitInLap" not in self._Laps[driver][LAP].keys():
-                      self._Laps[driver][LAP]["PitInLap"]=False
-                    if "PitOutLap" not in self._Laps[driver][LAP].keys():
-                      self._Laps[driver][LAP]["PitOutLap"]=False
-                      
-                if "LastLapTime" in stints.keys():
-                  if "Value" in stints["LastLapTime"].keys():
-                    Value=stints["LastLapTime"]["Value"]
-                    if Value!="":
-                      mins,secs=Value.split(":")
-                      Value_int=int(mins)*60. + float(secs) # s
-                    else:
-                      Value_int=0
-                    if self._last_lapnumber_found[driver] in self._Laps[driver].keys():
-                      if self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=="":                         
-                        self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=Value
-                        self._Laps[driver][self._last_lapnumber_found[driver]]["ValueInt_sec"]=Value_int
-                        self._Laps[driver][self._last_lapnumber_found[driver]]["DateTime"]=DT
-                        self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._BaseTimestamp
-                      else:
-                        self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
-                                                                                  "ValueInt_sec":      Value_int,
-                                                                                  "ValueString":       Value,
-                                                                                  "TimeStamp":         DT.timestamp()-self._BaseTimestamp,
-                                                                                  "Stint":             self._last_stint_found[driver],
-                                                                                  #"PitOutLap":         False,
-                                                                                  #"PitInLap":          self._PitIn[driver]}
-                                                                                  }    
-                        self._last_lapnumber_found[driver]+=1
-                    elif self._last_lapnumber_found[driver]==0:
-                      self._last_lapnumber_found[driver]+=1
-                      print("Skipping lap 1 for driver: ",driver, "! Should be correct but maybe it will require further checks.")
-                    else:
-                      print("Weird problem! LastLapTime is coming firstly with respect to NumberOfLaps!\n Maybe at the start of the jsonStream...")                               
-                if "NumberOfPitStops" in stints.keys():
-                  if "InPit" in stints.keys():
-                    if self._last_lapnumber_found[driver] in self._Laps[driver].keys() and stints["InPit"]==True:                    
-                      self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
-                                                                                "ValueInt_sec":      0,
-                                                                                "ValueString":       "",
-                                                                                "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
-                                                                                "Stint":             stints["NumberOfPitStops"]-1,
-                                                                                "PitOutLap":         False,
-                                                                                "PitInLap":          True}
-                      self._last_lapnumber_found[driver]+=1
-                    else:
-                      print("\nCase not understood! Last number of lap not in the lap dict when InPit is true... need to check! \n Driver: ",driver, " Lap: ",self._last_lapnumber_found[driver],"\n")
-                  self._last_stint_found[driver]=stints["NumberOfPitStops"]
-                if "PitOut" in stints.keys():
-                  if stints["PitOut"]==True:
-                    self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":            DT,
-                                                                                "ValueInt_sec":      0,
-                                                                                "ValueString":       "",
-                                                                                "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
-                                                                                "Stint":             self._last_stint_found[driver],
-                                                                                "PitOutLap":         True,
-                                                                                #"PitInLap":          self._PitIn[driver]
-                                                                                }
-                    if self._last_lapnumber_found[driver]!=1:
-                      if self._Laps[driver][self._last_lapnumber_found[driver]]["PitInLap"]==False:
-                        self._Laps[driver][self._last_lapnumber_found[driver]]["PitInLap"]=True
-                    self._last_lapnumber_found[driver]+=1
+              if "Lines" in TDF1.keys():
+                for driver,stints in TDF1["Lines"].items():
+                   if "LastLapTime" in stints.keys() or "NumberOfLaps" in stints.keys() or "inPit" in stints.keys() or "PitOut" in stints.keys() or "NumberOfPitStops" in stints.keys():
+                      #print("\n",stints,"\n")
+                      if driver not in self._Laps.keys():
+                        self._Laps[driver]={}
+                      if driver not in self._last_stint_found.keys():
+                        self._last_stint_found[driver]=0
+                      if driver not in self._last_lapnumber_found.keys():
+                        self._last_lapnumber_found[driver]=0
+                      if driver not in self._PitIn.keys():
+                        self._PitIn[driver]=False
+                      if "InPit" in stints.keys():
+                        self._PitIn[driver]=stints["InPit"]
+                      if "NumberOfLaps" in stints.keys():
+                        LAP=stints["NumberOfLaps"]
+                        self._last_lapnumber_found[driver]=LAP
+                        if LAP not in self._Laps[driver].keys() and LAP!=1:
+                          #print("Lap: ",LAP," for driver: ",driver," already present! Maybe it is ok.")
+                        #else:
+                          self._Laps[driver][LAP]={"DateTime":          DT,
+                                                   "ValueInt_sec":      0,
+                                                   "ValueString":       "",
+                                                   "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                   "Stint":             self._last_stint_found[driver],
+                                                   "PitOutLap":         False,
+                                                   "PitInLap":          False
+                                                   }
+                          if LAP==2:
+                            self._Laps[driver][LAP]["PitOutLap"]=True
+                        elif LAP!=1:
+                          if "PitInLap" not in self._Laps[driver][LAP].keys():
+                            self._Laps[driver][LAP]["PitInLap"]=False
+                          if "PitOutLap" not in self._Laps[driver][LAP].keys():
+                            self._Laps[driver][LAP]["PitOutLap"]=False
+
+                      if "LastLapTime" in stints.keys():
+                        if "Value" in stints["LastLapTime"].keys():
+                          Value=stints["LastLapTime"]["Value"]
+                          if Value!="":
+                            mins,secs=Value.split(":")
+                            Value_int=int(mins)*60. + float(secs) # s
+                          else:
+                            Value_int=0
+                          if self._last_lapnumber_found[driver] in self._Laps[driver].keys():
+                            if self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=="":                         
+                              self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=Value
+                              self._Laps[driver][self._last_lapnumber_found[driver]]["ValueInt_sec"]=Value_int
+                              self._Laps[driver][self._last_lapnumber_found[driver]]["DateTime"]=DT
+                              self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._BaseTimestamp
+                            else:
+                              self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
+                                                                                        "ValueInt_sec":      Value_int,
+                                                                                        "ValueString":       Value,
+                                                                                        "TimeStamp":         DT.timestamp()-self._BaseTimestamp,
+                                                                                        "Stint":             self._last_stint_found[driver],
+                                                                                        #"PitOutLap":         False,
+                                                                                        #"PitInLap":          self._PitIn[driver]}
+                                                                                        }    
+                              self._last_lapnumber_found[driver]+=1
+                          elif self._last_lapnumber_found[driver]==0:
+                            self._last_lapnumber_found[driver]+=1
+                            print("Skipping lap 1 for driver: ",driver, "! Should be correct but maybe it will require further checks.")
+                          else:
+                            print("Weird problem! LastLapTime is coming firstly with respect to NumberOfLaps!\n Maybe at the start of the jsonStream...")                               
+                      if "NumberOfPitStops" in stints.keys():
+                        if "InPit" in stints.keys():
+                          if self._last_lapnumber_found[driver] in self._Laps[driver].keys() and stints["InPit"]==True:                    
+                            self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
+                                                                                      "ValueInt_sec":      0,
+                                                                                      "ValueString":       "",
+                                                                                      "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                      "Stint":             stints["NumberOfPitStops"]-1,
+                                                                                      "PitOutLap":         False,
+                                                                                      "PitInLap":          True}
+                            self._last_lapnumber_found[driver]+=1
+                          else:
+                            print("\nCase not understood! Last number of lap not in the lap dict when InPit is true... need to check! \n Driver: ",driver, " Lap: ",self._last_lapnumber_found[driver],"\n")
+                        self._last_stint_found[driver]=stints["NumberOfPitStops"]
+                      if "PitOut" in stints.keys():
+                        if stints["PitOut"]==True:
+                          self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":            DT,
+                                                                                      "ValueInt_sec":      0,
+                                                                                      "ValueString":       "",
+                                                                                      "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                      "Stint":             self._last_stint_found[driver],
+                                                                                      "PitOutLap":         True,
+                                                                                      #"PitInLap":          self._PitIn[driver]
+                                                                                      }
+                          if self._last_lapnumber_found[driver]!=1:
+                            if self._Laps[driver][self._last_lapnumber_found[driver]]["PitInLap"]==False:
+                              self._Laps[driver][self._last_lapnumber_found[driver]]["PitInLap"]=True
+                          self._last_lapnumber_found[driver]+=1
                     
         elif feed=="TimingAppData":
           for DT,TAD in msg_decrypted.items():
             if DT.timestamp()-self._last_datetime.timestamp()>120:
               print(DT, " in TimingAppData in update_database is discarded: message sent after the last CarData message!")
             else:
-              for tyre_update in TAD:
-                driver=tyre_update[0]
-                info_stint=tyre_update[1]
-                if driver not in self._Tyres.keys():
-                  self._Tyres[driver]={}
-                for stint,info_stint in info_stint.items():
-                  if stint not in self._Tyres[driver].keys():
-                    if len(self._Tyres[driver])==0:
-                      self._Tyres[driver][stint]={"TotalLaps":0,
-                                                  "Compound":"Unknown",
-                                                  "New":False,
-                                                  "CompoundAge":0,
-                                                  "StartingLap":2 ,
-                                                  "EndingLap":1,
-                                                  "StartingStint_DateTime": DT}
-                    else:
-                      self._Tyres[driver][stint]={"TotalLaps":0,
-                                                  "Compound":"Unknown",
-                                                  "New":False,
-                                                  "CompoundAge":0,
-                                                  "StartingLap":2 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
-                                                  "EndingLap":1,
-                                                  "StartingStint_DateTime": DT}
-                  if "Compound" in info_stint.keys():
-                    self._Tyres[driver][stint]["Compound"]=info_stint["Compound"]
-                    self._last_tyres_fitted[driver]=[info_stint["Compound"],False,0,0]
-                    if "New" in info_stint.keys():
-                      self._Tyres[driver][stint]["New"] = True if info_stint["New"]=="true" else False
-                      self._last_tyres_fitted[driver][1]=True if info_stint["New"]=="true" else False
-                    if "StartLaps" in info_stint.keys():
-                      self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
-                      self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
-                      self._last_tyres_fitted[driver][2]=info_stint["StartLaps"]
-                  if "TotalLaps" in info_stint.keys():
-                    self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+(info_stint["TotalLaps"]-1)-self._Tyres[driver][stint]["CompoundAge"]
-                    self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
-                    #current_lap[driver]+=1
-                    
+              if "Lines" in TAD.keys():
+                for driver,stints in TAD["Lines"].items():
+                  if "Stints" in stints.keys():
+                    if type(stints["Stints"])==dict: 
+                      info_stint=stints["Stints"]
+                      if driver not in self._Tyres.keys():
+                        self._Tyres[driver]={}
+                      for stint,info_stint in info_stint.items():
+                        if stint not in self._Tyres[driver].keys():
+                          if len(self._Tyres[driver])==0:
+                            self._Tyres[driver][stint]={"TotalLaps":0,
+                                                        "Compound":"Unknown",
+                                                        "New":False,
+                                                        "CompoundAge":0,
+                                                        "StartingLap":2 ,
+                                                        "EndingLap":1,
+                                                        "StartingStint_DateTime": DT}
+                          else:
+                            self._Tyres[driver][stint]={"TotalLaps":0,
+                                                        "Compound":"Unknown",
+                                                        "New":False,
+                                                        "CompoundAge":0,
+                                                        "StartingLap":2 if stint=="0" else self._Tyres[driver][str(int(stint)-1)]["EndingLap"]+1,
+                                                        "EndingLap":1,
+                                                        "StartingStint_DateTime": DT}
+                        if "Compound" in info_stint.keys():
+                          self._Tyres[driver][stint]["Compound"]=info_stint["Compound"]
+                          self._last_tyres_fitted[driver]=[info_stint["Compound"],False,0,0]
+                          if "New" in info_stint.keys():
+                            self._Tyres[driver][stint]["New"] = True if info_stint["New"]=="true" else False
+                            self._last_tyres_fitted[driver][1]=True if info_stint["New"]=="true" else False
+                          if "StartLaps" in info_stint.keys():
+                            self._Tyres[driver][stint]["CompoundAge"] = info_stint["StartLaps"]
+                            self._Tyres[driver][stint]["New"] = (0 == info_stint["StartLaps"])
+                            self._last_tyres_fitted[driver][2]=info_stint["StartLaps"]
+                        if "TotalLaps" in info_stint.keys():
+                          self._Tyres[driver][stint]["EndingLap"]=self._Tyres[driver][stint]["StartingLap"]+(info_stint["TotalLaps"]-1)-self._Tyres[driver][stint]["CompoundAge"]
+                          self._Tyres[driver][stint]["TotalLaps"]=info_stint["TotalLaps"]-self._Tyres[driver][stint]["CompoundAge"]
+                          #current_lap[driver]+=1
+
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
             if DT.timestamp()-self._last_datetime.timestamp()>120:
@@ -742,6 +746,13 @@ class DATABASE:
     with self._lock:
       return self._BaseTimestamp # First message's in timestamp
 
+  def find_DT_BASETIME(self,YEAR: str,NAME: str,SESSION: str):
+    feed,DT_utc,DT_passed=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,feed="Heartbeat")
+    date_splitted=DT_passed.split(":")
+    sec_from_first_heartbeat_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
+    self._DT_BASETIME=DT_utc-datetime.timedelta(seconds=sec_from_first_heartbeat_message)
+    print("\n BaseTime: ",self._DT_BASETIME," \n")
+    
   def merger(self,YEAR: str,NAME: str,SESSION: str):
     """
     Brief:
@@ -757,19 +768,17 @@ class DATABASE:
       dict: merged dictionary for all feeds in feeds_list. Sorted for time of arrival
             of the messages.
     """
+    self._parser._DT_BASETIME=self.find_DT_BASETIME()
     print("Starting the merge..")
-    list_of_feeds=self._feed_list
-    for feed in list_of_feeds:
+    self._list_of_msgs_as_dictionaries=[]
+    for feed in self._feed_list:
       print("Preparing the merge of feed: ", feed, "...",end="")
-      if feed in self._feed_list:
-        feed_dict=self.feed_dictionary(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION)
-        if feed_dict!=-1:
-          self.update_database(msg_decrypted=feed_dict,feed=feed)
-          print("MERGED!")
-        else:
-          print("Failed to retrieve data..")
-      else:
-        print("SKIPPED!")
+      for msg in self.feed_list(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION):
+        self._list_of_msgs.append(msg)
+      print(" Done!")
+    print("Sorting the list...",end="")
+    sorted(self._list_of_msgs,key=lambda x: x[0])
+    print(" ended!")
     self._is_merge_ended=True
 
   def detect_session_type(self,first_datetime):
@@ -917,4 +926,10 @@ class DATABASE:
                 break
             return self._last_position_index_found_SC
       
-      
+  def get_list_of_msgs(self):
+    with self._lock:
+      return self._list_of_msgs
+  
+  def append_msg_to_full_list(self,msg):
+    with self._lock:
+      self._list_of_msgs.append(msg)

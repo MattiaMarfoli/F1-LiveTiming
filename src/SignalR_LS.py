@@ -74,8 +74,8 @@ class SignalRClient:
     #print(CURR_DT," ",msg)
     if len(self._prev_msgs_datetime)>=self.LENGTH_QUEUE_MSGS:
       msg_to_send=self._prev_msgs_datetime.pop(0)[1]
-      body_exp=self.parser.live_parser(feed=msg_to_send[0],line=msg_to_send[1],date=msg_to_send[2])
-      self.database.update_database(msg_decrypted=body_exp,feed=msg_to_send[0])
+      msg_parsed=self.parser.live_parser(feed=msg_to_send[0],line=msg_to_send[1],date=msg_to_send[2])
+      self.database.append_msg_to_full_list(msg_parsed)
       #print("A",CURR_DT," ",msg_to_send)
     else:
       self._prev_msgs_datetime.append([CURR_DT,msg])
