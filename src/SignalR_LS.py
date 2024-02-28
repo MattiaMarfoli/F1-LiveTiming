@@ -38,6 +38,7 @@ class SignalRClient:
     self._timeout_restart=7200-60*10 #after 2 hours it will restart.
     self.is_first_msg=True
     # TODO: Save LS in a file with correct name.
+    self._drivers_list_downloaded=False
     self.filename = filename
     self.filemode = "w"
     self.timeout = timeout
@@ -68,31 +69,37 @@ class SignalRClient:
 
   # [x] check if this work!
   def _sort_msg(self,msg):
-    #print(msg_to_send)
-    self._is_already_inserted=False
-    CURR_DT=arrow.get(msg[2]).datetime
-    #print(CURR_DT," ",msg)
-    if len(self._prev_msgs_datetime)>=self.LENGTH_QUEUE_MSGS:
-      msg_to_send=self._prev_msgs_datetime.pop(0)[1]
-      msg_parsed=self.parser.live_parser(feed=msg_to_send[0],line=msg_to_send[1],date=msg_to_send[2])
-      self.database.append_msg_to_full_list(msg_parsed)
-      #print("A",CURR_DT," ",msg_to_send)
+    if not self._drivers_list_downloaded:
+      if msg[0]=="CarData.z" or msg[0]=="Position.z":
+        self._drivers_list_downloaded=self.parser.extract_drivers_list(msg[1],arrow.get(msg[2]).datetime)
+      else:
+        pass
     else:
-      self._prev_msgs_datetime.append([CURR_DT,msg])
-      #print("B",CURR_DT," ",msg)
-      if self.is_first_msg:
-        self.database._first_datetime=CURR_DT
-        self.database._BaseTimestamp=CURR_DT.timestamp()
-        #self.database._detected_session_type,self.database._event_name,self.database._meeting_key,self.database._year,self.database._meeting_name,self.database._session_name_api = self.database.detect_session_type(CURR_DT)
-        #self.database.retrieve_dictionaries()
-        self.is_first_msg=False
-    for index in range(len(self._prev_msgs_datetime)):
-      if CURR_DT < self._prev_msgs_datetime[index][0]:
-          self._prev_msgs_datetime.insert(index,[CURR_DT,msg])
-          self._is_already_inserted=True
-          break
-    if not self._is_already_inserted:
-      self._prev_msgs_datetime.append([CURR_DT,msg])
+      #print(msg_to_send)
+      self._is_already_inserted=False
+      CURR_DT=arrow.get(msg[2]).datetime
+      #print(CURR_DT," ",msg)
+      if len(self._prev_msgs_datetime)>=self.LENGTH_QUEUE_MSGS:
+        msg_to_send=self._prev_msgs_datetime.pop(0)[1]
+        msg_parsed=self.parser.live_parser(feed=msg_to_send[0],line=msg_to_send[1],date=msg_to_send[2])
+        self.database.append_msg_to_full_list(msg_parsed)
+        #print("A",CURR_DT," ",msg_to_send)
+      else:
+        self._prev_msgs_datetime.append([CURR_DT,msg])
+        #print("B",CURR_DT," ",msg)
+        if self.is_first_msg:
+          self.database._first_datetime=CURR_DT
+          self.database._BaseTimestamp=CURR_DT.timestamp()
+          #self.database._detected_session_type,self.database._event_name,self.database._meeting_key,self.database._year,self.database._meeting_name,self.database._session_name_api = self.database.detect_session_type(CURR_DT)
+          #self.database.retrieve_dictionaries()
+          self.is_first_msg=False
+      for index in range(len(self._prev_msgs_datetime)):
+        if CURR_DT < self._prev_msgs_datetime[index][0]:
+            self._prev_msgs_datetime.insert(index,[CURR_DT,msg])
+            self._is_already_inserted=True
+            break
+      if not self._is_already_inserted:
+        self._prev_msgs_datetime.append([CURR_DT,msg])
   
   async def _on_message(self, msg):
     """

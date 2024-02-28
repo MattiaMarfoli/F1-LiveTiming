@@ -242,7 +242,7 @@ class PARSER:
         line (str): containing time and message (depends on feed)
   
       Returns:
-        dict: time_ms: msg
+        list: FEED, MSG, DT
        """
       try:
         line_noBOM=line.decode("utf-8")
@@ -252,6 +252,8 @@ class PARSER:
           date=line_noBOM[0].replace("\ufeff","")
           body=line_noBOM[1]
           body=json.loads(self.pako_inflate_raw(base64.b64decode(body)).decode('utf-8'))
+          if _config.DATABASE._drivers_list==None:
+            self.extract_drivers_list(body)
           for entry in body[list(body.keys())[0]]:
             #print(entry[list(entry.keys())[0]])
             time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
@@ -294,6 +296,16 @@ class PARSER:
          raise Exception("Date format not hh:mm:ss.SSS in PARSER.get_ms_from_date method!")
       return ms 
 
+    def extract_drivers_list(self,msg):
+      for entry in msg[list(msg.keys())[0]]:
+        for key,value in entry.items():
+          if key=="Entries" or key=="Cars":
+            DT=arrow.get(entry[list(entry.keys())[0]]).datetime
+            _config.DATABASE.update_drivers_list(DT,list(value.keys()))
+            return True
+      return False
+
+
     def jsonStream_parser(self,YEAR: str,NAME: str,SESSION: str,FEED: str):
       """
       Brief:
@@ -302,7 +314,7 @@ class PARSER:
         is accepted.
 
       Args:
-        YEAR (str): year of session (eg '2023')
+        YEAR (str): year of sessmsgion (eg '2023')
         NAME (str): name of event (eg 'Bahrain_Grand_Prix')
         SESSION (str): name of session (eg 'race')
         FEED (str): feed name (eg 'SessionInfo')
@@ -317,7 +329,13 @@ class PARSER:
         if FEED!="Heartbeat":
           msgs=[]
           for line in jsonStream_txt.splitlines():
-            msgs.append(self.OneLineParser(line,FEED))
+            msg=self.OneLineParser(line,FEED)
+            if len(msg)>0:
+              if type(msg[0])==list:
+                for m in msg:
+                  msgs.append(m)
+              else:
+                msgs.append(msg)
           return msgs
         else:
           line=jsonStream_txt.splitlines()[0]

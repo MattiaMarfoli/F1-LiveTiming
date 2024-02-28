@@ -21,14 +21,16 @@ class DATABASE:
     self._logger_file=logger_file
     
     self._lock= threading.Lock()
-    self._first_datetime     = None
-    self._last_datetime      = None
-    self._BaseTimestamp      = None
-    self._is_first_RD_msg    = False
-    self._is_merge_ended     = False
-    self._Display_LapTimes   = False
-    self._first_message_flag = False
-    self._last_tyres_fitted  = {}
+    self._first_datetime        = None
+    self._last_datetime         = None
+    self._DT_BASETIME_TIMESTAMP         = None
+    self._DT_BASETIME           = None
+    self._DT_BASETIME_TIMESTAMP = None
+    self._is_first_RD_msg       = False
+    self._is_merge_ended        = False
+    self._Display_LapTimes      = False
+    self._first_message_flag    = False
+    self._last_tyres_fitted     = {}
     
     self._list_of_msgs=[]
     
@@ -158,7 +160,7 @@ class DATABASE:
     #  print("Telemetry retrieved!")
     #  if len(self._CarData.keys())>0:
     #    if "Time" in self._CarData[list(self._CarData.keys())[0]].keys():
-    #      self._BaseTimestamp=self._CarData[list(self._CarData.keys())[0]]["Time"][0].timestamp()
+    #      self._DT_BASETIME_TIMESTAMP=self._CarData[list(self._CarData.keys())[0]]["Time"][0].timestamp()
     #      self._first_datetime=self._CarData[list(self._CarData.keys())[0]]["Time"][0]
     #  self._sample_driver=list(self._CarData.keys())[0]
     #  self._sample_cardata_list=self._CarData[list(self._CarData.keys())[0]]["Time"]
@@ -185,6 +187,12 @@ class DATABASE:
     else:
       return -1 
 
+  def update_drivers_list(self,DT: datetime.datetime,driv_list: list):
+    with self._lock:
+      self._drivers_list=driv_list
+      self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name,self._session_name_api = self.detect_session_type(DT)
+      self._drivers_list.sort()
+
   def update_database(self,msg_decrypted: dict,feed: str): # lock
     """
     CarData.z:
@@ -201,29 +209,15 @@ class DATABASE:
 
     """
     with self._lock:
-      #print(self._first_datetime," ",self._BaseTimestamp)
+      #print(self._first_datetime," ",self._DT_BASETIME_TIMESTAMP)
       try:
         if feed=="CarData.z":
           for DT,RD in msg_decrypted.items():
             #print(self._first_datetime," ",DT," ",msg_decrypted.keys())
             #print("A ",self._first_datetime)
             #print("A ",self._first_message_flag)
-            if not self._first_message_flag:
-              #if self._first_datetime!=None:
-              self._first_datetime=DT
-              #print("B ", self._first_datetime)
-              #if self._BaseTimestamp!=None:
-              self._BaseTimestamp=DT.timestamp()
-              self._last_datetime_checked_cardata  = DT
-              self._last_datetime_checked_position = DT
-              self._last_datetime_checked_position_SC = DT
-              #print("Here in CD")
-              self._first_message_flag=True
-              #print("B ",self._first_message_flag)
-              self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name,self._session_name_api = self.detect_session_type(DT)
               
-              
-              ##print(DT.timestamp()," ",self._BaseTimestamp)
+              ##print(DT.timestamp()," ",self._DT_BASETIME_TIMESTAMP)
             #print(DT,RD)
             for driver,channels in RD.items():
               #print(driver," ",channels)
@@ -242,7 +236,7 @@ class DATABASE:
                 if self._sample_driver == "":
                   self._sample_driver = driver
               self._CarData[driver]["Time"].append(DT)
-              self._CarData[driver]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
+              self._CarData[driver]["TimeStamp"].append(DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
               self._CarData[driver]["RPM"].append(channels["Channels"]["0"])
               self._CarData[driver]["Speed"].append(channels["Channels"]["2"])
               self._CarData[driver]["Gear"].append(channels["Channels"]["3"])
@@ -253,14 +247,14 @@ class DATABASE:
                 self._sample_cardata_list.append(DT)
               #print(self._CarData[driver].keys())
             self._is_first_RD_msg=True
-            self._last_datetime=DT
+            #self._last_datetime=DT
           #print(self._drivers_list,self._drivers_list_provisional)
           if self._drivers_list==None:
             self._drivers_list=list(self._drivers_list_provisional)
             self._drivers_list.sort()
         elif feed=="Position.z":
           for DT,P in msg_decrypted.items():
-            if DT.timestamp()-self._BaseTimestamp<0:
+            if DT.timestamp()-self._DT_BASETIME_TIMESTAMP<0:
               print(DT, " in Position.z in update_database is discarded: message sent before the first CarData message!")
             #elif self._last_datetime!=None:
             elif DT.timestamp()-self._last_datetime.timestamp()>120:
@@ -276,7 +270,7 @@ class DATABASE:
                       if self._sample_driver == "":
                         self._sample_driver = DRIVER
                   self._Position[DRIVER]["Time"].append(DT)
-                  self._Position[DRIVER]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
+                  self._Position[DRIVER]["TimeStamp"].append(DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
                   self._Position[DRIVER]["XYZ"].append([P_dict["X"],P_dict["Y"],P_dict["Z"]])
                   if DRIVER == self._sample_driver:
                     self._sample_position_list.append(DT)
@@ -290,7 +284,7 @@ class DATABASE:
                       if self._sample_driver_SC == "":
                         self._sample_driver_SC = DRIVER
                   self._Position_SC[DRIVER]["Time"].append(DT)
-                  self._Position_SC[DRIVER]["TimeStamp"].append(DT.timestamp()-self._BaseTimestamp)
+                  self._Position_SC[DRIVER]["TimeStamp"].append(DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
                   self._Position_SC[DRIVER]["XYZ"].append([P_dict["X"],P_dict["Y"],P_dict["Z"]])
                   self._Position_SC[DRIVER]["Range"][1]=DT
                   if DRIVER == self._sample_driver_SC:
@@ -324,7 +318,7 @@ class DATABASE:
                           self._Laps[driver][LAP]={"DateTime":          DT,
                                                    "ValueInt_sec":      0,
                                                    "ValueString":       "",
-                                                   "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                   "TimeStamp":        DT.timestamp()-self._DT_BASETIME_TIMESTAMP,
                                                    "Stint":             self._last_stint_found[driver],
                                                    "PitOutLap":         False,
                                                    "PitInLap":          False
@@ -350,12 +344,12 @@ class DATABASE:
                               self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"]=Value
                               self._Laps[driver][self._last_lapnumber_found[driver]]["ValueInt_sec"]=Value_int
                               self._Laps[driver][self._last_lapnumber_found[driver]]["DateTime"]=DT
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._BaseTimestamp
+                              self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._DT_BASETIME_TIMESTAMP
                             else:
                               self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
                                                                                         "ValueInt_sec":      Value_int,
                                                                                         "ValueString":       Value,
-                                                                                        "TimeStamp":         DT.timestamp()-self._BaseTimestamp,
+                                                                                        "TimeStamp":         DT.timestamp()-self._DT_BASETIME_TIMESTAMP,
                                                                                         "Stint":             self._last_stint_found[driver],
                                                                                         #"PitOutLap":         False,
                                                                                         #"PitInLap":          self._PitIn[driver]}
@@ -372,7 +366,7 @@ class DATABASE:
                             self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
                                                                                       "ValueInt_sec":      0,
                                                                                       "ValueString":       "",
-                                                                                      "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                      "TimeStamp":        DT.timestamp()-self._DT_BASETIME_TIMESTAMP,
                                                                                       "Stint":             stints["NumberOfPitStops"]-1,
                                                                                       "PitOutLap":         False,
                                                                                       "PitInLap":          True}
@@ -385,7 +379,7 @@ class DATABASE:
                           self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":            DT,
                                                                                       "ValueInt_sec":      0,
                                                                                       "ValueString":       "",
-                                                                                      "TimeStamp":        DT.timestamp()-self._BaseTimestamp,
+                                                                                      "TimeStamp":        DT.timestamp()-self._DT_BASETIME_TIMESTAMP,
                                                                                       "Stint":             self._last_stint_found[driver],
                                                                                       "PitOutLap":         True,
                                                                                       #"PitInLap":          self._PitIn[driver]
@@ -507,7 +501,7 @@ class DATABASE:
                   self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
                 else:
                   self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
-                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
+                  self._RunningStatus[self._fi_first_message_UTCnish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
                   self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
 
                 self._last_aborted_is_compatible=False
@@ -736,7 +730,7 @@ class DATABASE:
   
   def get_first_datetime(self):
     with self._lock:
-      return self._first_datetime # None if still no msgs have arrived
+      return self._first_datetime # None if no msgs have arrived
   
   def get_last_datetime(self):
     with self._lock:
@@ -744,15 +738,26 @@ class DATABASE:
 
   def get_base_timestamp(self):
     with self._lock:
-      return self._BaseTimestamp # First message's in timestamp
+      return self._DT_BASETIME_TIMESTAMP # First message's in timestamp
 
   def find_DT_BASETIME(self,YEAR: str,NAME: str,SESSION: str):
-    feed,DT_utc,DT_passed=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,feed="Heartbeat")
-    date_splitted=DT_passed.split(":")
-    sec_from_first_heartbeat_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
-    self._DT_BASETIME=DT_utc-datetime.timedelta(seconds=sec_from_first_heartbeat_message)
-    print("\n BaseTime: ",self._DT_BASETIME," \n")
+    with self._lock:
+      feed,DT_utc,DT_passed=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED="Heartbeat")
+      date_splitted=DT_passed.strftime(format="%H:%M:%S.%f").split(":")
+      sec_from_first_heartbeat_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
+      self._DT_BASETIME=DT_utc-datetime.timedelta(seconds=sec_from_first_heartbeat_message)
+      self._DT_BASETIME_TIMESTAMP=self._DT_BASETIME.timestamp()
+      print("\n BaseTime: ",self._DT_BASETIME," \n")
+      return self._DT_BASETIME
     
+  def get_DT_Basetime(self):
+    with self._lock:
+      return self._DT_BASETIME
+  
+  def get_DT_Basetime_timestamp(self):
+    with self._lock:
+      return self._DT_BASETIME_TIMESTAMP
+  
   def merger(self,YEAR: str,NAME: str,SESSION: str):
     """
     Brief:
@@ -768,17 +773,28 @@ class DATABASE:
       dict: merged dictionary for all feeds in feeds_list. Sorted for time of arrival
             of the messages.
     """
-    self._parser._DT_BASETIME=self.find_DT_BASETIME()
+    self._parser._DT_BASETIME=self.find_DT_BASETIME(YEAR=YEAR,NAME=NAME,SESSION=SESSION)
     print("Starting the merge..")
-    self._list_of_msgs_as_dictionaries=[]
     for feed in self._feed_list:
       print("Preparing the merge of feed: ", feed, "...",end="")
-      for msg in self.feed_list(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION):
-        self._list_of_msgs.append(msg)
-      print(" Done!")
+      F_L=self.feed_list(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION)
+      print("Length of list_of_msgs before adding: ", len(self._list_of_msgs),". Length of feed ",feed,": ",len(F_L))
+      if F_L!=-1:
+        for msg in F_L:
+          self._list_of_msgs.append(msg)
+        print(" Done!")
+      if feed=="CarData.z":
+        self._last_datetime=msg[2]
+        print("Last Datetime: ",self._last_datetime)
+      print("Length of list_of_msgs after adding: ", len(self._list_of_msgs))
     print("Sorting the list...",end="")
-    sorted(self._list_of_msgs,key=lambda x: x[0])
+    self._list_of_msgs.sort(key=lambda x: x[2])
     print(" ended!")
+    #for ind,content in enumerate(self._list_of_msgs):
+    #  if content[0]=="Position.z":
+    #    print("First Position.z at index: ",ind," of: ",len(self._list_of_msgs), " with a DT of: ",content[2])
+    #    print("First CarData.z at index: ",0," of: ",len(self._list_of_msgs), " with a DT of: ",self._list_of_msgs[0][2])
+    #    break
     self._is_merge_ended=True
 
   def detect_session_type(self,first_datetime):
