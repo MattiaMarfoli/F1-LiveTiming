@@ -246,7 +246,7 @@ class DATABASE:
               self._CarData[driver]["Gear"].append(channels["Channels"]["3"])
               self._CarData[driver]["Throttle"].append(channels["Channels"]["4"] if channels["Channels"]["4"]<101 else 0)
               self._CarData[driver]["Brake"].append(int(channels["Channels"]["5"]) if int(channels["Channels"]["5"])<101 else 0)
-              self._CarData[driver]["DRS"].append(1 if channels["Channels"]["45"]%2==0 else 0)
+              self._CarData[driver]["DRS"].append(1 if int(channels["Channels"]["45"])%2==0 else 0)
               if driver == self._sample_driver:
                 self._sample_cardata_list.append(DT)
               #print(self._CarData[driver].keys())
@@ -326,6 +326,7 @@ class DATABASE:
                                              "Stint":             self._last_stint_found[driver],
                                              "PitOutLap":         False,
                                              "PitInLap":          False
+                                             #"Slicing_Telemetry_Indeces": []
                                              }
                     if LAP==2:
                       self._Laps[driver][LAP]["PitOutLap"]=True
@@ -349,6 +350,7 @@ class DATABASE:
                         self._Laps[driver][self._last_lapnumber_found[driver]]["ValueInt_sec"]=Value_int
                         self._Laps[driver][self._last_lapnumber_found[driver]]["DateTime"]=DT
                         self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._BaseTimestamp
+                        #self._Laps[driver][self._last_lapnumber_found[driver]]["Slicing_Telemetry_Indeces"]=self.get_slice_between_times(start_time=DT-datetime.timedelta(seconds=Value_int),end_time=DT)
                       else:
                         self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
                                                                                   "ValueInt_sec":      Value_int,

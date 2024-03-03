@@ -7,6 +7,7 @@ import SignalR_LS as SR_LS
 import scipy
 import json
 
+
 from config import _config
 
 
@@ -100,7 +101,7 @@ class GUI:
     self._start_position = False
     
     self._update_telemetry_thread = threading.Thread(target=self.update_telemetry_plot)
-    self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry)
+    self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry_2)
     self._update_position_thread = threading.Thread(target=self.update_position_plot)
     #self._process = multiprocessing.Process(target=self.update_telemetry_plot)
     #self._thread_cl = threading.Thread(target=self.update_classifier)
@@ -280,9 +281,9 @@ class GUI:
     json.dump(laps, save_file, indent = 2,default=str)  
     save_file.close()
     
-    #save_file = open(year+"_"+race+"_"+session+"_telemetry.json", "w")  
-    #json.dump(telemetry, save_file, indent = 2,default=str)  
-    #save_file.close()
+    save_file = open(year+"_"+race+"_"+session+"_telemetry.json", "w")  
+    json.dump(telemetry, save_file, indent = 2,default=str)  
+    save_file.close()
 
   def set_skip_time(self):
     self._seconds_to_skip=dpg.get_value("skip_seconds")
@@ -496,7 +497,7 @@ class GUI:
   def is_personal_fastest_up_to_now(self,Laps,laptime,driver):
     for nlap,lap in Laps[driver].items():
       if lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
-        if laptime>lap["ValueInt_sec"]:
+        if laptime>lap["ValueInt_sec"] and lap["ValueInt_sec"]!=0:
           return False
     return True
       
@@ -505,7 +506,7 @@ class GUI:
       if driver in Laps.keys():
         for nlap,lap in Laps[driver].items():
           if lap["TimeStamp"]<self._last_message_displayed_DT.timestamp()-self._BaseTimestamp:
-            if laptime>lap["ValueInt_sec"]:
+            if laptime>lap["ValueInt_sec"] and lap["ValueInt_sec"]!=0:
               return False
     return True 
 
@@ -627,8 +628,8 @@ class GUI:
       slice_between_times = self._database.get_slice_between_times(
                                   start_time=self._last_message_displayed_DT-datetime.timedelta(seconds=self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT),
                                   end_time=self._last_message_displayed_DT)
-      Telemetry_to_be_plotted = self._database.get_dictionary(feed="CarData.z")
-      Laps = self._database.get_dictionary(feed="TimingDataF1")
+      Telemetry_to_be_plotted = self._database.get_dictionary(feed="CarData.z").copy()
+      Laps = self._database.get_dictionary(feed="TimingDataF1").copy()
       
       minx=max(self._first_message_DT.timestamp()-self._BaseTimestamp,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp-self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT)
       maxx=max(self._first_message_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH,self._last_message_displayed_DT.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_RIGHT)
@@ -764,11 +765,12 @@ class GUI:
 #####################################################################################s
 
   def Set_Corners(self):
-    map_dict=json.load(open(_config.paths.DATA_PATH / (self._maps[dpg.get_value("map")]["corners"]),"r"))
+    map_dict=self._maps[dpg.get_value("map")]
+    circuit_length=map_dict["circuit_length"]
     self._xTurns=[]
     offset_value=dpg.get_value("slide_corner")
-    for corner,position in map_dict["rel_distance"].items():
-      self._xTurns.append((corner,round(position+offset_value,5)))
+    for corner in map_dict["corners"]:
+      self._xTurns.append((str(corner["number"]),round(corner["length"]/circuit_length,5)))
     self._xTurns=tuple(self._xTurns)
     #print(self._xTurns)
   
@@ -822,7 +824,7 @@ class GUI:
       print(sender, " case not specifiec in Set_Offset_Space...")         
    
   def Select_Driver_Compare(self,sender):
-    laps=self._database.get_dictionary(feed="TimingDataF1")  # Driver -> Nlap ->  {DateTime,ValueString,ValueInt_sec}
+    laps=self._database.get_dictionary(feed="TimingDataF1").copy()  # Driver -> Nlap ->  {DateTime,ValueString,ValueInt_sec}
     
     if sender=="DRV-1":
       ITEM="LAP-1"
@@ -913,6 +915,30 @@ class GUI:
         dpg.set_axis_limits("x_axis_BRAKE_Compare", ymin=minx1 ,ymax=maxx1)
         dpg.set_axis_ticks("x_axis_BRAKE_Compare",self._xTurns)
 
+      with dpg.plot(label="CompareRPM",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_RPM_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="RPM", tag="y_axis_RPM_Compare")
+        dpg.set_axis_limits("y_axis_RPM_Compare", -2, 19000)
+        dpg.set_axis_limits("x_axis_RPM_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_RPM_Compare",self._xTurns)
+      
+      with dpg.plot(label="CompareGear",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_GEAR_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="Gear", tag="y_axis_GEAR_Compare")
+        dpg.set_axis_limits("y_axis_GEAR_Compare", -0.2, 9)
+        dpg.set_axis_limits("x_axis_GEAR_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_GEAR_Compare",self._xTurns)
+      
+      with dpg.plot(label="CompareDrs",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DRS_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="DRS [on/off]", tag="y_axis_DRS_Compare")
+        dpg.set_axis_limits("y_axis_DRS_Compare", -0.2, 1.2)
+        dpg.set_axis_limits("x_axis_DRS_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_DRS_Compare",self._xTurns)
+      
       with dpg.plot(label="CompareDeltaTime",width=width,height=height/3.,no_title=True,anti_aliased=True):
         dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DELTA_Compare")
@@ -937,6 +963,9 @@ class GUI:
         dpg.add_line_series(x=[0],y=[0],label=drv+"s_c",parent="y_axis_SPEED_Compare",tag=drv+"s_c")
         dpg.add_line_series(x=[0],y=[0],label=drv+"t_c",parent="y_axis_THROTTLE_Compare",tag=drv+"t_c")
         dpg.add_line_series(x=[0],y=[0],label=drv+"b_c",parent="y_axis_BRAKE_Compare",tag=drv+"b_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"r_c",parent="y_axis_RPM_Compare",tag=drv+"r_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"g_c",parent="y_axis_GEAR_Compare",tag=drv+"g_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"d_c",parent="y_axis_DRS_Compare",tag=drv+"d_c")
         dpg.add_scatter_series(x=[0],y=[0],label=drv+"l_c",parent="y_axis_LAPS_Compare",tag=drv+"l_c")
         dpg.add_line_series(x=[0],y=[0],label=drv+"l_c_line",parent="y_axis_LAPS_Compare",tag=drv+"l_c_line")
         dpg.add_line_series(x=[0],y=[0],label=drv+"z_c",parent="y_axis_ZOOM",tag=drv+"z_c")
@@ -944,12 +973,18 @@ class GUI:
         dpg.bind_item_theme(drv+"t_c",drv+"_color")
         dpg.bind_item_theme(drv+"z_c",drv+"_color")
         dpg.bind_item_theme(drv+"b_c",drv+"_color")
+        dpg.bind_item_theme(drv+"r_c",drv+"_color")
+        dpg.bind_item_theme(drv+"g_c",drv+"_color")
+        dpg.bind_item_theme(drv+"d_c",drv+"_color")
         dpg.bind_item_theme(drv+"l_c",drv+"plot_marker")
         dpg.bind_item_theme(drv+"l_c_line",drv+"_color")
         dpg.set_item_label(item=drv+"s_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
         dpg.set_item_label(item=drv+"t_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
         dpg.set_item_label(item=drv+"z_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
         dpg.set_item_label(item=drv+"b_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
+        dpg.set_item_label(item=drv+"r_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
+        dpg.set_item_label(item=drv+"d_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
+        dpg.set_item_label(item=drv+"g_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
         dpg.set_item_label(item=drv+"l_c",label=self._DRIVERS_INFO[drv]["abbreviation"])
       
       dpg.add_line_series(x=[0],y=[0],label="DeltaCompareLine",parent="y_axis_DELTA_Compare",tag="DeltaCompareLine")
@@ -958,7 +993,7 @@ class GUI:
       
       while True:
         try:
-          LAPS=self._database.get_dictionary(feed="TimingDataF1")
+          LAPS=self._database.get_dictionary(feed="TimingDataF1").copy()
           if type(self._arg_maxima1)!=str and dpg.get_value("LAP-1").split(" ")[0]!="None":
             if (dpg.get_value("DRV-1")!=self._DRV1 or int(dpg.get_value("LAP-1").split(" ")[0])!=NLAP1):
               if self._DEBUG_PRINT:
@@ -982,7 +1017,7 @@ class GUI:
             LapTime1_s=self._LAP1["ValueInt_sec"]
             SLICE1=self._database.get_slice_between_times(start_time=self._LAP1["DateTime"]-datetime.timedelta(seconds=LapTime1_s),end_time=self._LAP1["DateTime"])
             ##SLICE1_pos=self._database.get_slice_between_times(feed="Position.z",start_time=self._LAP1["DateTime"]-datetime.timedelta(seconds=LapTime1_s),end_time=self._LAP1["DateTime"])
-            TEL1=self._database.get_dictionary(feed="CarData.z")[self._DRV1]
+            TEL1=self._database.get_dictionary(feed="CarData.z")[self._DRV1].copy()
             ##P1=self._database.get_dictionary(feed="Position.z")[self._DRV1]
             ##X1,Y1,Z1=[],[],[]
             ##for xyz in P1["XYZ"][SLICE1_pos]:
@@ -993,6 +1028,9 @@ class GUI:
             self._Speeds1=np.array(TEL1["Speed"][SLICE1])
             Throttles1=TEL1["Throttle"][SLICE1]
             Brakes1=TEL1["Brake"][SLICE1]
+            Rpm1=TEL1["RPM"][SLICE1]
+            Gear1=TEL1["Gear"][SLICE1]
+            Drs1=TEL1["DRS"][SLICE1]
             self._Space1 = scipy.integrate.cumulative_trapezoid(self._Speeds1/3.6,Times1,initial=0)  
             ##self._Space1 =  np.sqrt(np.power(np.diff(np.array((np.array(X1),np.array(Y1),np.array(Z1))).T,axis=0),2).sum(axis=1)).cumsum()
             ##self._Total_space1 = self._Space1[-1]
@@ -1001,9 +1039,15 @@ class GUI:
             dpg.set_value(item=self._DRV1+"t_c", value=[self._Space1/self._Total_space1+self._OffSet_1,Throttles1])
             dpg.set_value(item=self._DRV1+"z_c", value=[self._Space1/self._Total_space1+self._OffSet_1,self._Speeds1])
             dpg.set_value(item=self._DRV1+"b_c", value=[self._Space1/self._Total_space1+self._OffSet_1,Brakes1])
+            dpg.set_value(item=self._DRV1+"d_c", value=[self._Space1/self._Total_space1+self._OffSet_1,Drs1])
+            dpg.set_value(item=self._DRV1+"g_c", value=[self._Space1/self._Total_space1+self._OffSet_1,Gear1])
+            dpg.set_value(item=self._DRV1+"r_c", value=[self._Space1/self._Total_space1+self._OffSet_1,Rpm1])
             dpg.set_axis_ticks(axis="x_axis_SPEED_Compare",label_pairs=self._xTurns)
             dpg.set_axis_ticks(axis="x_axis_THROTTLE_Compare",label_pairs=self._xTurns)
             dpg.set_axis_ticks(axis="x_axis_BRAKE_Compare",label_pairs=self._xTurns)
+            dpg.set_axis_ticks(axis="x_axis_RPM_Compare",label_pairs=self._xTurns)
+            dpg.set_axis_ticks(axis="x_axis_GEAR_Compare",label_pairs=self._xTurns)
+            dpg.set_axis_ticks(axis="x_axis_DRS_Compare",label_pairs=self._xTurns)
             minx1=min(self._Space1/self._Total_space1+self._OffSet_1)
             maxx1=max(self._Space1/self._Total_space1+self._OffSet_1)
             self._arg_maxima1=scipy.signal.argrelextrema(self._Speeds1, np.greater_equal,order=10)[0]
@@ -1043,6 +1087,9 @@ class GUI:
             #Speeds2_smooth=scipy.signal.savgol_filter(Speeds2, 8, 2) 
             Throttles2=TEL2["Throttle"][SLICE2]
             Brakes2=TEL2["Brake"][SLICE2]
+            Rpm2=TEL2["RPM"][SLICE2]
+            Gear2=TEL2["Gear"][SLICE2]
+            Drs2=TEL2["DRS"][SLICE2]
             self._Space2 = scipy.integrate.cumulative_trapezoid(self._Speeds2/3.6,Times2,initial=0)  
             self._Total_space2 = self._Space2[-1]
             ##SLICE2_pos=self._database.get_slice_between_times(feed="Position.z",start_time=self._LAP2["DateTime"]-datetime.timedelta(seconds=LapTime2_s),end_time=self._LAP2["DateTime"])
@@ -1058,10 +1105,16 @@ class GUI:
             dpg.set_value(item=self._DRV2+"z_c", value=[self._Space2/self._Total_space2+self._OffSet_2,self._Speeds2])
             dpg.set_value(item=self._DRV2+"t_c", value=[self._Space2/self._Total_space2+self._OffSet_2,Throttles2])
             dpg.set_value(item=self._DRV2+"b_c", value=[self._Space2/self._Total_space2+self._OffSet_2,Brakes2])
+            dpg.set_value(item=self._DRV2+"d_c", value=[self._Space2/self._Total_space2+self._OffSet_2,Drs2])
+            dpg.set_value(item=self._DRV2+"g_c", value=[self._Space2/self._Total_space2+self._OffSet_2,Gear2])
+            dpg.set_value(item=self._DRV2+"r_c", value=[self._Space2/self._Total_space2+self._OffSet_2,Rpm2])
             #print(self._xTurns)
             dpg.set_axis_ticks(axis="x_axis_SPEED_Compare",label_pairs=self._xTurns)
             dpg.set_axis_ticks(axis="x_axis_THROTTLE_Compare",label_pairs=self._xTurns)
             dpg.set_axis_ticks(axis="x_axis_BRAKE_Compare",label_pairs=self._xTurns)
+            dpg.set_axis_ticks(axis="x_axis_RPM_Compare",label_pairs=self._xTurns)
+            dpg.set_axis_ticks(axis="x_axis_GEAR_Compare",label_pairs=self._xTurns)
+            dpg.set_axis_ticks(axis="x_axis_DRS_Compare",label_pairs=self._xTurns)
             minx2=min(self._Space2/self._Total_space2+self._OffSet_2)
             maxx2=max(self._Space2/self._Total_space2+self._OffSet_2)
             self._arg_maxima2=scipy.signal.argrelextrema(self._Speeds2, np.greater_equal,order=10)[0]
@@ -1134,6 +1187,9 @@ class GUI:
           dpg.set_axis_limits("x_axis_SPEED_Compare",min([0,minx1,minx2]),max([1,maxx1,maxx2]))
           dpg.set_axis_limits("x_axis_THROTTLE_Compare",min([0,minx1,minx2]),max([1,maxx1,maxx2]))
           dpg.set_axis_limits("x_axis_BRAKE_Compare",min([0,minx1,minx2]),max([1,maxx1,maxx2]))
+          dpg.set_axis_limits("x_axis_GEAR_Compare",min([0,minx1,minx2]),max([1,maxx1,maxx2]))
+          dpg.set_axis_limits("x_axis_DRS_Compare",min([0,minx1,minx2]),max([1,maxx1,maxx2]))
+          dpg.set_axis_limits("x_axis_RPM_Compare",min([0,minx1,minx2]),max([1,maxx1,maxx2]))
           #dpg.set_axis_limits("x_axis_LAPS_Compare",xmin_LT,xmax_LT)
           #dpg.set_axis_limits("y_axis_LAPS_Compare",ymin_LT,ymax_LT)
           if dpg.is_item_hovered(item="CompareSpeed"):
@@ -1147,11 +1203,17 @@ class GUI:
               dpg.show_item(driver+"z_c")
               dpg.show_item(driver+"t_c")
               dpg.show_item(driver+"b_c")
+              dpg.show_item(driver+"r_c")
+              dpg.show_item(driver+"g_c")
+              dpg.show_item(driver+"d_c")
             else:
               dpg.hide_item(driver+"s_c")
               dpg.hide_item(driver+"z_c")
               dpg.hide_item(driver+"t_c")
               dpg.hide_item(driver+"b_c")
+              dpg.hide_item(driver+"d_c")
+              dpg.hide_item(driver+"r_c")
+              dpg.hide_item(driver+"g_c")
             if driver==dpg.get_value("DRV-1-LapTimes") or driver==dpg.get_value("DRV-2-LapTimes"):
               dpg.show_item(driver+"l_c")
               dpg.show_item(driver+"l_c_line")
@@ -1169,6 +1231,509 @@ class GUI:
           _config.LOGGER_FILE.flush()
           time.sleep(5)
   
+#############################################################################################################################  
+  
+  def Compare_Telemetry_2(self):
+    while not self._start_compare:
+      #print(self._database.get_dictionary("CarData.z"))
+      #if self._DEBUG_PRINT:
+      #  print("Waiting for drivers_list to arrive in GUI...")
+      #print("Still no drivers list..")
+      time.sleep(1)
+    self._n_drivers=4
+    self._xTurns=[(str(round(tick,2)),round(tick,2)) for tick in np.linspace(0,1,11)]
+    self._xTurns=tuple(self._xTurns)
+    self._saved_drivers={}
+    self._arg_maxima1="None"
+    self._arg_maxima2="None"
+    self._arg_minima1="None"
+    self._arg_minima2="None"
+    self._update_ann1=True
+    self._update_ann2=True
+    self._offset={}
+    minx1=0
+    maxx1=1
+    minx2=0
+    maxx2=1
+    ymin_LT=60 #
+    ymax_LT=61
+    xmin_LT=0  #
+    xmax_LT=1
+    width=900
+    height=400
+    with dpg.group(label="Compare Telemetry View",tag="Telemetry_compare_view",show=False,parent="Primary window"):
+      with dpg.group(label="map_buttons",tag="map_buttons",horizontal=True):
+        dpg.add_combo(items=list(self._maps.keys()),tag="map",width=150,default_value=None,callback=self.Set_Corners)
+        #dpg.add_input_double(label="Offset_Turns",tag="slide_corner",min_value=-0.5,max_value=0.5,default_value=0,width=150,min_clamped=True,max_clamped=True,step=0.0005,callback=self.Set_Corners)
+      with dpg.group(label="offset_drivers",tag="offset_drivers",horizontal=True):
+        for i in range(self._n_drivers):
+          dpg.add_input_double(label="Offset_Driver"+str(i),tag="OFF_DRV-"+str(i),min_value=-2,max_value=2,default_value=0,width=150,min_clamped=True,max_clamped=True,step=0.005,callback=self.Display_Lap_2)
+      #    #dpg.add_input_double(label="Offset_Driver2",tag="OFF_DRV2",min_value=-0.5,max_value=0.5,default_value=0,width=150,min_clamped=True,max_clamped=True,step=0.0005,callback=self.Set_Offset_Space)            
+      #with dpg.group(label="speeds_text",tag="speeds_text",horizontal=True):  
+      #  for i in range(self._n_drivers):
+      #    dpg.add_text(default_value="Driver "+str(i)+":",tag="DRV-"+str(i)+"-DRV_TEXT")
+      #    #dpg.add_text(default_value="Driver 1 speed",tag="DRV-1-SPEED_TEXT")
+      with dpg.group(label="clear_buttons",tag="clear_buttons",horizontal=True):
+        dpg.add_button(label="Clear Annotations",tag="clear_ann",callback=self._clear_annotations)
+        dpg.add_button(label="Clear Plot",tag="clear_plot",callback=self._clear_plot)
+        dpg.add_checkbox(label="Adjust Speed Limits",tag="Adjust Speed Limits",callback=self._set_yspeed_limits)
+        
+      for i in range(self._n_drivers):
+        with dpg.group(label="drivers_buttons"+str(i),tag="drivers_buttons"+str(i),horizontal=True):
+          dpg.add_combo(items=list(self._drivers_list),tag="DRV-"+str(i),width=150,default_value=None,callback=self.Select_Driver_Compare_2)
+          dpg.add_combo(items=[],tag="LAP-"+str(i),width=150,default_value=None,callback=self.Display_Lap_2)
+      with dpg.group(label="compare_buttons",tag="compare_buttons",horizontal=True):
+        for i in range(self._n_drivers):
+          dpg.add_combo(items=list(self._drivers_list),tag="DRV-"+str(i)+"-LapTimes",width=150,default_value=None,callback=self.Add_Driver_to_LaptimePlot)
+          #dpg.add_combo(items=list(self._drivers_list),tag="DRV-2-LapTimes",width=150,default_value=None)
+      
+      with dpg.plot(label="CompareSpeed",tag="CompareSpeed",width=width,height=height,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_SPEED_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="Speed [km/h]", tag="y_axis_SPEED_Compare")
+        dpg.set_axis_limits("y_axis_SPEED_Compare", -2, 380)
+        dpg.set_axis_limits("x_axis_SPEED_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_SPEED_Compare",self._xTurns)
+        dpg.add_drag_line(label="speed_compare_line",tag="speed_compare_line", color=[255, 0, 0, 255],thickness=0.25, default_value=0.5)
+        #dpg.add_vline_series
+        
+        
+      with dpg.plot(label="CompareThrottle",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_THROTTLE_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="Throttle [%]", tag="y_axis_THROTTLE_Compare")
+        dpg.set_axis_limits("y_axis_THROTTLE_Compare", -2, 101)
+        dpg.set_axis_limits("x_axis_THROTTLE_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_THROTTLE_Compare",self._xTurns)
+
+      with dpg.plot(label="CompareBrake",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_BRAKE_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="Brake [on/off]", tag="y_axis_BRAKE_Compare")
+        dpg.set_axis_limits("y_axis_BRAKE_Compare", -2, 101)
+        dpg.set_axis_limits("x_axis_BRAKE_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_BRAKE_Compare",self._xTurns)
+
+      with dpg.plot(label="CompareDeltaTime",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DELTA_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="Delta [s]", tag="y_axis_DELTA_Compare")
+        dpg.set_axis_limits("y_axis_DELTA_Compare", -3, 3)
+        dpg.set_axis_limits("x_axis_DELTA_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_DELTA_Compare",self._xTurns)
+
+      with dpg.plot(label="CompareRPM",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_RPM_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="RPM", tag="y_axis_RPM_Compare")
+        dpg.set_axis_limits("y_axis_RPM_Compare", -2, 19000)
+        dpg.set_axis_limits("x_axis_RPM_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_RPM_Compare",self._xTurns)
+      
+      with dpg.plot(label="CompareGear",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_GEAR_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="Gear", tag="y_axis_GEAR_Compare")
+        dpg.set_axis_limits("y_axis_GEAR_Compare", -0.2, 9)
+        dpg.set_axis_limits("x_axis_GEAR_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_GEAR_Compare",self._xTurns)
+      
+      with dpg.plot(label="CompareDrs",width=width,height=height/3.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DRS_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="DRS [on/off]", tag="y_axis_DRS_Compare")
+        dpg.set_axis_limits("y_axis_DRS_Compare", -0.2, 1.2)
+        dpg.set_axis_limits("x_axis_DRS_Compare", ymin=minx1 ,ymax=maxx1)
+        dpg.set_axis_ticks("x_axis_DRS_Compare",self._xTurns)
+
+      with dpg.plot(label="CompareLaps",width=width,height=height/3.*4.,no_title=True,anti_aliased=True):
+        dpg.add_plot_legend()
+        dpg.add_plot_axis(dpg.mvXAxis, label="LapNumber",tag="x_axis_LAPS_Compare")
+        dpg.add_plot_axis(dpg.mvYAxis, label="LapTime [s]", tag="y_axis_LAPS_Compare")
+        #dpg.set_axis_limits("y_axis_LAPS_Compare", ymin_LT, ymax_LT)
+        #dpg.set_axis_limits("x_axis_LAPS_Compare", xmin_LT, xmax_LT)
+      
+      with dpg.plot(label="ZoomCompare",width=300,height=300,pos=(width,height/1.5),no_title=True,anti_aliased=True):
+        dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_ZOOM",no_tick_marks=True,no_tick_labels=True)
+        dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_ZOOM",no_tick_marks=True,no_tick_labels=True)
+        dpg.add_drag_line(label="speed_compare_line2",tag="speed_compare_line2", color=[255, 0, 0, 255],thickness=0.25, default_value=0.5)
+      
+      self._drivers_list_fictitious=self._drivers_list
+      self._drivers_list_fictitious.append("100")
+      for drv in self._drivers_list_fictitious:
+        dpg.add_line_series(x=[0],y=[0],label=drv+"s_c",parent="y_axis_SPEED_Compare",tag=drv+"s_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"t_c",parent="y_axis_THROTTLE_Compare",tag=drv+"t_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"b_c",parent="y_axis_BRAKE_Compare",tag=drv+"b_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"r_c",parent="y_axis_RPM_Compare",tag=drv+"r_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"g_c",parent="y_axis_GEAR_Compare",tag=drv+"g_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"d_c",parent="y_axis_DRS_Compare",tag=drv+"d_c")
+        dpg.add_scatter_series(x=[0],y=[0],label=drv+"l_c",parent="y_axis_LAPS_Compare",tag=drv+"l_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"l_c_line",parent="y_axis_LAPS_Compare",tag=drv+"l_c_line")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"z_c",parent="y_axis_ZOOM",tag=drv+"z_c")
+        dpg.add_line_series(x=[0],y=[0],label=drv+"cmpl",parent="y_axis_DELTA_Compare",tag=drv+"cmpl")
+        
+        if drv=="100":
+          dpg.bind_item_theme(drv+"s_c","white")
+          dpg.bind_item_theme(drv+"t_c","white")
+          dpg.bind_item_theme(drv+"z_c","white")
+          dpg.bind_item_theme(drv+"b_c","white")
+          dpg.bind_item_theme(drv+"r_c","white")
+          dpg.bind_item_theme(drv+"g_c","white")
+          dpg.bind_item_theme(drv+"d_c","white")
+          #dpg.bind_item_theme(drv+"l_c",drv+"plot_marker")
+          #dpg.bind_item_theme(drv+"l_c_line",drv+"_color")
+          dpg.bind_item_theme(drv+"cmpl","white")
+        else:
+          dpg.bind_item_theme(drv+"s_c",drv+"_color")
+          dpg.bind_item_theme(drv+"t_c",drv+"_color")
+          dpg.bind_item_theme(drv+"z_c",drv+"_color")
+          dpg.bind_item_theme(drv+"b_c",drv+"_color")
+          dpg.bind_item_theme(drv+"r_c",drv+"_color")
+          dpg.bind_item_theme(drv+"g_c",drv+"_color")
+          dpg.bind_item_theme(drv+"d_c",drv+"_color")
+          dpg.bind_item_theme(drv+"l_c",drv+"plot_marker")
+          dpg.bind_item_theme(drv+"l_c_line",drv+"_color")
+          dpg.bind_item_theme(drv+"cmpl",drv+"_color")
+
+          dpg.set_item_label(item=drv+"s_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"t_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"z_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"b_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"r_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"d_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"g_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"l_c", label=self._DRIVERS_INFO[drv]["abbreviation"])
+          dpg.set_item_label(item=drv+"cmpl",label=self._DRIVERS_INFO[drv]["abbreviation"])
+      
+      self._annotations_speed={}
+      ann_index=0
+    while True:
+      try:
+        if dpg.is_item_hovered(item="CompareSpeed"):
+          if not dpg.is_item_shown("speed_compare_line"):
+            dpg.show_item("speed_compare_line")
+            dpg.show_item("speed_compare_line2")
+          ann_deleted=False
+          mouse_pos=dpg.get_plot_mouse_pos()
+          mouse_pos_text=dpg.get_mouse_pos()
+          dpg.set_axis_limits("x_axis_ZOOM",ymin=mouse_pos[0]-0.1,ymax=mouse_pos[0]+0.1)
+          dpg.set_axis_limits("y_axis_ZOOM",ymin=mouse_pos[1]-50,ymax=mouse_pos[1]+50)
+          dpg.set_value(item="speed_compare_line",value=mouse_pos[0])
+          dpg.set_value(item="speed_compare_line2",value=mouse_pos[0])
+          if dpg.is_item_clicked("CompareSpeed"):
+            print("Clicked", mouse_pos, " ",mouse_pos_text)
+            key_to_pop=None
+            for x_ann,ann_info in self._annotations_speed.items():
+              #print(mouse_pos,dpg.get_item_info(item=ann_info["ann_name"]))
+              if mouse_pos[0]>=ann_info["xLimits"][0] and mouse_pos[0]<=ann_info["xLimits"][1]:
+                for i in range(self._n_drivers):
+                  if dpg.does_item_exist(item=ann_info["ann_name"]+str(i)):
+                    dpg.delete_item(item=ann_info["ann_name"]+str(i))
+                key_to_pop=x_ann
+                ann_deleted=True
+                break
+            self._annotations_speed.pop(key_to_pop,"")
+            if not ann_deleted:
+              self._annotations_speed[mouse_pos_text[0]]={"ann_name":"ann_"+str(ann_index),
+                                                          "Text": [],
+                                                          "xLimits": [mouse_pos[0]-0.01,mouse_pos[0]+0.01],
+                                                          }
+              ann_index+=1
+              max_speed=-10
+              for n_drv,drv_info in self._saved_drivers.items(): 
+                sp=self.get_y_from_x_plot(x_point=mouse_pos[0],x_array=drv_info["Space"],y_array=drv_info["Speed"])
+                if sp>max_speed:
+                  max_speed=sp
+                  DRV=drv_info["Driver"]
+              if max_speed!=-10:
+                self._annotations_speed[mouse_pos_text[0]]["Text"].append([DRV,(self._DRIVERS_INFO[DRV]["abbreviation"]+": "+str(int(max_speed)).rjust(3," ")+"\n")])
+              for n_drv,drv_info in self._saved_drivers.items(): #DRV-i, keys: Driver,Space,Speed
+                if drv_info["Driver"]!=DRV:
+                  sp=self.get_y_from_x_plot(x_point=mouse_pos[0],x_array=drv_info["Space"],y_array=drv_info["Speed"])
+                  speed_text=str(int(self.get_y_from_x_plot(x_point=mouse_pos[0],x_array=drv_info["Space"],y_array=drv_info["Speed"])-max_speed))
+                  if speed_text[0]!="-":
+                    speed_text="-"+speed_text
+                  self._annotations_speed[mouse_pos_text[0]]["Text"].append([drv_info["Driver"],(self._DRIVERS_INFO[drv_info["Driver"]]["abbreviation"]+": "+speed_text.rjust(3," ")+"\n")])
+              for index,txt in enumerate(self._annotations_speed[mouse_pos_text[0]]["Text"]):
+                drv=txt[0]
+                text=txt[1]
+                #dpg.add_text(default_value=text,tag=self._annotations_speed[mouse_pos_text[0]]["ann_name"]+str(index),color=self._DRIVERS_INFO[drv]["color"],parent="Telemetry_compare_view",pos=(mouse_pos_text[0],mouse_pos_text[1]+dpg.get_text_size(text=text)[1]*index),show=True)
+                dpg.add_plot_annotation(label=text,tag=self._annotations_speed[mouse_pos_text[0]]["ann_name"]+str(index),default_value=(mouse_pos[0]-0.01,mouse_pos[1]+dpg.get_text_size(text=text)[1]*(len(self._annotations_speed[mouse_pos_text[0]]["Text"])-index)),color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
+        else:
+          if dpg.is_item_shown("speed_compare_line"):
+            dpg.hide_item(item="speed_compare_line")
+            dpg.hide_item(item="speed_compare_line2")
+            
+      except Exception as err:
+        print("Error... Fix it. Probably a driver not found in some dictionary.")
+        _config.LOGGER.exception(err)
+        _config.LOGGER_FILE.write("\n")
+        _config.LOGGER_FILE.flush()
+        
+      time.sleep(1./60.)
+
+
+  # Fix stints and add annotations where i click with mouse. So save [space,speeds] for all drivers.
+  def _clear_plot(self):
+    for driver in self._drivers_list_fictitious:
+      dpg.set_value(item=driver+"s_c", value=[[0],[0]])
+      dpg.set_value(item=driver+"z_c", value=[[0],[0]])
+      dpg.set_value(item=driver+"t_c", value=[[0],[0]])
+      dpg.set_value(item=driver+"b_c", value=[[0],[0]])
+      dpg.set_value(item=driver+"d_c", value=[[0],[0]])
+      dpg.set_value(item=driver+"g_c", value=[[0],[0]])
+      dpg.set_value(item=driver+"r_c", value=[[0],[0]])
+      dpg.hide_item(driver+"cmpl")
+    for i in range(self._n_drivers):
+      dpg.set_value(item="DRV-"+str(i),value="None")
+      dpg.set_value(item="LAP-"+str(i),value="None")
+    self._saved_drivers={}
+      
+  def _set_yspeed_limits(self):
+    if dpg.get_value(item="Adjust Speed Limits"):
+      dpg.set_axis_limits("y_axis_SPEED_Compare", 50, 350)
+    else:
+      dpg.set_axis_limits("y_axis_SPEED_Compare", -2, 380)
+
+  def _clear_annotations(self):
+    for key,value in self._annotations_speed.items():
+      for i in range(self._n_drivers):
+        if dpg.does_item_exist(item=value["ann_name"]+str(i)):
+          dpg.delete_item(item=value["ann_name"]+str(i))
+    self._annotations_speed={}
+
+  def Add_Driver_to_LaptimePlot(self,sender):
+    lap_to_pop=[]        
+    LAPS=self._database.get_dictionary(feed="TimingDataF1").copy()
+    driver=dpg.get_value(sender)
+    LAPNUMBERS=list(LAPS[driver].keys())
+    LAPTIMES=[lap["ValueInt_sec"] if lap["ValueInt_sec"]<200 else lap_to_pop.append(nlap) for nlap,lap in LAPS[driver].items()]
+    for nlap in lap_to_pop:
+      LAPNUMBERS.remove(nlap)
+      LAPTIMES.remove(None)
+    #print(self._DRV2_LTs," ",LAPNUMBERS2, LAPTIMES2)
+    dpg.set_value(item=driver+"l_c", value=[LAPNUMBERS,LAPTIMES])
+    dpg.set_value(item=driver+"l_c_line", value=[LAPNUMBERS,LAPTIMES])
+    list_of_drivers=[dpg.get_value("DRV-"+str(n_driver)+"-LapTimes") for n_driver in range(self._n_drivers)]
+    for driver in self._drivers_list:
+      if driver in list_of_drivers:
+        dpg.show_item(driver+"l_c_line")
+        dpg.show_item(driver+"l_c")
+      else:
+        dpg.hide_item(driver+"l_c_line")
+        dpg.hide_item(driver+"l_c")
+    #if int(max(LAPTIMES2))+5>ymax_LT:
+    #  ymax_LT=int(max(LAPTIMES2))+5
+    #if int(max(LAPNUMBERS2))+1>xmax_LT:
+    #  xmax_LT=int(max(LAPNUMBERS2))+1
+
+  def Select_Driver_Compare_2(self,sender):
+    laps=self._database.get_dictionary(feed="TimingDataF1").copy()  # Driver -> Nlap ->  {DateTime,ValueString,ValueInt_sec}
+    n_drv=sender.split("-")[-1]
+    ITEM="LAP-"+n_drv
+    drv_already_present=False
+    #dpg.set_value(item="DRV-"+n_drv+"-DRV_TEXT",value=self._DRIVERS_INFO[dpg.get_value(sender)]["abbreviation"]+":  ")
+    if dpg.get_value(sender) in laps.keys():
+      driver=dpg.get_value(sender)
+      laps_to_show=[str(nlap)+" "+lap_dict["ValueString"]  for nlap,lap_dict in laps[driver].items() if lap_dict["DateTime"]<self._last_message_displayed_DT]
+      print(laps[driver][list(laps[driver].keys())[0]]["DateTime"],self._last_message_displayed_DT)
+      dpg.configure_item(item=ITEM,items=laps_to_show,default_value=None)
+      for key,value in self._saved_drivers.items():
+        if dpg.get_value(sender)==value["Driver"]:
+          drv_already_present=True
+      if not drv_already_present:
+        self._saved_drivers[sender]={}
+        self._saved_drivers[sender]["Driver"]=driver
+        self._saved_drivers[sender]["Driverlabel"]=driver
+        dpg.set_value(item=driver+"s_c", value=[[0],[0]])
+        dpg.set_value(item=driver+"z_c", value=[[0],[0]])
+        dpg.set_value(item=driver+"t_c", value=[[0],[0]])
+        dpg.set_value(item=driver+"b_c", value=[[0],[0]])
+        dpg.set_value(item=driver+"d_c", value=[[0],[0]])
+        dpg.set_value(item=driver+"g_c", value=[[0],[0]])
+        dpg.set_value(item=driver+"r_c", value=[[0],[0]])
+             
+        dpg.hide_item(driver+"s_c")
+        dpg.hide_item(driver+"z_c")
+        dpg.hide_item(driver+"t_c")
+        dpg.hide_item(driver+"b_c")
+        dpg.hide_item(driver+"d_c")
+        dpg.hide_item(driver+"r_c")
+        dpg.hide_item(driver+"g_c")
+        dpg.hide_item(driver+"cmpl")
+      else:
+        self._saved_drivers[sender]={}
+        self._saved_drivers[sender]["Driver"]=driver
+        self._saved_drivers[sender]["Driverlabel"]="100"
+        dpg.set_value(item="100s_c", value=[[0],[0]])
+        dpg.set_value(item="100z_c", value=[[0],[0]])
+        dpg.set_value(item="100t_c", value=[[0],[0]])
+        dpg.set_value(item="100b_c", value=[[0],[0]])
+        dpg.set_value(item="100d_c", value=[[0],[0]])
+        dpg.set_value(item="100g_c", value=[[0],[0]])
+        dpg.set_value(item="100r_c", value=[[0],[0]])
+          
+        dpg.hide_item("100s_c")
+        dpg.hide_item("100z_c")
+        dpg.hide_item("100t_c")
+        dpg.hide_item("100b_c")
+        dpg.hide_item("100d_c")
+        dpg.hide_item("100r_c")
+        dpg.hide_item("100g_c")
+        dpg.hide_item("100cmpl")
+      
+  def Display_Lap_2(self,sender):
+    laps=self._database.get_dictionary(feed="TimingDataF1").copy()
+    n_drv=sender.split("-")[-1]
+    driver_tag=dpg.get_value("DRV-"+n_drv)
+    driver=driver_tag.split("-")[0]
+    self._offset[n_drv]=dpg.get_value("OFF_DRV-"+n_drv)
+    driver_label=self._saved_drivers["DRV-"+n_drv]["Driverlabel"]
+    NLAP=int(dpg.get_value("LAP-"+n_drv).split(" ")[0])
+    LAP=laps[driver][NLAP] # DateTime , ValueString , ValueInt_sec are the keys
+    LapTime_s=LAP["ValueInt_sec"]
+    SLICE=self._database.get_slice_between_times(start_time=LAP["DateTime"]-datetime.timedelta(seconds=LapTime_s)+datetime.timedelta(seconds=self._offset[n_drv]),end_time=LAP["DateTime"]+datetime.timedelta(seconds=self._offset[n_drv]))
+    SLICE=slice(SLICE.start-1,SLICE.stop+1)
+    TEL=self._database.get_dictionary(feed="CarData.z")[driver].copy()
+    # Save all before interpolating to add first and last DT
+    times_before_interp     = np.array(TEL["TimeStamp"][SLICE])
+    speeds_before_interp    = np.array(TEL["Speed"][SLICE])
+    Throttles_before_interp = np.array(TEL["Throttle"][SLICE])
+    Brakes_before_interp    = np.array(TEL["Brake"][SLICE])
+    Rpm_before_interp       = np.array(TEL["RPM"][SLICE])
+    Gear_before_interp      = np.array(TEL["Gear"][SLICE])
+    Drs_before_interp       = np.array(TEL["DRS"][SLICE])
+    # Add first and last DT to the lap to make it lasts the exact time.
+    times                   =times_before_interp
+    times=np.insert(times,1,(LAP["DateTime"]-datetime.timedelta(seconds=LapTime_s)).timestamp()-self._BaseTimestamp)
+    times=np.insert(times,len(times)-1,LAP["DateTime"].timestamp()-self._BaseTimestamp)
+    
+    # Interpolate all telemetry to the news times array
+    #print("\n",len(times_before_interp),len(speeds_before_interp),len(times))
+    #print("times: ",times,"\n")
+    #print("times (bi): ",times_before_interp)
+    #print("speeds (bi): ",speeds_before_interp)
+    speeds    = scipy.interpolate.Akima1DInterpolator(times_before_interp,speeds_before_interp)(times)
+    Throttles = scipy.interpolate.Akima1DInterpolator(times_before_interp,Throttles_before_interp)(times) 
+    Brakes    = scipy.interpolate.Akima1DInterpolator(times_before_interp,Brakes_before_interp)(times)
+    Rpm       = scipy.interpolate.Akima1DInterpolator(times_before_interp,Rpm_before_interp)(times)
+    Gear      = scipy.interpolate.Akima1DInterpolator(times_before_interp,Gear_before_interp)(times)
+    Drs       = scipy.interpolate.Akima1DInterpolator(times_before_interp,Drs_before_interp)(times)
+    
+    #print("\n Telemetry starting and ending DT: ",times[0]," ",times[-1])
+    #print("\n Effective starting and ending DT: ",LAP["DateTime"]-datetime.timedelta(seconds=LapTime_s)," ",LAP["DateTime"])
+    Times=[TS-times[1] for TS in times]
+    #print(Times,"\n")
+    Times     = Times[1:-1]
+    speeds    = speeds[1:-1]   
+    Throttles = Throttles[1:-1] 
+    Brakes    = Brakes[1:-1]   
+    Rpm       = Rpm[1:-1]      
+    Gear      = Gear[1:-1]     
+    Drs       = Drs[1:-1]   
+    print(driver," - LapTime: ",LapTime_s," - Diff In Times: ",Times[-1]-Times[0],"\n")
+    #print(speeds,"\n")   
+
+    space = scipy.integrate.cumulative_trapezoid(speeds/3.6,Times,initial=0)  
+    # print(space,"\n")
+    Total_space = space[-1]
+    self._saved_drivers["DRV-"+n_drv]["Space"]=space/Total_space
+    self._saved_drivers["DRV-"+n_drv]["Speed"]=speeds
+    self._saved_drivers["DRV-"+n_drv]["Times"]=Times
+    self._saved_drivers["DRV-"+n_drv]["LapTime"]=LapTime_s
+    
+    dpg.set_value(item=driver_label+"s_c", value=[space/Total_space,speeds])
+    dpg.set_value(item=driver_label+"z_c", value=[space/Total_space,speeds])
+    dpg.set_value(item=driver_label+"t_c", value=[space/Total_space,Throttles])
+    dpg.set_value(item=driver_label+"b_c", value=[space/Total_space,Brakes])
+    dpg.set_value(item=driver_label+"d_c", value=[space/Total_space,Drs])
+    dpg.set_value(item=driver_label+"g_c", value=[space/Total_space,Gear])
+    dpg.set_value(item=driver_label+"r_c", value=[space/Total_space,Rpm])
+    #print(self._xTurns)
+    dpg.set_axis_ticks(axis="x_axis_SPEED_Compare",label_pairs=self._xTurns)
+    dpg.set_axis_ticks(axis="x_axis_THROTTLE_Compare",label_pairs=self._xTurns)
+    dpg.set_axis_ticks(axis="x_axis_BRAKE_Compare",label_pairs=self._xTurns)
+    dpg.set_axis_ticks(axis="x_axis_RPM_Compare",label_pairs=self._xTurns)
+    dpg.set_axis_ticks(axis="x_axis_GEAR_Compare",label_pairs=self._xTurns)
+    dpg.set_axis_ticks(axis="x_axis_DRS_Compare",label_pairs=self._xTurns)
+    
+    dpg.set_axis_limits("x_axis_SPEED_Compare",0,1)
+    dpg.set_axis_limits("x_axis_THROTTLE_Compare",0,1)
+    dpg.set_axis_limits("x_axis_BRAKE_Compare",0,1)
+    dpg.set_axis_limits("x_axis_GEAR_Compare",0,1)
+    dpg.set_axis_limits("x_axis_DRS_Compare",0,1)
+    dpg.set_axis_limits("x_axis_RPM_Compare",0,1)
+    
+    dpg.set_item_label(item=driver_label+"s_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"t_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"z_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"b_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"r_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"d_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"g_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"l_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    dpg.set_item_label(item=driver_label+"cmpl",label=self._DRIVERS_INFO[driver]["abbreviation"])
+    #dpg.set_axis_limits("x_axis_LAPS_Compare",xmin_LT,xmax_LT)
+    #dpg.set_axis_limits("y_axis_LAPS_Compare",ymin_LT,ymax_LT)
+    max_LT=1e6
+    for driver,info_driver in self._saved_drivers.items(): 
+      if "LapTime" in info_driver.keys():
+        if info_driver["LapTime"]<max_LT:
+          max_LT=info_driver["LapTime"]
+          max_driver=info_driver["Driver"]
+          max_driver_id=driver
+          max_space=info_driver["Space"]
+          max_speed=info_driver["Speed"]
+          max_times=info_driver["Times"]
+    minx,maxx=1e6,-1e6
+    for driver,info_driver in self._saved_drivers.items():
+      if "Space" in info_driver.keys():
+        sp1=max_space
+        sp2=info_driver["Space"]
+        #print(sp1)
+        Space_x=np.linspace(0,1,500)
+        t1=scipy.interpolate.Akima1DInterpolator(sp1,max_times)(Space_x)
+        t2=scipy.interpolate.Akima1DInterpolator(sp2,info_driver["Times"])(Space_x)
+        Delta     =    t1  -   t2
+        dpg.set_value(item=info_driver["Driverlabel"]+"cmpl", value=[Space_x,Delta])
+        dpg.set_axis_ticks(axis="x_axis_DELTA_Compare",label_pairs=self._xTurns)
+        if min(Delta)<minx:
+          minx=min(Delta)
+        if max(Delta)>maxx:
+          maxx=max(Delta)
+    
+    dpg.set_axis_limits("y_axis_DELTA_Compare", minx-0.05,maxx+0.05)  
+    list_of_drivers=[info_drv["Driverlabel"] for driverid,info_drv in self._saved_drivers.items()]
+      
+    for driver in self._drivers_list_fictitious:
+      if driver in list_of_drivers:
+        dpg.show_item(driver+"s_c")
+        dpg.show_item(driver+"z_c")
+        dpg.show_item(driver+"t_c")
+        dpg.show_item(driver+"b_c")
+        dpg.show_item(driver+"r_c")
+        dpg.show_item(driver+"g_c")
+        dpg.show_item(driver+"d_c")
+        dpg.show_item(driver+"cmpl")
+      else:
+        dpg.hide_item(driver+"s_c")
+        dpg.hide_item(driver+"z_c")
+        dpg.hide_item(driver+"t_c")
+        dpg.hide_item(driver+"b_c")
+        dpg.hide_item(driver+"d_c")
+        dpg.hide_item(driver+"r_c")
+        dpg.hide_item(driver+"g_c")
+        dpg.hide_item(driver+"cmpl")
+    
+  def get_y_from_x_plot(self,x_point: float,x_array: np.array,y_array: np.array):
+    y=y_array[0]
+    for index,x in enumerate(x_array):
+      if x<=x_point:
+        y=y_array[index]
+      else:
+        return y
+      
+
 ###################################################################################################################  
   
   def update_position_plot(self):
@@ -1179,7 +1744,7 @@ class GUI:
         time.sleep(self._sleeptime)
       self._last_message_displayed_DT_position = self._first_message_DT + datetime.timedelta(seconds=self._time_skipped) + (datetime.datetime.now() - datetime.timedelta(seconds=self._time_paused) - self._first_message_DT_myTime)
       if self._event_name!="" and dpg.does_item_exist("drawlist_map_position"):
-        pos_dict=self._database.get_dictionary(feed="Position.z")
+        pos_dict=self._database.get_dictionary(feed="Position.z").copy()
         last_index_msg =self._database.get_position_index_before_time(sel_time=self._last_message_displayed_DT_position)
         for driver,full_position in pos_dict.items():
           if driver in self._drivers_list:
@@ -1197,7 +1762,7 @@ class GUI:
               
         if self._database.isSC_deployed(sel_time=self._last_message_displayed_DT_position):
           last_index_msgSC =self._database.get_position_index_before_time_SC(sel_time=self._last_message_displayed_DT_position)
-          pos_dictSC=self._database.get_dictionary(feed="PositionSC.z")
+          pos_dictSC=self._database.get_dictionary(feed="PositionSC.z").copy()
           for drSC,full_positionSC in pos_dictSC.items():
             xyz=full_positionSC["XYZ"][last_index_msgSC]
             if xyz[0]!=0 and xyz[1]!=0:
@@ -1302,7 +1867,8 @@ class GUI:
         dpg.add_theme_style(dpg.mvPlotStyleVar_PlotPadding, 0,0, category=dpg.mvThemeCat_Plots)
         dpg.add_theme_style(dpg.mvPlotStyleVar_LabelPadding, 0,0, category=dpg.mvThemeCat_Plots)
         dpg.add_theme_style(dpg.mvPlotStyleVar_LineWeight, 1.2, category=dpg.mvThemeCat_Plots)
-    
+        dpg.add_theme_style(dpg.mvPlotStyleVar_AnnotationPadding,0,category=dpg.mvThemeCat_Plots)
+        
     dpg.bind_theme(global_theme)
     
     #dpg.show_style_editor()
