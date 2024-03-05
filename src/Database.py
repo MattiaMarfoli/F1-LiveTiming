@@ -21,9 +21,10 @@ class DATABASE:
     self._logger_file=logger_file
     
     self._lock= threading.Lock()
+    self._first_starting_msg_DT = None
     self._first_datetime        = None
     self._last_datetime         = None
-    self._DT_BASETIME_TIMESTAMP         = None
+    self._DT_BASETIME_TIMESTAMP = None
     self._DT_BASETIME           = None
     self._DT_BASETIME_TIMESTAMP = None
     self._is_first_RD_msg       = False
@@ -447,7 +448,8 @@ class DATABASE:
               print(DT, " in SessionStatus in update_database is discarded: message sent after the last CarData message!")
             else:
               if Status["Status"]=="Started": 
-
+                if self._first_starting_msg_DT==None:
+                  self._first_starting_msg_DT=DT
                 # displayed instantly as zero time remaining in telemetry tab even if race message arrives 
                 # seconds later.. do not know a fast solution right now. Therefore for now it will remain
                 # as it is 
@@ -501,7 +503,7 @@ class DATABASE:
                   self._RunningStatus[self._finish_count][1]["Type"]=self._finish_status[self._detected_session_type][self._finish_count]
                 else:
                   self._RunningStatus[self._finish_count][self._Nof_Restarts]["EndDateTime"]=DT
-                  self._RunningStatus[self._fi_first_message_UTCnish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
+                  self._RunningStatus[self._finish_count][self._Nof_Restarts]["Duration"]=DT.timestamp()-self._RunningStatus[self._finish_count][self._Nof_Restarts]["StartDateTime"].timestamp()
                   self._RunningStatus[self._finish_count][self._Nof_Restarts]["Is_session_completed"]=True
 
                 self._last_aborted_is_compatible=False
@@ -782,6 +784,7 @@ class DATABASE:
       if F_L!=-1:
         for msg in F_L:
           self._list_of_msgs.append(msg)
+          self.update_database(msg_decrypted={msg[2]:msg[1]},feed=msg[0])
         print(" Done!")
       if feed=="CarData.z":
         self._last_datetime=msg[2]
@@ -941,6 +944,11 @@ class DATABASE:
               else:
                 break
             return self._last_position_index_found_SC
+  
+  def get_first_startingSession_DT(self):
+    with self._lock:
+      print("Session starting at: ",self._first_starting_msg_DT ,"  but returnig: ",self._first_starting_msg_DT - datetime.timedelta(seconds=180.) )
+      return self._first_starting_msg_DT - datetime.timedelta(seconds=180.) 
       
   def get_list_of_msgs(self):
     with self._lock:

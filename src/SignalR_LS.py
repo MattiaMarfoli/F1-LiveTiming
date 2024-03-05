@@ -72,8 +72,6 @@ class SignalRClient:
     if not self._drivers_list_downloaded:
       if msg[0]=="CarData.z" or msg[0]=="Position.z":
         self._drivers_list_downloaded=self.parser.extract_drivers_list(msg[1],arrow.get(msg[2]).datetime)
-      else:
-        pass
     else:
       #print(msg_to_send)
       self._is_already_inserted=False
@@ -83,6 +81,7 @@ class SignalRClient:
         msg_to_send=self._prev_msgs_datetime.pop(0)[1]
         msg_parsed=self.parser.live_parser(feed=msg_to_send[0],line=msg_to_send[1],date=msg_to_send[2])
         self.database.append_msg_to_full_list(msg_parsed)
+        self.database.update_database(msg_decrypted={msg_parsed[2]:msg_parsed[1]},feed=msg_parsed[0])
         #print("A",CURR_DT," ",msg_to_send)
       else:
         self._prev_msgs_datetime.append([CURR_DT,msg])
