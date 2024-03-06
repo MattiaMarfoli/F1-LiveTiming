@@ -19,7 +19,8 @@ INDEX_ENDPOINT="/Index.json"
 FILENAME_FEEDS="FEEDS.json"
 FILENAME_URLS="SESSION_URLS.json"
 FILENAME_COLORS="COLORS.json"
-FILENAME_MAPS="MAPS.json"
+FILENAME_MAPS="MAPS2.json"
+FILENAME_SEGMENTS="segmentsStatus.json"
 FILENAME_DURATION="SESSION_DURATION.json"
 FILENAME_LOGGER="log/myapp.log"
 
@@ -77,6 +78,7 @@ DEBUG_TYRES    = False
 PRINT_TIMES    = False
 COLOR_DRIVERS  = json.load(open(paths.DATA_PATH / FILENAME_COLORS,"r"))
 MAPS  = json.load(open(paths.DATA_PATH / FILENAME_MAPS,"r"))
+SEGMENTS  = json.load(open(paths.DATA_PATH / FILENAME_SEGMENTS,"r"))
 SESSION_DURATION =  json.load(open(paths.DATA_PATH / FILENAME_DURATION,"r"))
 WATCHLIST_DRIVERS = [str(i) for i in range(1,100)] # all drivers
 WATCHLIST_TEAMS   = ["Red Bull","Ferrari","Mercedes","McLaren","Aston Martin","Alpine","AlphaTauri","Williams","Alfa Romeo","Haas"]

@@ -27,6 +27,7 @@ class PARSER:
       self._sessions_dict=self.get_sessions_dict()
       self._logger=_config.LOGGER
       self._logger_file=_config.LOGGER_FILE
+      self._isFirstMsg = True
       self._DT_BASETIME=None
       if _config.FORCE_UPDATE:
         self.update_urls()
@@ -257,6 +258,14 @@ class PARSER:
           for entry in body[list(body.keys())[0]]:
             #print(entry[list(entry.keys())[0]])
             time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
+            if self._isFirstMsg:
+              date_splitted=date.split(":")
+              sec_from_first_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
+              self._DT_BASETIME = time_entry-datetime.timedelta(seconds=sec_from_first_message)
+              _config.DATABASE._DT_BASETIME = time_entry-datetime.timedelta(seconds=sec_from_first_message)
+              _config.DATABASE._DT_BASETIME_TIMESTAMP =  _config.DATABASE._DT_BASETIME.timestamp()
+              print("\n BaseTime: ",_config.DATABASE._DT_BASETIME," \n")
+              self._isFirstMsg=False
             body_exp.append([feed,entry[list(entry.keys())[1]],time_entry])
           return body_exp
         elif feed=="Heartbeat":

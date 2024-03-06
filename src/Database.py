@@ -26,7 +26,7 @@ class DATABASE:
     self._last_datetime         = None
     self._DT_BASETIME_TIMESTAMP = None
     self._DT_BASETIME           = None
-    self._DT_BASETIME_TIMESTAMP = None
+    self._session_start_DT      = None
     self._is_first_RD_msg       = False
     self._is_merge_ended        = False
     self._Display_LapTimes      = False
@@ -628,24 +628,12 @@ class DATABASE:
   def get_slice_between_times(self,start_time: datetime.datetime,end_time: datetime.datetime):
     with self._lock:
       first_index_flag=True
-      
-      if start_time.timestamp()-self._last_datetime_checked_cardata.timestamp()>0:
-        for index,Time in zip(range(self._last_racedata_starting_index_found,len(self._sample_cardata_list)),self._sample_cardata_list[self._last_racedata_starting_index_found:]):
-          if first_index_flag and Time>=start_time:
-            self._last_racedata_starting_index_found=index
-            self._last_datetime_checked_cardata = Time
-            first_index_flag=False
-          elif Time>=end_time:
-            return slice(self._last_racedata_starting_index_found,index)
-     
-      else:
-        for index,Time in enumerate(self._sample_cardata_list): 
-          if first_index_flag and Time>=start_time:
-            self._last_racedata_starting_index_found=index
-            self._last_datetime_checked_cardata = Time
-            first_index_flag=False
-          elif Time>=end_time:
-            return slice(self._last_racedata_starting_index_found,index)
+      for index,Time in enumerate(self._sample_cardata_list): 
+        if first_index_flag and Time.timestamp()>=start_time.timestamp():
+          self._last_racedata_starting_index_found=index
+          first_index_flag=False
+        elif Time.timestamp()>=end_time.timestamp():
+          return slice(self._last_racedata_starting_index_found,index)
 
       return slice(self._last_racedata_starting_index_found,index)
 
@@ -775,7 +763,7 @@ class DATABASE:
       dict: merged dictionary for all feeds in feeds_list. Sorted for time of arrival
             of the messages.
     """
-    self._parser._DT_BASETIME=self.find_DT_BASETIME(YEAR=YEAR,NAME=NAME,SESSION=SESSION)
+    #self._parser._DT_BASETIME=self.find_DT_BASETIME(YEAR=YEAR,NAME=NAME,SESSION=SESSION)
     print("Starting the merge..")
     for feed in self._feed_list:
       print("Preparing the merge of feed: ", feed, "...",end="")
@@ -837,6 +825,7 @@ class DATABASE:
                 session_name_api=session["description"].lower()
               session_name=session["description"]
               inside_outside="inside the event!"
+              self._session_start_DT=start_DT
               print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key)
               return session_name,event_name,meeting_key,season,meeting_name,session_name_api
             else:
@@ -849,6 +838,7 @@ class DATABASE:
                 else:
                   session_name_api=session["description"].lower()
                 session_name=session["description"]
+                self._session_start_DT=start_DT
                 inside_outside="close to the event, just "+str(round(max_time/60.))+" minutes away from the start!"
                 print(session["description"]," ",abs((first_datetime-start_DT).total_seconds())," ",(first_datetime-end_DT).total_seconds())
           print("Session found! It is ",inside_outside," \nSession: ",session_name, "of ", event_name,". \n Meeting Key: ",meeting_key, "\n Meeting Name: ",meeting_name)
@@ -947,8 +937,9 @@ class DATABASE:
   
   def get_first_startingSession_DT(self):
     with self._lock:
-      print("Session starting at: ",self._first_starting_msg_DT ,"  but returnig: ",self._first_starting_msg_DT - datetime.timedelta(seconds=180.) )
-      return self._first_starting_msg_DT - datetime.timedelta(seconds=180.) 
+      TD=300.
+      print("Session starting at: ",self._session_start_DT ,"  but returning: ",self._session_start_DT - datetime.timedelta(seconds=TD) )
+      return self._session_start_DT - datetime.timedelta(seconds=TD) 
       
   def get_list_of_msgs(self):
     with self._lock:
