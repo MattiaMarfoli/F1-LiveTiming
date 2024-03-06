@@ -3,6 +3,7 @@ from src import Database
 import subprocess
 import json
 import paths
+# https://api.f1mv.com/api/v1/circuits/63/2023 63=Bahrain
 
 # Timing in GUI
 DELAY     = 0.    #seconds # TODO 
