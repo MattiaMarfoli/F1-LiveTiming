@@ -4,6 +4,7 @@ import requests
 import time
 from config import _config
 import arrow
+import base64,json
 
 
 from fastf1.signalr_aio import Connection
@@ -71,7 +72,10 @@ class SignalRClient:
   def _sort_msg(self,msg):
     if not self._drivers_list_downloaded:
       if msg[0]=="CarData.z" or msg[0]=="Position.z":
-        self._drivers_list_downloaded=self.parser.extract_drivers_list(msg[1],arrow.get(msg[2]).datetime)
+        DR_EX=json.loads(self.parser.pako_inflate_raw(base64.b64decode(msg[1])).decode('utf-8'))
+        self._drivers_list_downloaded=self.parser.extract_drivers_list(DR_EX)
+        self.database._DT_BASETIME=arrow.get(msg[2])
+        self.database._DT_BASETIME_TIMESTAMP=arrow.get(msg[2]).timestamp()
     else:
       #print(msg_to_send)
       self._is_already_inserted=False
@@ -80,8 +84,16 @@ class SignalRClient:
       if len(self._prev_msgs_datetime)>=self.LENGTH_QUEUE_MSGS:
         msg_to_send=self._prev_msgs_datetime.pop(0)[1]
         msg_parsed=self.parser.live_parser(feed=msg_to_send[0],line=msg_to_send[1],date=msg_to_send[2])
-        self.database.append_msg_to_full_list(msg_parsed)
-        self.database.update_database(msg_decrypted={msg_parsed[2]:msg_parsed[1]},feed=msg_parsed[0])
+        if msg_to_send[0][-2:]==".z":
+          #print(msg_parsed)
+          for MSG in msg_parsed:
+            self.database.append_msg_to_full_list(MSG)
+            #print("\n",MSG)
+            self.database._last_datetime=MSG[2]
+            self.database.update_database(msg_decrypted={MSG[2]:MSG[1]},feed=MSG[0])
+        else:
+          self.database.append_msg_to_full_list(msg_parsed)
+          self.database.update_database(msg_decrypted={msg_parsed[2]:msg_parsed[1]},feed=msg_parsed[0])
         #print("A",CURR_DT," ",msg_to_send)
       else:
         self._prev_msgs_datetime.append([CURR_DT,msg])

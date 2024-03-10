@@ -53,7 +53,7 @@ FEED_LIST=["CarData.z",  # CarData.z needs to be the first
 # Live Stream Real Time
 QUEUE_LENGTH_LS   = 5   # Number of messages in cache before put send them to analyzer
 TIMEOUT_SR_LS     = 600 # sec
-LIVE_SIM          = True # True -> simulation / False -> Real live data 
+LIVE_SIM          = False # True -> simulation / False -> Real live data 
 SUPERVISE_VERBOSE = 5 # sec
 
 #GUI
@@ -72,7 +72,7 @@ WINDOW_DISPLAY_LENGTH = AVG_LAP_LENGTH * LAPS_TO_DISPLAY   # in s
 WINDOW_DISPLAY_PROPORTION_RIGHT = 1./10
 WINDOW_DISPLAY_PROPORTION_LEFT = 1. - WINDOW_DISPLAY_PROPORTION_RIGHT 
 TERMINAL_SPACE = 600
-TERMINAL_MODE  = True
+TERMINAL_MODE  = False
 DEBUG_PRINT    = True
 DEBUG_TYRES    = False
 PRINT_TIMES    = False
