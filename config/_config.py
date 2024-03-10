@@ -53,7 +53,7 @@ FEED_LIST=["CarData.z",  # CarData.z needs to be the first
 # Live Stream Real Time
 QUEUE_LENGTH_LS   = 5   # Number of messages in cache before put send them to analyzer
 TIMEOUT_SR_LS     = 600 # sec
-LIVE_SIM          = False # True -> simulation / False -> Real live data 
+LIVE_SIM          = True # True -> simulation / False -> Real live data 
 SUPERVISE_VERBOSE = 5 # sec
 
 #GUI
@@ -64,7 +64,7 @@ BUTTONS_ROWS = 4
 BOTTOM_BAR_HEIGHT = 0
 TOP_BAR_HEIGHT = 25 # main.panel.height in gnome-shell.css
 TEL_OTHER_RATIO = 3./4.
-TELEMETRY_PLOTS_WIDTH,TELEMETRY_PLOTS_HEIGHT = 635,345
+TELEMETRY_PLOTS_WIDTH,TELEMETRY_PLOTS_HEIGHT = 635,345 #635,345
 FREQUENCY_TELEMETRY_UPDATE = 6 #Hz
 LAPS_TO_DISPLAY            = 3 #n of laps to display
 AVG_LAP_LENGTH             = 90 #s

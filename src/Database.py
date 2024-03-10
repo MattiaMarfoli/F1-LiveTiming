@@ -243,7 +243,7 @@ class DATABASE:
               self._CarData[driver]["Gear"].append(channels["Channels"]["3"])
               self._CarData[driver]["Throttle"].append(channels["Channels"]["4"] if channels["Channels"]["4"]<101 else 0)
               self._CarData[driver]["Brake"].append(int(channels["Channels"]["5"]) if int(channels["Channels"]["5"])<101 else 0)
-              self._CarData[driver]["DRS"].append(1 if int(channels["Channels"]["45"])%2==0 else 0)
+              self._CarData[driver]["DRS"].append(1 if channels["Channels"]["45"] in [10,12,14] else 0)
               if driver == self._sample_driver:
                 self._sample_cardata_list.append(DT)
               #print(self._CarData[driver].keys())
@@ -896,6 +896,7 @@ class DATABASE:
       
   def get_drivers_list_from_api(self):
     with self._lock:
+      self._drivers_list_api.sort()
       return self._drivers_list_api
       
   def isSC_deployed(self,sel_time: datetime.datetime):
