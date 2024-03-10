@@ -887,5 +887,12 @@
       "Practice_3": "2024/2024-03-02_Bahrain_Grand_Prix/2024-03-01_Practice_3/",
       "Qualifying": "2024/2024-03-02_Bahrain_Grand_Prix/2024-03-01_Qualifying/",
       "Race": "2024/2024-03-02_Bahrain_Grand_Prix/2024-03-02_Race/"
+   },
+   "2024_Saudi_Arabian_Grand_Prix": {
+      "Practice_1": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-07_Practice_1/",
+      "Practice_2": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-07_Practice_2/",
+      "Practice_3": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-08_Practice_3/",
+      "Qualifying": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-08_Qualifying/",
+      "Race": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-09_Race/"
    }
 }

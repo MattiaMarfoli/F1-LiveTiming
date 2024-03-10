@@ -149,11 +149,11 @@
     "color": [77, 14, 3],
     "team": "Haas"
   },
-  "50": {
+  "38": {
     "abbreviation": "BEA",
     "full_name": "Bearman",
-    "color": [77, 14, 3],
-    "team": "Haas"
+    "color": [255, 40, 0],
+    "team": "Ferrari"
   },
   "24": {
     "abbreviation": "ZHO",
