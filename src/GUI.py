@@ -8,6 +8,7 @@ import scipy
 import json
 import collections
 import re
+import os
 
 
 from config import _config
@@ -499,6 +500,7 @@ class GUI:
     x_pos=self._TEL_PLOTS_WIDTH*(nr%2) 
     x_pos_headshot = (self._TEL_PLOTS_WIDTH-95) + self._TEL_PLOTS_WIDTH*(nr%2) 
     y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._TOP_BAR_HEIGHT
+    add_name_over_photo=False
     with dpg.group(pos=(x_pos,y_pos),height=self._TEL_PLOTS_HEIGHT,tag="wdw"+driver,parent=parent,horizontal=True):
       with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),no_title=True,link_all_x=True,no_align=False,no_resize=False,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH-95,height=self._TEL_PLOTS_HEIGHT):
         with dpg.plot(tag="speed"+driver,anti_aliased=True):    
@@ -527,11 +529,17 @@ class GUI:
       with dpg.group(pos=(x_pos_headshot,y_pos),tag=driver+"drivers_info_telemetry",horizontal=False):
         with dpg.drawlist(width=95,height=95,pos=(0,0),tag=driver+"HeadShotUrl_drawlist"):
           map_dict=str(_config.paths.HEADSHOTS_PATH / (self._DRIVERS_INFO[driver]["full_name"]+"headshot.png"))
-          width, height, channels, data = dpg.load_image(map_dict)
-          #self._map_width,self._map_height=width,height
-          with dpg.texture_registry():
-            dpg.add_static_texture(width=width, height=height, default_value=data, tag=driver+"HeadShotUrl")
-          dpg.draw_image(texture_tag=driver+"HeadShotUrl",tag=driver+"HeadShotUrl_image",parent=driver+"HeadShotUrl_drawlist",pmin=(0,0),pmax=(width,height),show=True)
+          if map_dict.split("/")[-1] in os.listdir(str(_config.paths.HEADSHOTS_PATH)):
+            width, height, channels, data = dpg.load_image(map_dict)
+            #self._map_width,self._map_height=width,height
+            with dpg.texture_registry():
+              dpg.add_static_texture(width=width, height=height, default_value=data, tag=driver+"HeadShotUrl")
+            dpg.draw_image(texture_tag=driver+"HeadShotUrl",tag=driver+"HeadShotUrl_image",parent=driver+"HeadShotUrl_drawlist",pmin=(0,0),pmax=(width,height),show=True)
+          else:
+            add_name_over_photo=True
+            print(map_dict," not found!")
+        if add_name_over_photo:
+          dpg.add_text(default_value=map_dict.split("/")[-1][-12],tag=driver+"_nameOverImage",pos=(x_pos_headshot+10,y_pos+10))
         dpg.add_text(default_value="Tyre: ",tag=driver+"_tyreFitted",pos=(x_pos_headshot,y_pos+95+20*0))
         dpg.add_text(default_value="Tyre Age: ",tag=driver+"_agetyreFitted",pos=(x_pos_headshot,y_pos+95+20))
         dpg.add_text(default_value="Drs: ",tag=driver+"_drs",pos=(x_pos_headshot,y_pos+95+20*2))
@@ -1160,6 +1168,8 @@ class GUI:
                   if "Segments" in info_sector.keys():
                     for segment,status in info_sector["Segments"].items():
                       self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                      if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
+                        dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
                       dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._segments[str(status["Status"])] )
               elif type(value)==dict:
                 for nsector,info_sector in value.items():
@@ -1174,11 +1184,15 @@ class GUI:
                     if type(info_sector["Segments"])==dict:
                       for segment,status in info_sector["Segments"].items():
                         self._driver_infos[driver]["Sectors"][nsector]["Segment"][segment]=self._segments[str(status["Status"])] # for now not decrypted
+                        if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
+                          dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
                         dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._segments[str(status["Status"])] )
                         #print("Color changed at: ",driver+"segments"+str(1+int(nsector))+"musec"+str(segment),"  to: ",self._segments[str(status["Status"])])
                     elif type(info_sector["Segments"])==list:
                       for segment,status in enumerate(info_sector["Segments"]):
                         self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                        if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
+                          dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
                         dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._segments[str(status["Status"])] )
             elif info=="LastLapTime":
               if "Value" in value.keys():
@@ -2157,13 +2171,13 @@ class GUI:
         if column_name=="Full Name":
           dpg.add_text(default_value=self._DRIVERS_INFO[driver]["full_name"],tag=driver+column_name)
         elif "segments" in column_name:
-          with dpg.group(label=driver+column_name+"musec",tag=driver+column_name+"musec",horizontal=True,width=10):
-            if "segments" in self._maps[self._event_name].keys():
-              nsegments=self._maps[self._event_name]["segments"][column_name[-1]]
-            else:
-              nsegments=10
-            for i in range(nsegments):
-              dpg.add_button(label="",tag=driver+column_name+"musec"+str(i))
+          dpg.add_group(label=driver+column_name+"musec",tag=driver+column_name+"musec",horizontal=True,width=10)
+            #if "segments" in self._maps[self._event_name].keys():
+            #  nsegments=self._maps[self._event_name]["segments"][column_name[-1]]
+            #else:
+            #  nsegments=10
+            #for i in range(nsegments):
+            #  dpg.add_button(label="",tag=driver+column_name+"musec"+str(i))
         else:
           #print(driver+column_name)
           dpg.add_text(default_value="-",tag=driver+column_name)
