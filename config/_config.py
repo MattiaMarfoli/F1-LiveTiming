@@ -26,10 +26,10 @@ FILENAME_LOGGER="log/myapp.log"
 
 # Logger Info
 import logging
-logging.basicConfig(filename=FILENAME_LOGGER,filemode="a+", level=logging.DEBUG, 
+logging.basicConfig(filename=FILENAME_LOGGER,filemode="w", level=logging.DEBUG, 
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
 LOGGER=logging.getLogger(__name__)
-LOGGER_FILE=open(FILENAME_LOGGER,mode="a+")
+LOGGER_FILE=open(FILENAME_LOGGER,mode="w")
 def EMPTY_LOGGER(filepath: str=FILENAME_LOGGER):
   f=open(filepath,"w")  
   f.close()
@@ -76,10 +76,10 @@ TERMINAL_MODE  = False
 DEBUG_PRINT    = True
 DEBUG_TYRES    = False
 PRINT_TIMES    = False
-COLOR_DRIVERS  = json.load(open(paths.DATA_PATH / FILENAME_COLORS,"r"))
-MAPS  = json.load(open(paths.DATA_PATH / FILENAME_MAPS,"r"))
-SEGMENTS  = json.load(open(paths.DATA_PATH / FILENAME_SEGMENTS,"r"))
-SESSION_DURATION =  json.load(open(paths.DATA_PATH / FILENAME_DURATION,"r"))
+COLOR_DRIVERS  = json.load(open(paths.JSONS_PATH / FILENAME_COLORS,"r"))
+MAPS  = json.load(open(paths.JSONS_PATH / FILENAME_MAPS,"r"))
+SEGMENTS  = json.load(open(paths.JSONS_PATH / FILENAME_SEGMENTS,"r"))
+SESSION_DURATION =  json.load(open(paths.JSONS_PATH / FILENAME_DURATION,"r"))
 WATCHLIST_DRIVERS = [str(i) for i in range(1,100)] # all drivers
 WATCHLIST_TEAMS   = ["Red Bull","Ferrari","Mercedes","McLaren","Aston Martin","Alpine","AlphaTauri","Williams","Alfa Romeo","Haas"]
 YEARS=["2018","2019","2020","2021","2022","2023","2024"]

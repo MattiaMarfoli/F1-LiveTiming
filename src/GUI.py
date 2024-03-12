@@ -21,112 +21,127 @@ class GUI:
     self._detected_year  = None  
     self._RACE           = "none"           
     self._SESSION        = "none"
+    
+    # Keep it quiet we are not ready to show off.
+    self._LIVESIM_READY  = False
+    
+    # From config
     self._FORCE_UPDATE   = FORCE_UPDATE  
     self._filename_feeds = _config.FILENAME_FEEDS
     self._filename_urls  = _config.FILENAME_URLS
+    self._filename_urls  = _config.FILENAME_URLS
+    self._LIVESIM_READY=False
+    self._filename_urls  = _config.FILENAME_URLS 
     self._LIVESIM_READY=False
     self._LIVE_SIM=_config.LIVE_SIM
     self._LIVE = not self._LIVE_SIM
     self._DEBUG_PRINT=_config.DEBUG_PRINT
     
     self._parser = _config.DATABASE._parser 
-    self._database = _config.DATABASE
+    self._database = _config.DATABASE            # need to update filename txt..
     self._client = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
     
+    # hardcoding for life. These need to be updated...
     self._map_width=630
     self._map_height=480
-    self._drivers_prev_position={}
     
-    self._windows_manager=[] # here i list all windows tag (as str) 
-    #if self._FORCE_UPDATE:
-    #  self._parser.update_urls()
-    # Only in LT_sim mode
+    # Not used for now. But this gui doesn't track all the window 
+    # i created (maybe it does but i still didn't found it). Therefore 
+    # here i list all windows tag (as str) 
+    self._windows_manager=[] 
     
-    # Initialize the GUI
-    self._MAX_WIDTH,self._MAX_HEIGHT = int(_config.MAX_WIDTH),int(_config.MAX_HEIGHT)
-    self._BUTTONS_HEIGHT = _config.BUTTONS_HEIGHT
-    self._BUTTONS_WIDTH  = _config.BUTTONS_WIDTH
-    self._BUTTONS_ROWS = _config.BUTTONS_ROWS
-    self._BOTTOM_BAR_HEIGHT = _config.BOTTOM_BAR_HEIGHT
-    self._TOP_BAR_HEIGHT = _config.TOP_BAR_HEIGHT
-    self._TEL_OTHER_RATIO = _config.TEL_OTHER_RATIO
-    self._FREQUENCY_TELEMETRY_UPDATE = _config.FREQUENCY_TELEMETRY_UPDATE
-    self._LAPS_TO_DISPLAY = _config.LAPS_TO_DISPLAY
-    self._AVG_LAP_LENGTH = _config.AVG_LAP_LENGTH
-    self._WINDOW_DISPLAY_LENGTH = _config.WINDOW_DISPLAY_LENGTH
-    self._WINDOW_DISPLAY_PROPORTION_RIGHT = _config.WINDOW_DISPLAY_PROPORTION_RIGHT
-    self._WINDOW_DISPLAY_PROPORTION_LEFT = 1 - _config.WINDOW_DISPLAY_PROPORTION_RIGHT
-    self._DRIVERS_INFO = _config.COLOR_DRIVERS
-    self._watchlist_drivers = _config.WATCHLIST_DRIVERS
-    self._watchlist_teams = _config.WATCHLIST_TEAMS
-    self._maps = _config.MAPS
-    self._segments = _config.SEGMENTS
-    self._sessions_duration = _config.SESSION_DURATION
+    # Initialize the GUI. Length of windows and other parameters that can be found in config
+    self._MAX_WIDTH,self._MAX_HEIGHT            = int(_config.MAX_WIDTH),int(_config.MAX_HEIGHT)
+    self._BUTTONS_HEIGHT                        = _config.BUTTONS_HEIGHT
+    self._BUTTONS_WIDTH                         = _config.BUTTONS_WIDTH
+    self._BUTTONS_ROWS                          = _config.BUTTONS_ROWS
+    self._BOTTOM_BAR_HEIGHT                     = _config.BOTTOM_BAR_HEIGHT
+    self._TOP_BAR_HEIGHT                        = _config.TOP_BAR_HEIGHT
+    self._TEL_OTHER_RATIO                       = _config.TEL_OTHER_RATIO
+    self._FREQUENCY_TELEMETRY_UPDATE            = _config.FREQUENCY_TELEMETRY_UPDATE
+    self._LAPS_TO_DISPLAY                       = _config.LAPS_TO_DISPLAY
+    self._AVG_LAP_LENGTH                        = _config.AVG_LAP_LENGTH
+    self._WINDOW_DISPLAY_LENGTH                 = _config.WINDOW_DISPLAY_LENGTH
+    self._WINDOW_DISPLAY_PROPORTION_RIGHT       = _config.WINDOW_DISPLAY_PROPORTION_RIGHT
+    self._WINDOW_DISPLAY_PROPORTION_LEFT        = 1. - _config.WINDOW_DISPLAY_PROPORTION_RIGHT
+    self._DRIVERS_INFO                          = _config.COLOR_DRIVERS
+    self._watchlist_drivers                     = _config.WATCHLIST_DRIVERS
+    self._watchlist_teams                       = _config.WATCHLIST_TEAMS
+    self._maps                                  = _config.MAPS
+    self._segments                              = _config.SEGMENTS
+    self._sessions_duration                     = _config.SESSION_DURATION
+    
+    # Initializing the listener (signalr) to listen. Only if we are not simulating a session
     if not self._LIVE_SIM:
       self._IO_thread = threading.Thread(target=self._client.start)
+    
+    # Let's start
     dpg.create_context()
+    
+    # debug
+    self._PRINT_TIMES = _config.PRINT_TIMES # flag that it is not used anymore.
     if _config.TERMINAL_MODE:
       self._TERMINAL_SPACE=_config.TERMINAL_SPACE
       dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._TERMINAL_SPACE,decorated=False)
     else:
       self._TERMINAL_SPACE=0
       dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._MAX_HEIGHT - self._BOTTOM_BAR_HEIGHT - self._TOP_BAR_HEIGHT - self._TERMINAL_SPACE,decorated=False)
+    
+    # TODO
+    # Need to be updated
     self._VIEWPORT_WIDTH = max(dpg.get_viewport_width(),1920)
     self._VIEWPORT_HEIGHT = max(dpg.get_viewport_height(),1080)
+    
+    # Still initial configurations
     dpg.show_viewport()
     dpg.setup_dearpygui()
     self._TEL_PLOTS_HEIGHT = _config.TELEMETRY_PLOTS_HEIGHT
     self._TEL_PLOTS_WIDTH  = _config.TELEMETRY_PLOTS_WIDTH
     
-    # Useful variables (Datetime)
-    self._last_message_DT                    = None
+    # Useful variables (Datetimes and constant variables)
+    self._last_message_DT                     = None
     self._last_message_displayed_UTC          = None
     self._last_message_displayed_UTC_position = None
-    self._first_message_DT                   = None
-    self._last_session_status                = "Inactive"
-    self._starting_session_DT                = None
-    self._time_skipped                       = 0
-    self._time_paused                        = 0
-    self._BaseTimestamp                      = None
-    self._seconds_to_skip                    = 5
-    self._delay_T                            = _config.DELAY
-    self._TIME_UPDATE_TELEMETRY_PLOT         = 1./_config.FREQ_UPDATE_PLOT
-    self._TIME_UPDATE_POSITION_PLOT          = 1./_config.FREQ_UPDATE_PLOT
-    self._PRINT_TIMES                        = _config.PRINT_TIMES
-
-    self._mapScaleX = 1
-    self._mapScaleY = 1
-    self._angle     = 0
-    self._Xoff      = 0
-    self._Yoff      = 0
+    self._first_message_DT                    = None
+    self._starting_session_DT                 = None
     
+    self._time_skipped                        = 0
+    self._time_paused                         = 0
+    self._BaseTimestamp                       = None
+    self._seconds_to_skip                     = 5
+    self._delay_T                             = _config.DELAY
+    self._TIME_UPDATE_TELEMETRY_PLOT          = 1./_config.FREQ_UPDATE_PLOT
+    self._TIME_UPDATE_POSITION_PLOT           = 1./_config.FREQ_UPDATE_PLOT
+    self._sleeptime                           = _config.SLEEPTIME
+     
+    self._last_session_status                  = "Inactive"
+    self._task_state                           = "running"
+    self._session_name                         = ""
+    self._event_name                           = ""
+    self._meeting_key                          = ""
+    
+    # Kill button. Needs to be reworked.
     self._StopUpdateThread = threading.Event()
-    self._task_state = "running"
-    self._DriverInTimingView = []
-    self._hide_label = []
-    self._driver_compare = [ None , None]
-    self._sleeptime  = _config.SLEEPTIME
-    self._start_compare = False
-    self._start_timing =False
-    self._start_position = False
     
+    # Flags 
+    self._DriverInTimingView                  = []
+    self._start_compare                       = False
+    self._start_timing                        = False
+    self._start_position                      = False
+    self._drivers_prev_position               = {}
+    
+    # Analysis thread and time_flow_handler threads
     self._compare_telemetry_thread = threading.Thread(target=self.Compare_Telemetry_2)
     self.iterator = threading.Thread(target=self.time_flow_handler)
-    #self._process = multiprocessing.Process(target=self.update_telemetry_plot)
-    #self._thread_cl = threading.Thread(target=self.update_classifier)
-    #self._thread_lap = threading.Thread(target=self.update_laps)
     
-    self._laps=None
-    
-    self._session_name,self._event_name,self._meeting_key = "","",""
-    
+    # Tabs for GUI 
     if self._LIVE_SIM:
       self._tabs={"choose_race":       "Race_Selector",
                   "update_telemetry":  "Telemetry_view",
                   "compare_telemetry": "Telemetry_compare_view",
                   "timing":            "Timing_view"}
     else:
-      self._tabs={"update_telemetry": "Telemetry_view",
+      self._tabs={"update_telemetry":  "Telemetry_view",
                   "compare_telemetry": "Telemetry_compare_view",
                   "timing":            "Timing_view"}
     
@@ -190,53 +205,6 @@ class GUI:
     #    self._LS._analyzer._laptimes_2[driver]={}
 
 
-
-  # def skip_interesting_event(self,sender):
-  #   #print(sender, " ",dpg.get_value(item=sender)," ")
-  #   for _,tag in dpg.get_item_children(sender).items():
-  #     if len(tag)!=0:
-  #       self._skip_to_time=dpg.get_value(item=tag[0]) # horrible...
-  #       break
-  #   self._LS.reset_telemetry_dictionary()
-  #   self.reset_indices()
-  #   self._index=self.from_time_to_index(self._skip_to_time-self._window_display_proportion_left*self._window_display_length)
-    
-
-####################################### REWORK NEEDED ################################################
-  def update_classifier(self):
-    while not self._LIVESIM_READY:
-      time.sleep(self._sleeptime)
-    while True:
-      while self._task_state=="pause":
-        time.sleep(self._sleeptime)
-      while self._index_clas<=self._index:
-        #print(self._index_clas," ",self._index)
-        time_ms=self._times[self._index_clas]
-        value=self._LS._full_data[time_ms]
-        if "TimingAppData" in self._LS._full_data[time_ms].keys():
-          self._LS._analyzer.msg_sorter(value)
-          #if self._index-self._index_clas<10:
-          #    print("Classification: ", self._LS._analyzer._classification, " ",self._LS._analyzer._laptimes)
-        self._index_clas+=1
-
-  def update_laps(self):
-    while not self._LIVESIM_READY:
-      time.sleep(self._sleeptime)
-    while True:
-      while self._task_state=="pause":
-        time.sleep(self._sleeptime)
-      while self._index_lap<=self._index:
-        #print(self._index_lap," ",self._index)
-        time_ms=self._times[self._index_lap]
-        value=self._LS._full_data[time_ms]
-        if "TimingDataF1" in self._LS._full_data[time_ms].keys():
-          self._LS._analyzer.msg_sorter(value)
-          #if self._index-self._index_lap<10:
-          #print("Laptimes2: ",self._LS._analyzer._laptimes_2)
-        self._index_lap+=1
-
-########################################################################################################
-
   def add_buttons(self):
     """
       Initialize all buttons.
@@ -276,7 +244,11 @@ class GUI:
       print("Resuming..")
 
   def save_telemetry(self):
-    print(self._driver_infos)
+    """ 
+      Saves Tyres, Laps and Telemetry retrieved from the database as jsons.
+      Filenames: year+"_"+race+"_"+session+"_"(tyres,laps,telemetry)+".json"
+    """
+    #print(self._driver_infos)
     tyres=self._database.get_dictionary("TimingAppData")
     laps=self._database.get_dictionary("TimingDataF1")
     telemetry=self._database.get_dictionary("CarData.z")
@@ -296,6 +268,9 @@ class GUI:
     save_file.close()
 
   def set_skip_time(self):
+    """ 
+      CallBack. It updates skip time.
+    """
     self._seconds_to_skip=dpg.get_value("skip_seconds")
     dpg.configure_item(item="backward",label="-"+str(self._seconds_to_skip)+"s")
     dpg.configure_item(item="forward",label="+"+str(self._seconds_to_skip)+"s")
@@ -303,6 +278,9 @@ class GUI:
     # dpg.set_item_label(item="forward",label="+"+self._seconds_to_skip+"s")
       
   def set_delay_time(self):
+    """ 
+      CallBack. Never tried lol. It updates delay time.
+    """
     if dpg.get_value("delay")<self._delay_T:
       self._time_skipped+=(self._delay_T-dpg.get_value("delay"))
     else:
@@ -312,7 +290,7 @@ class GUI:
     
   def forward_button(self):
     """
-      Forward X seconds
+      Forward skip_time seconds. It cycles through every msgs from current_time to current_time+skip_time
     """
     dpg.set_item_callback(item="forward",callback=None)
     dpg.set_item_callback(item="backward",callback=None)
@@ -375,64 +353,11 @@ class GUI:
       
       self._task_state = "running"
 
-      # list_of_msgs=self._database.get_list_of_msgs().copy()
-      # #list_of_msgs_reversed=[]
-
-      # for index,content in zip(range(self._last_index,len(list_of_msgs)),list_of_msgs[self._last_index:]): # last_index based on FW,BW also
-      #   feed,msg,T = content[0],content[1],content[2]
-      #   if T.timestamp()<time_end_timestamp:
-      #     list_of_msgs_reversed.append(content)
-      #     self._last_index_checked=index
-      #     if feed=="RaceControlMessages":
-      #       self.update_variables_RaceControlMessages(feed,msg) # need to be in chrono order
-      #     elif feed=="CarData.z" and self._car_data_chrono_flag:
-      #       self.update_telemetry_FWBW(T,msg,self._car_data_chrono_flag)
-      #   else:
-      #     break
-        
-      # dpg.set_value(item="race_msgs",value=self._msgs_string)
-      # self._last_index=self._last_index_checked
-      # list_of_msgs_reversed=list_of_msgs_reversed[::-1]
-      # self._WeatherFlag=False
-      # self._TelemetryFlag=False
-
-      # for content in list_of_msgs_reversed:
-      #   feed,msg,T = content[0],content[1],content[2]
-
-      #   if feed=="TimingAppData" or feed=="TimingDataF1" and self._driver_infos_check_flags["TotalChecks"]!=0:
-      #     self.update_displayer_FWBW(T=T,feed=feed,msg=msg)
-      #     #print(feed," ",self._driver_infos_check_flags["TotalChecks"])
-
-      #   elif feed=="WeatherData" and not self._WeatherFlag:
-      #     self.update_variables_WeatherData(msg)
-      #     self.WeatherFlag=True
-        
-      #   elif feed=="CarData.z" and not self._TelemetryFlag and not self._car_data_chrono_flag:
-      #     #print(T.timestamp()-self._BaseTimestamp)
-      #     self.update_telemetry_FWBW(T,msg,self._car_data_chrono_flag)
-
-      # dpg.set_item_callback(item="forward",callback=self.forward_button)
-      # dpg.set_item_callback(item="backward",callback=self.backward_button)
-      # # Delete annotations outside the minx,maxx area
-      
-      # list_of_ann_to_delete=[]
-      # for driver in self._drivers_list:
-      #   for subitem,listofchildrens in dpg.get_item_children(item="speed"+driver).items():
-      #     for ch in listofchildrens:
-      #       if "_min_" in dpg.get_item_alias(ch) or "_max_" in dpg.get_item_alias(ch):
-      #         pos_x=dpg.get_value(ch)[0]
-      #         if pos_x<self._minx_tel:
-      #           list_of_ann_to_delete.append(ch)
-        
-      # for item in list_of_ann_to_delete:
-      #   dpg.delete_item(item=item)
-      
-      # self._task_state = "play"
 
     
   def backward_button(self):
     """
-      Back 5s
+      Backward skip_time seconds. It cycles through every msgs from the beginning to current_time-skip_time
     """
     dpg.set_item_callback(item="forward",callback=None)
     dpg.set_item_callback(item="backward",callback=None)
@@ -492,6 +417,9 @@ class GUI:
       self._task_state = "running"
     
   def show_telemetry_button(self,row_number):
+    """ 
+      Not used anymore.
+    """
     selected_teams=self._watchlist_teams[4*(row_number-1):4*row_number]
     for team in selected_teams:
       for driver in self._drivers_list:
@@ -506,10 +434,11 @@ class GUI:
     self._StopUpdateThread.set()
     dpg.destroy_context()
 
-  # def print_button(self): # ???
-  #   print("Tel: ",dpg.get_item_height(item="Tel"),"  ","Buttons: ",dpg.get_item_height(item="buttons"))
-
+  
   def hide_show_tel(self,driver):
+    """ 
+      Not used anymore
+    """
     if dpg.get_value(driver+"STB"):
       dpg.show_item(driver+"s")
       dpg.show_item(driver+"t")
@@ -519,43 +448,19 @@ class GUI:
       dpg.hide_item(driver+"t")
       dpg.hide_item(driver+"b")
 
-  # def display_laptimes(self):
-  #   displayed_laptimes={}
-  #   db_laps=self._database.get_dictionary(feed="TimingDataF1")
-  #   for driver,laps in db_laps.items():
-  #     if driver not in displayed_laptimes.keys():
-  #       displayed_laptimes[driver]={}
-  #     for lap,data_lap in db_laps[driver].items():
-  #       displayed_laptimes[driver][lap]={"DT": data_lap["DateTime"].ctime(),
-  #                                        "VS": data_lap["ValueString"],
-  #                                        "VS_s": data_lap["ValueInt_sec"]}
-  #   print(json.dumps(displayed_laptimes,indent=2))
-
-  # def move_menu_bar_when_scrolling(self):
-  #   current_y_scroll=dpg.get_y_scroll(item="Primary window")
-  #   #dpg.set_item_pos(item="weather1",pos=(dpg.get_item_pos(item="weather1")[0],dpg.get_item_pos(item="weather1")[1]+current_y_scroll-self._y_scroll))
-  #   #dpg.set_item_pos(item="weather2",pos=(dpg.get_item_pos(item="weather2")[0],dpg.get_item_pos(item="weather2")[1]+current_y_scroll-self._y_scroll))
-  #   #dpg.set_item_pos(item="Track_Map",pos=(dpg.get_item_pos(item="Track_Map")[0],dpg.get_item_pos(item="Track_Map")[1]+current_y_scroll-self._y_scroll))
-  #   #dpg.set_item_pos(item="menu_bar_buttons_weather",pos=(dpg.get_item_pos(item="menu_bar_buttons_weather")[0],dpg.get_item_pos(item="menu_bar_buttons_weather")[1]+current_y_scroll-self._y_scroll))
-  #   #n_button=1
-  #   #while True:
-  #   #  if dpg.does_item_exist(item="buttons"+str(n_button)):
-  #   #    #print(n_button,dpg.get_item_children(item="buttons"+str(n_button)))
-  #   #    dpg.set_item_pos(item="buttons"+str(n_button),pos=(dpg.get_item_pos(item="buttons"+str(n_button))[0],dpg.get_item_pos(item="buttons"+str(n_button))[1]+current_y_scroll-self._y_scroll))
-  #   #    n_button+=1
-  #   #  else:
-  #   self._y_scroll=current_y_scroll
-  #   #    return 
-
+  
 
 #########################################################################################################
 
   def change_map_background(self):
+    """ 
+      Sets the track map.
+    """
     if dpg.does_item_exist(item="map_background"):
       dpg.delete_item(item="map_background") 
       dpg.delete_item(item="map_background_texture")
     
-    map_dict=str(_config.paths.DATA_PATH / self._maps[self._event_name]["map"])
+    map_dict=str(_config.paths.MAPS_PATH / self._maps[self._event_name]["map"])
     width, height, channels, data = dpg.load_image(map_dict)
 
     #self._mapScaleX = self._maps[dpg.get_value("Race_Map")]["mapScaleX"]
@@ -572,6 +477,9 @@ class GUI:
     dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(630,480),show=True)
 
   def transform_position_from_F1_to_dpg(self,x,y):
+    """ 
+      From x,y in F1 coordinates (Position.z) to x,y in DPG coordinates (Pixels).
+    """
     xlims=self._maps[self._event_name]["xlim"]
     ylims=self._maps[self._event_name]["ylim"]
     x_shifted=x-xlims[0]
@@ -584,6 +492,9 @@ class GUI:
     return x_scaled,y_updown
 
   def add_driver_tel_plot(self,number,parent,driver):
+    """ 
+      Adds subplots with speed,throttle and brakes (can easily add the remaining) for the given driver.  
+    """
     nr=int(number) # 0 -> 19 !
     x_pos=self._TEL_PLOTS_WIDTH*(nr%2) 
     x_pos_headshot = (self._TEL_PLOTS_WIDTH-95) + self._TEL_PLOTS_WIDTH*(nr%2) 
@@ -626,6 +537,9 @@ class GUI:
         dpg.add_text(default_value="Drs: ",tag=driver+"_drs",pos=(x_pos_headshot,y_pos+95+20*2))
         
   def Initialize_Plot(self):
+    """ 
+      Initialize Telemetry Tab plots, buttons , track map and menu 
+    """
     # telemetry view tab    
     with dpg.group(label=self._YEAR+"-"+" ".join(self._RACE.split("_"))+"-"+self._SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
       
@@ -684,6 +598,11 @@ class GUI:
 
 
   def WaitingForAllPreStartChecks(self):
+    """ 
+      Pre checks before starting:
+        -) Merge Completed (replays only)
+        -) Driver list
+    """
     if not self._LIVE: # We are in a simulation
       while not self._database.is_merge_ended():
         print("Merge not completed")
@@ -711,6 +630,9 @@ class GUI:
     return True
 
   def Initialize_DateTimes(self):
+    """ 
+      Initialize datetimes after pre starting checks are completed.
+    """
     time.sleep(self._delay_T)
     self._time_paused+=self._delay_T
     
@@ -727,6 +649,9 @@ class GUI:
                                          - self._first_message_UTC.timestamp()
 
   def recursive_children(self,object_dict,n_tab):
+    """ 
+      Not used for now. Useful to display all the parenting of groups and windows recursively. 
+    """
     n_tab+=1
     tabbing="\t"*n_tab
     for slot,items_list in dpg.get_item_children(object_dict).items():
@@ -740,23 +665,21 @@ class GUI:
         self.recursive_children(item,n_tab)
     #print(tabbing,dpg.get)
 
-  def Initialize_DisplayedObjectsList(self):
-    #for window in self._windows_manager:
-    #  print("\n ###################################### \n",window)
-    #  self.recursive_children(window,0)
-    self.DisplayedObjectsList=[
-                                "AirTemp","TrackTemp","Rainfall","WindSpeed","Humidity", # Weather
-                                "race_msgs"     # RaceMessages
-                                                # Tyres
-                              ]
-
   def time_flow_handler(self):
+    """ 
+      Where all the magic happens.
+      
+      1) Initializes everything it needs to operate.
+      2) Initializes TimingView tab
+      3) at each iteration it updates the current time and calls the iterator to process msgs in 
+         the window: (last_iteration_EndDT , last_iteration_EndDT + Time_passed_from_last_iteration)
+      4) sleeps for a bit
+    """
     self.WaitingForAllPreStartChecks()
     self.Initialize_Plot()
     self.Initialize_DateTimes()
     self.Timing_View()
     self.Initialize_Updaters()
-    self.Initialize_DisplayedObjectsList()
     
     while True:
       while self._task_state=="pause":
@@ -789,6 +712,9 @@ class GUI:
   
   def iteration(self, time_start, time_end):
     """
+      It is called from the time_flow_handler. Cycles through msgs and process the ones in the
+      window.
+    
       list_of_msgs is a list of sorted messages in time [DateTime,Feed,Body] where:
         -) DateTime has the following format: '%H:%M:%S.%f'
         -) Feed is the string taken from the official F1 livetiming site
@@ -824,6 +750,9 @@ class GUI:
     return True
   
   def DisplayUpdater(self,T,feed,msg):
+    """ 
+      The processor manager. Just a filter for each feed.
+    """
     # All Database updates are now done while merging. Just to have all analysis already available when
     # performing a replay of a session
     
@@ -857,6 +786,9 @@ class GUI:
       return None
   
   def Initialize_Updaters_FWBW(self,cardata_chrono_flag):
+    """ 
+      Useful to eliminate all the infos already stored when called a backward application.
+    """
     self._driver_infos_check_flags={}
     self._driver_infos_check_flags["TotalChecks"]=16*len(self._drivers_list)
     for driver in self._drivers_list:
@@ -891,6 +823,10 @@ class GUI:
 
   
   def AddDriverToTracker(self,driver):
+    """ 
+      Initialization of the displayed objects in the GUI: telemetry and timing view.
+      Also adds entry for each driver in timing_view
+    """
     self._CarData[driver]={}
     self._CarData[driver]["DateTime"]  = collections.deque([],maxlen=self._MAX_LEN_DEQUES)
     self._CarData[driver]["TimeStamp"] = collections.deque([],maxlen=self._MAX_LEN_DEQUES)
@@ -941,6 +877,7 @@ class GUI:
                                   -) Compound New Stint TotalLaps StartLaps strings
       self.session_status="Inactive"
       self._msgs string
+      self._Best_OverallLap
     """
     
     # frequency (about 6Hz) * lap_length (about 90s) * n_laps (3)
@@ -960,6 +897,11 @@ class GUI:
   #####################################################################################
   
   def find_maxmin_indices(self,arr: np.array,maximum: bool):
+    """ 
+      Helper function to get the local maxima/minima of the array.
+      The -5 is VITAL otherwise it detects the final index as max/min at each call.
+      Cons: lags a bit in displaying maxima/minima (those 5 indices)
+    """
     if maximum:
       arrExtrema=scipy.signal.argrelextrema(arr, np.greater_equal,order=3)[0]
     else:
@@ -1019,13 +961,17 @@ class GUI:
       drs= "On" if channels["Channels"]["45"] in [10,12,14] else "Off"
       dpg.set_value(item=driver+"_drs",value="Drs: "+drs)
       #print(driver, " ",T.timestamp()-self._first_message_UTC.timestamp()," ",channels["Channels"]["2"])
-    # updating the display
+    
+    
+    # updating the display. Minx,Maxx are called for updates x_limits. For the first seconds the telemetry 
+    # needs to fill the plot from 0 to _WINDOW_DISPLAY_LENGTH-_WINDOW_DISPLAY_PROPORTION_RIGHT
     minx=max(self._first_message_UTC.timestamp()-self._BaseTimestamp,self._last_message_displayed_UTC.timestamp()-self._BaseTimestamp-self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_LEFT)
     maxx=max(self._first_message_UTC.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH,self._last_message_displayed_UTC.timestamp()-self._BaseTimestamp+self._WINDOW_DISPLAY_LENGTH*self._WINDOW_DISPLAY_PROPORTION_RIGHT)
     
     #print(minx,maxx)
     #print("\n ",self._database.get_dictionary(feed="RaceControlMessages"),"\n")
     
+    # DPG doesn't handle properly times as labels. So i have to construct it myself.
     x_label=[]
     minute=None
     for Timestamp in np.arange(int(minx),int(maxx),1):
@@ -1041,6 +987,9 @@ class GUI:
           
     x_label=tuple(x_label)
     
+    # calling the maxima/minima function for each driver and display the annotations 
+    # on the plot. Checks also if these annotations are now out of the axis limits and
+    # eliminate them if true.
     for driver,telemetry in self._CarData.items():
       if driver in self._drivers_list:
         speeds_tel=list(telemetry["Speed"])
@@ -1059,6 +1008,7 @@ class GUI:
           for idx in minInd:
             if not dpg.does_item_exist(driver+"_min_"+str(times[idx])) and times[idx]>minx:
               dpg.add_plot_annotation(label=str(int(speeds_tel[idx])),tag=driver+"_min_"+str(times[idx]), default_value=(times[idx],speeds_tel[idx]), offset=(0,+5), color=[0,0,0,0],parent="speed"+driver)
+          
           # Delete annotations outside the minx maxx area
           list_of_ann_to_delete=[]
           for subitem,listofchildrens in dpg.get_item_children(item="speed"+driver).items():
@@ -1070,7 +1020,8 @@ class GUI:
             
           for item in list_of_ann_to_delete:
             dpg.delete_item(item=item)
-          
+        
+        # Checks if laptimes annotations are out of the limits and deletes it  
         list_of_items_to_delete=[]
         for subitem,listofchildrens in dpg.get_item_children(item="y_axis_SPEED"+driver).items():
           for ch in listofchildrens:
@@ -1085,13 +1036,12 @@ class GUI:
         for item in list_of_items_to_delete:
           dpg.delete_item(item=item)
         
-        #self.hide_show_tel(driver)
-        
+        # Updating telemetry
         dpg.set_value(item=driver+"s", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Speed"])])
         dpg.set_value(item=driver+"t", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Throttle"])])
         dpg.set_value(item=driver+"b", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Brake"])])
 
-        #print(minx,maxx," ",dpg.get_axis_limits("x_axis_THROTTLE"+driver))
+        # Updating axis
         dpg.set_axis_limits("x_axis_BRAKE"+driver, minx, maxx)
         dpg.set_axis_ticks(axis="x_axis_BRAKE"+driver,label_pairs=x_label)
         dpg.set_axis_ticks(axis="x_axis_THROTTLE"+driver,label_pairs=x_label)
@@ -1099,6 +1049,11 @@ class GUI:
           
   
   def update_database_CarData(self,feed,T,msg):
+    """ 
+      All the update_database are not used now. Switched to:
+        -) replays: merge at the beginning
+        -) lives  : update when receiving msgs directly in the signalr package 
+    """
     self._database.update_database({T:msg},feed)
   
   #####      Position.z     #####
@@ -1112,9 +1067,17 @@ class GUI:
       self.update_position_driver(driver,self.transform_position_from_F1_to_dpg(positions["X"]/10.,positions["Y"]/10.))
   
   def update_database_Position(self,feed,T,msg):
+    """ 
+      All the update_database are not used now. Switched to:
+        -) replays: merge at the beginning
+        -) lives  : update when receiving msgs directly in the signalr package 
+    """
     self._database.update_database({T:msg},feed)
   
   def update_position_driver(self,driver,xyz_dpg):
+    """ 
+      Helper function.
+    """
     if not dpg.does_item_exist("node"+driver):
       with dpg.draw_node(tag="node"+driver,parent="drawlist_map_position"):
         dpg.draw_circle(color=self._DRIVERS_INFO[driver]["color"],center=(xyz_dpg[0],xyz_dpg[1]),radius=12,fill=self._DRIVERS_INFO[driver]["color"],tag="circle"+driver)
@@ -1128,6 +1091,10 @@ class GUI:
   
   #####     TimingDataF1    #####
   def AdjustOtherDisplayedLaptimes(self,driver: str, laptime_str: str,ColorLine: str):
+    """ 
+      This function adjust the color (green, purple, yellow) of previous laps that are displayed
+      when a lap better than yellow is set from a driver.
+    """
     if ColorLine=="NormalLap":
       pass
     elif ColorLine=="BestPersonalLap":
@@ -1275,6 +1242,11 @@ class GUI:
                       dpg.set_value(driver+speedPoint,speedPoint_info["Value"])
               
   def update_database_TimingDataF1(self,feed,T,msg):
+    """ 
+      All the update_database are not used now. Switched to:
+        -) replays: merge at the beginning
+        -) lives  : update when receiving msgs directly in the signalr package 
+    """    
     self._database.update_database({T:msg},feed)
   
   #####      WeatherData    #####
@@ -1299,6 +1271,10 @@ class GUI:
   
   ##### RaceControlMessages #####
   def update_variables_RaceControlMessages(self,feed,msg):
+    """ 
+      Could be optimized to extrapolate infos from raceControlMessages instead of 
+      only displaying them as plain text. 
+    """
     if "Messages" in msg.keys():
       if type(msg["Messages"])==list:
         i=0
@@ -1356,11 +1332,20 @@ class GUI:
           dpg.set_value(item=driver+"_agetyreFitted",value="Tyre Age: "+str(int(self._driver_infos[driver]["StartLaps"])+int(self._driver_infos[driver]["TotalLaps"])))
   
   def update_database_TimingAppData(self,feed,T,msg):
+    """ 
+      All the update_database are not used now. Switched to:
+        -) replays: merge at the beginning
+        -) lives  : update when receiving msgs directly in the signalr package 
+    """    
     self._database.update_database({T:msg},feed)
   
   #####################################################################################
   
   def update_displayer_FWBW(self,T,feed,msg):
+    """ 
+      Not used anymore. Could be improved for performance optimizations, but for now
+      it is not required.
+    """
     if feed=="TimingDataF1":
       if type(msg)==dict:
         if "Lines" in msg.keys():
@@ -1489,6 +1474,10 @@ class GUI:
                       self._driver_infos_check_flags["TotalChecks"]-=1
   
   def update_telemetry_FWBW(self,T,msg,chrono_flag):
+    """ 
+      Same of update_variables_cardata but without displaying them.
+      It is called when a FW or BW instance is made. Just to update the telemetry variables quickly.
+    """
     if chrono_flag:
       for driver,channels in msg.items():
         # updating the telemetry
@@ -1504,7 +1493,7 @@ class GUI:
         self._CarData[driver]["Gear"].append(channels["Channels"]["3"])
         self._CarData[driver]["Throttle"].append(channels["Channels"]["4"] if channels["Channels"]["4"]<101 else 0)
         self._CarData[driver]["Brake"].append(int(channels["Channels"]["5"]) if int(channels["Channels"]["5"])<101 else 0)
-        self._CarData[driver]["DRS"].append(1 if channels["Channels"]["45"]%2==0 else 0)
+        self._CarData[driver]["DRS"].append(1 if channels["Channels"]["45"] in [10,12,14] else 0)
         #print(driver, " ",T.timestamp()-self._first_message_UTC.timestamp()," ",channels["Channels"]["2"])
     else:
       if (T.timestamp()-self._BaseTimestamp)<self._minx_tel:
@@ -1545,6 +1534,9 @@ class GUI:
 #####################################################################################s
 
   def Set_Corners(self):
+    """ 
+      CallBack. Set corners and sectors in x_axis_SPEED_Compare 
+    """
     map_dict=self._maps[dpg.get_value("map")]
     circuit_length=map_dict["circuit_length"]
     self._xTurns=[]
@@ -1563,12 +1555,17 @@ class GUI:
 #############################################################################################################################  
   
   def Compare_Telemetry_2(self):
+    """ 
+      Second Telemetry thread: comparing laps and long runs.
+    """
     while not self._start_compare:
       #print(self._database.get_dictionary("CarData.z"))
       #if self._DEBUG_PRINT:
       #  print("Waiting for drivers_list to arrive in GUI...")
       #print("Still no drivers list..")
       time.sleep(1)
+    
+    # Much of these is not needed anymore. Check it.
     self._n_drivers=4
     self._xTurns=[(str(round(tick,2)),round(tick,2)) for tick in np.linspace(0,1,11)]
     self._xTurns=tuple(self._xTurns)
@@ -1590,6 +1587,8 @@ class GUI:
     xmax_LT=1
     width=900
     height=400
+    
+    # Initialization
     with dpg.group(label="Compare Telemetry View",tag="Telemetry_compare_view",show=False,parent="Primary window"):
       with dpg.group(label="map_buttons",tag="map_buttons",horizontal=True):
         dpg.add_combo(items=list(self._maps.keys()),tag="map",width=150,default_value=None,callback=self.Set_Corners)
@@ -1743,6 +1742,10 @@ class GUI:
       self._annotations_speed={}
       ann_index=0
     while True:
+      # This adds annotations when the speed plot is right clicked.
+      # If you right click again close to the annotation, it deletes it.
+      # In the future this will be automatized to display maxima/minima without 
+      # the need of clicking
       try:
         if dpg.is_item_hovered(item="CompareSpeed"):
           if not dpg.is_item_shown("speed_compare_line"):
@@ -1838,6 +1841,9 @@ class GUI:
     self._annotations_speed={}
 
   def Add_Driver_to_LaptimePlot(self):
+    """ 
+      Add long runs to the plot at the bottom with some restrictions based on the value of the plot.
+    """
     for i in range(self._n_drivers):
       if dpg.get_value("DRV-"+str(i)+"-LapTimes")!="None":
         lap_to_pop=[]        
@@ -1867,6 +1873,9 @@ class GUI:
         #  xmax_LT=int(max(LAPNUMBERS2))+1
 
   def Select_Driver_Compare_2(self,sender):
+    """ 
+      Callback. Handler for selecting the laptimes to be displayed when a driver is selected from the dropdown button.
+    """
     laps=self._database.get_dictionary(feed="TimingDataF1").copy()  # Driver -> Nlap ->  {DateTime,ValueString,ValueInt_sec}
     n_drv=sender.split("-")[-1]
     ITEM="LAP-"+n_drv
@@ -1922,6 +1931,9 @@ class GUI:
         dpg.hide_item("100cmpl")
       
   def Display_Lap_2(self,sender):
+    """ 
+      CallBack. This adds the telemetry to the plot when a lap is selected. Adds also the delta.
+    """
     laps=self._database.get_dictionary(feed="TimingDataF1").copy()
     n_drv=sender.split("-")[-1]
     driver_tag=dpg.get_value("DRV-"+n_drv)
@@ -2037,7 +2049,7 @@ class GUI:
         Space_x=np.linspace(0,1,500)
         t1=scipy.interpolate.Akima1DInterpolator(sp1,max_times)(Space_x)
         t2=scipy.interpolate.Akima1DInterpolator(sp2,info_driver_laps["Times"])(Space_x)
-        Delta     =    t1  -   t2
+        Delta     =    t2  -   t1
         dpg.set_value(item=info_driver_laps["Driverlabel"]+"cmpl", value=[Space_x,Delta])
         dpg.set_axis_ticks(axis="x_axis_DELTA_Compare",label_pairs=self._xTurns)
         if min(Delta)<minx:
@@ -2069,6 +2081,9 @@ class GUI:
         dpg.hide_item(driver+"cmpl")
     
   def get_y_from_x_plot(self,x_point: float,x_array: np.array,y_array: np.array):
+    """ 
+      Helper function to retrieve the y from the point just before x_point
+    """
     y=y_array[0]
     for index,x in enumerate(x_array):
       if x<=x_point:
@@ -2077,8 +2092,30 @@ class GUI:
         return y
 
 ###################################################################################################################  
-
+  def custom_sort(self,array):
+      item=array[1]
+      #print(item)
+      if item == "-":
+        #print("-")
+        return float('inf')  # "-" will be considered larger than any number  
+      elif re.match(r'^\d+$', item):
+        #print("int")
+        return int(item)
+      elif re.match(r'^\d{1,2}:\d{2}\.\d{3}$', item):
+        #print("mm:ss.sss")
+        value_splitted=item.split(":")
+        return int(value_splitted[0])*60+float(value_splitted[1])
+      elif re.match(r'^\d+(\.\d+)?$', item):
+        #print("ss.sss")
+        return float(item)
+      else: 
+        #print("bho")
+        return float('inf')
+  
   def sort_callback(self,sender, sort_specs):
+    """ 
+      Callback. To sort the timing view tab. 
+    """
     # sort_specs scenarios:
     #   1. no sorting -> sort_specs == None
     #   2. single sorting -> sort_specs == [[column_id, direction]]
@@ -2102,30 +2139,10 @@ class GUI:
           sortable_list.append([row, dpg.get_value(cell)])
           break
 
-    def custom_sort(array):
-      item=array[1]
-      #print(item)
-      if item == "-":
-        #print("-")
-        return float('inf')  # "-" will be considered larger than any number  
-      elif re.match(r'^\d+$', item):
-        #print("int")
-        return int(item)
-      elif re.match(r'^\d{1,2}:\d{2}\.\d{3}$', item):
-        #print("mm:ss.sss")
-        value_splitted=item.split(":")
-        return int(value_splitted[0])*60+float(value_splitted[1])
-      elif re.match(r'^\d+(\.\d+)?$', item):
-        #print("ss.sss")
-        return float(item)
-      else: 
-        #print("bho")
-        return float('inf')
-
     if column_name in ["I1","I2","FL","ST"]:
-      sortable_list.sort(key=custom_sort,reverse=True)
+      sortable_list.sort(key=self.custom_sort,reverse=True)
     else:
-      sortable_list.sort(key=custom_sort)
+      sortable_list.sort(key=self.custom_sort)
     
     # create list of just sorted row ids
     new_order = []
@@ -2152,6 +2169,9 @@ class GUI:
           dpg.add_text(default_value="-",tag=driver+column_name)
 
   def Timing_View(self):    
+    """ 
+      Set up of the table in timing view tab.
+    """
     time.sleep(0.5)
     with dpg.group(label="Timing View",tag="Timing_view",show=False,parent="Primary window"):
       with dpg.table(header_row=True, policy=dpg.mvTable_SizingFixedFit, resizable=True, no_host_extendX=True,tag="TableTimingView",parent="Timing_view",
@@ -2169,6 +2189,9 @@ class GUI:
 ###################################################################################################      
   
   def showTab(self,sender):
+    """ 
+      CallBack. Needed to change what tab is displayed when clicked.
+    """
     print(sender," show set to True")
     dpg.configure_item(self._tabs[sender],show=True)
     for tab in self._tabs.keys():
@@ -2264,14 +2287,15 @@ class GUI:
           #dpg.add_tab_button(label="Telemetry")
           #dpg.add_tab_button(label="Compare Telemetry")
       if self._LIVE_SIM:
+        if _config.FORCE_UPDATE:
+          self._parser.update_urls()
+          self._parser._urls=json.load(open(_config.paths.JSONS_PATH / self._parser._filename_urls,"r"))
         with dpg.group(label="Race selector",tag="Race_Selector",show=True):
           dpg.add_combo(items=list(self._parser._sessions_dict.keys()),tag="year",default_value="None",callback=self.choose_session)
   
   def run(self):
     """
-      Rewrite this. Needs to create in order: Window to choose race if necessary, 
-      telemetry display of all drivers and comparison plot. Last 2 need to be built 
-      in 2 tabs in the same window. 
+      Everything starts from here. This is the only thing called in the main file.
     """
     
     self.initialize_windows_and_tabs()

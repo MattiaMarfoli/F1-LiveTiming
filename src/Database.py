@@ -14,31 +14,54 @@ class DATABASE:
   """
   
   def __init__(self,FEED_LIST: str,logger: logging,logger_file):
-
+    
+    # Initializing
     self._parser=PARSER.PARSER()
     self._feed_list=FEED_LIST
     self._logger=logger
     self._logger_file=logger_file
     
+    # Lock system to access the database from multiple threads safely
     self._lock= threading.Lock()
+    
+    # Initializing DateTimes
     self._first_starting_msg_DT = None
     self._first_datetime        = None
     self._last_datetime         = None
     self._DT_BASETIME_TIMESTAMP = None
     self._DT_BASETIME           = None
     self._session_start_DT      = None
+    
+    # Initializing flags
     self._is_first_RD_msg       = False
     self._is_merge_ended        = False
     self._Display_LapTimes      = False
     self._first_message_flag    = False
+   
+    # Initializing useful dicts / lists to speed up searches
     self._last_tyres_fitted     = {}
-    
     self._list_of_msgs=[]
+    self._sample_position_list               = [] # exploiting the fact that positions data are given with the same Datetime for every driver
+    self._sample_position_list_SC            = []
+    self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
+    self._sample_driver                      = ""
+    self._sample_driver_SC                   = ""
+    self._SafetyCar_Ranges = []
+      # TODO
+      # since the timing_2.0 these are not needed anymore probably. Need to check
+    self._last_datetime_checked_position     = 0
+    self._last_datetime_checked_position_SC  = 0
+    self._last_datetime_checked_cardata      = 0
+    self._last_position_index_found          = 0
+    self._last_position_index_found_SC       = 0
+    self._last_racedata_starting_index_found = 0 
     
+    # Drivers list
     self._drivers_list             = None
     self._drivers_list_provisional = set()
     self._drivers_list_api         = []
     
+    # Ta-Daa the database..
     self._CarData={}
     self._Position={}
     self._Position_SC={}
@@ -48,6 +71,7 @@ class DATABASE:
     self._Weather={}
     self._RaceMessages = {}
     
+    # Session status. Hard to make it work if a user jumps in in the middle of the session...
     self._last_aborted_is_compatible = False
     self._list_of_not_resuming_datetimes=[]
     self._LiveSessionStatus="Unknown"
@@ -58,26 +82,7 @@ class DATABASE:
                           #  "EndDateTime":   0,    # just as an example
                           #  "Duration":      0
                           #}  
-                        }
-    self._Laps[None]={}
-    
-    self._sample_position_list               = [] # exploiting the fact that positions data are given with the same Datetime for every driver
-    self._sample_position_list_SC            = []
-    self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
-    self._sample_driver                      = ""
-    self._sample_driver_SC                   = ""
-    
-    # api requests to identify session played
-    self._available_years=["2024","2023","2022","2021","2020","2019","2018"]
-    self._base_url = "https://api.formula1.com/v1"
-    self._eventListing_url="editorial-eventlisting"
-    self._sessionResults_url="fom-results"
-    self._headers = {
-      "apikey": "t3DrvCuXvjDX8nIvPpcSNTbB9kae1DPs",
-      "locale": "en"
-               }
-    
-    # Session Status
+                          }
     self._detected_session_type,self._event_name,self._meeting_key,self._meeting_name,self._session_name_api = "","","","",""
     self._Nof_Restarts=0
     self._finish_count=1
@@ -108,21 +113,32 @@ class DATABASE:
                                         1: "Practice 3"
                           },
                         }
+  
+    # TODO
+    self._Laps[None]={} # no idea why it is here. Check if it is needed 
     
-    self._SafetyCar_Ranges = []
+    # api requests to identify session played
+    self._available_years=["2024","2023","2022","2021","2020","2019","2018"]
+    self._base_url = "https://api.formula1.com/v1"
+    self._eventListing_url="editorial-eventlisting"
+    self._sessionResults_url="fom-results"
+    self._headers = {
+      "apikey": "t3DrvCuXvjDX8nIvPpcSNTbB9kae1DPs",
+      "locale": "en"
+               }
     
-    self._last_datetime_checked_position     = 0
-    self._last_datetime_checked_position_SC  = 0
-    self._last_datetime_checked_cardata      = 0
-    self._last_position_index_found          = 0
-    self._last_position_index_found_SC       = 0
+    # TODO
+    # For Live. Probably not needed anymore since Timing_2.0. Check it 
     self._last_lapnumber_found               = {}
     self._last_stint_found                   = {}
     self._PitIn                              = {}
     
-    self._last_racedata_starting_index_found = 0 
     
   def datetime_parser(self,json_dict):
+    """ 
+      First rude implementation of retrieving telemetry and useful infos from json files saved.
+      Not used for now.
+    """
     for (key, value) in json_dict.items():
       if key=="Time":
         json_dict[key]=[]
@@ -137,6 +153,10 @@ class DATABASE:
     return json_dict  
     
   def retrieve_dictionaries(self):
+    """ 
+      First rude implementation of retrieving telemetry and useful infos from json files saved.
+      Not used for now.
+    """
     year,race,session=self.get_year(),self.get_session_type(),self.get_event_name()
     print("Base file name: ",year+"_"+race+"_"+session+"_")
     try:
@@ -189,6 +209,9 @@ class DATABASE:
       return -1 
 
   def update_drivers_list(self,DT: datetime.datetime,driv_list: list):
+    """ 
+      Update driver lists in the database and detect session type from the api.
+    """
     with self._lock:
       self._drivers_list=driv_list
       self._detected_session_type,self._event_name,self._meeting_key,self._year,self._meeting_name,self._session_name_api = self.detect_session_type(DT)
@@ -196,6 +219,13 @@ class DATABASE:
 
   def update_database(self,msg_decrypted: dict,feed: str): # lock
     """
+    Live Simulations: called at the beginning to store all the infos useful to make analysis.
+    Live: called at each message received.
+    
+    It is needed to make analysis irl/replayed. Probably with the advent of timing_2.0 we only need 
+    laps, tyres and telemetry. (maybe position to do some interesting analysis?). Weather and RaceMsgs 
+    are also storable since they are easy to manipulate
+    
     CarData.z:
       Car telemetry channels:
       - 0: Engine RPM
@@ -206,8 +236,9 @@ class DATABASE:
       - 45: DRS (0-14, odd is disabled, even is enabled)
 
       credits to: MultiviewerF1 
+    
     Position.z:
-
+      I'll update it one day...
     """
     with self._lock:
       #print(self._first_datetime," ",self._DT_BASETIME_TIMESTAMP)
@@ -560,10 +591,16 @@ class DATABASE:
         self._logger_file.flush()
         
   def get_number_of_restarts(self):
+    """ 
+      Dunno if this works. Use it with caution.
+    """
     with self._lock:
       return self._Nof_Restarts
   
   def get_actual_session_status(self,DT: datetime.datetime):
+    """ 
+      Dunno if this works. Use it with caution. Probably better to see updaters in GUI.
+    """
     with self._lock:
       # For replay live timing we have all the data available.
       # So we know if the given time is inside a running window...
@@ -577,6 +614,9 @@ class DATABASE:
       return "Off"
       
   def get_passed_time_into_session(self,DT: datetime.datetime):
+    """ 
+      Dunno if this works. Use it with caution.
+    """
     with self._lock:
       time_passed=0
       for n_session,session_dict in self._RunningStatus.items():
@@ -603,6 +643,9 @@ class DATABASE:
       return self._is_merge_ended
   
   def get_driver_tyres(self,driver: str,sel_time: datetime.datetime):
+    """ 
+      Returns [Compound (string), isNew (bool), stint_nr (string, convertible to int), something related to the actual lap [it can be modified to return basically whatever one wants] (int)]
+    """
     with self._lock:
       sel_lap=None
       if driver in self._Laps.keys() and driver in self._Tyres.keys():
@@ -626,6 +669,13 @@ class DATABASE:
       return ["Unknown","Unknown","Unknown","Unknown"]
   
   def get_slice_between_times(self,start_time: datetime.datetime,end_time: datetime.datetime):
+    """ 
+      Return a slice. It is found from telemetry dict (CarData.z).
+      The returned slice starts from the first index just after (or equal to, very improbable) start_time and 
+      finishes at the first index just before (or equal to, very improbable) end_time.
+      
+      TLDR: all the indices inside the [start_time,end_time] window.
+    """
     with self._lock:
       first_index_flag=True
       for index,Time in enumerate(self._sample_cardata_list): 
@@ -638,6 +688,10 @@ class DATABASE:
       return slice(self._last_racedata_starting_index_found,index)
 
   def get_race_messages_before_time(self,sel_time: datetime.datetime):
+    """ 
+      Return a string with every race msg before sel_time. Each msg is separated from the following 
+      with a double '\ n'
+    """
     with self._lock:
       msgs=""
       for msg_nr,msg_content in self._RaceMessages.items(): # Time TimeStamp Category Message
@@ -648,6 +702,9 @@ class DATABASE:
       return msgs
 
   def get_position_index_before_time(self,sel_time: datetime.datetime):
+    """ 
+      Not used anymore after timing 2.0
+    """
     with self._lock:
       if sel_time.timestamp()-self._last_datetime_checked_position.timestamp()>0:
         for index,Time in zip(range(self._last_position_index_found,len(self._sample_position_list)),self._sample_position_list[self._last_position_index_found:]):
@@ -669,6 +726,9 @@ class DATABASE:
     # otherwise do this above
 
   def get_last_msg_before_time(self,feed: str,sel_time: datetime.datetime): # returns last index for position!
+    """ 
+      Return last msg sent before sel_time. Only 'Weatherdata' and 'RaceControlMessages' are available as feed.
+    """
     with self._lock:
       if feed=="WeatherData":
         s_it={}
@@ -694,6 +754,9 @@ class DATABASE:
         return {}
 
   def get_dictionary(self,feed: str):
+    """ 
+      Return the whole dict for the selected feed from the database.
+    """
     with self._lock:
       if feed=="CarData.z":
         return self._CarData
@@ -719,18 +782,31 @@ class DATABASE:
       return self._drivers_list
   
   def get_first_datetime(self):
+    """ 
+      Return first datetime (UTC) or None if no msg has arrived
+    """
     with self._lock:
       return self._first_datetime # None if no msgs have arrived
   
   def get_last_datetime(self):
+    """ 
+      Last datetime from the cardata.z feed in UTC
+    """
     with self._lock:
       return self._last_datetime # last message's datetime
 
   def get_base_timestamp(self):
+    """ 
+      First msg in timestamp
+    """
     with self._lock:
       return self._DT_BASETIME_TIMESTAMP # First message's in timestamp
 
   def find_DT_BASETIME(self,YEAR: str,NAME: str,SESSION: str):
+    """ 
+      Not used anymore. It extrapolated 00:00:00.000 from HeartBeat module. 
+      Unfortunately I found that it is not compatible with the 00:00:00.000 found from position.z/cardata.z feed
+    """
     with self._lock:
       feed,DT_utc,DT_passed=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED="Heartbeat")
       date_splitted=DT_passed.strftime(format="%H:%M:%S.%f").split(":")
@@ -751,8 +827,8 @@ class DATABASE:
   def merger(self,YEAR: str,NAME: str,SESSION: str):
     """
     Brief:
-      Loops over feeds_list, retrieve the dictionary response for each feed
-      and merge each dictionary.
+      Loops over feeds_list, retrieve the response for each feed
+      and updates database.
 
     Args:
       YEAR (str): year of session (eg '2023')
@@ -760,8 +836,7 @@ class DATABASE:
       SESSION (str): name of session (eg 'race')
     
     Returns:
-      dict: merged dictionary for all feeds in feeds_list. Sorted for time of arrival
-            of the messages.
+      Nothing. It sets: _is_merge_ended flag to True when it finishes. In the process it fills _list_of_msgs list.
     """
     #self._parser._DT_BASETIME=self.find_DT_BASETIME(YEAR=YEAR,NAME=NAME,SESSION=SESSION)
     print("Starting the merge..")
@@ -789,6 +864,10 @@ class DATABASE:
     self._is_merge_ended=True
 
   def detect_session_type(self,first_datetime):
+    """ 
+      Loop over the api and return the detected session from the datetime given. 
+      If it is not inside the session it detects the closer session available. 
+    """
     print(first_datetime)
     for season in self._available_years:
       print("Checking year: ",season)
@@ -868,6 +947,14 @@ class DATABASE:
       return self._meeting_name
     
   def update_drivers_list_from_api(self):
+    """ 
+      Used for live replays. Sometimes the first cardata.z msgs contain wrong drivers inside.
+      Example: jeddah 2024 during the race the first msgs contain Sainz (55) instead of Bearman (38).
+      This is more reliable instead. 
+      
+      As of now, it is not used for live since this endpoint stores the final ranking and it is created
+      once the session is finished.  
+    """
     with self._lock:
       base_url="https://api.formula1.com/v1/fom-results/"
       query_url =self._session_name_api.split(" ")[0]+"?meeting="+str(self._meeting_key)+"&season="+str(self._year)+"&session="

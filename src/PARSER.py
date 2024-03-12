@@ -2,11 +2,9 @@ import json
 import requests
 import zlib
 import base64 
-from collections.abc import MutableMapping
 import arrow
 import datetime
 from config import _config, paths
-import pytz
 
 class PARSER:
     """
@@ -16,22 +14,22 @@ class PARSER:
     """
 
     def __init__(self):
-
+      
+      # Loading jsons and useful infos from config file
       self._base_url=_config.BASE_URL
       self._index_endpoint=_config.INDEX_ENDPOINT
       self._filename_feeds=_config.FILENAME_FEEDS
       self._filename_urls=_config.FILENAME_URLS
-      self._feeds=json.load(open(paths.DATA_PATH / self._filename_feeds,"r"))
-      self._urls=json.load(open(paths.DATA_PATH / self._filename_urls,"r"))
+      self._feeds=json.load(open(paths.JSONS_PATH / self._filename_feeds,"r"))
+      self._urls=json.load(open(paths.JSONS_PATH / self._filename_urls,"r"))
       self._years = _config.YEARS
       self._sessions_dict=self.get_sessions_dict()
       self._logger=_config.LOGGER
       self._logger_file=_config.LOGGER_FILE
+      
+      # Initializing 
       self._isFirstMsg = True
       self._DT_BASETIME=None
-      if _config.FORCE_UPDATE:
-        self.update_urls()
-        self._urls=json.load(open(paths.DATA_PATH / self._filename_urls,"r"))
     
     def get_session_url(self,YEAR: str,NAME: str,SESSION: str):
       """ 
@@ -55,7 +53,7 @@ class PARSER:
       """
       print("Updating URLs from {0}".format(self._base_url))
       self.update_session_urls()
-      self._urls=json.load(open(paths.DATA_PATH / self._filename_urls,"r"))
+      self._urls=json.load(open(paths.JSONS_PATH / self._filename_urls,"r"))
 
     def get_sessions_dict(self):
       """
@@ -102,6 +100,8 @@ class PARSER:
     
     def get_interesting_times(self,YEAR: str,NAME: str,SESSION: str):
       """
+      NOT USED ANYMORE!
+      
       Brief:
         Returns a list with interesting times in ms from the start of the stream
         if SessionStatus is categorized in either one of the following status:
@@ -126,6 +126,8 @@ class PARSER:
 
     def get_drivers_dict(self,YEAR: str,NAME: str,SESSION: str):
       """
+      NOT USED ANYMORE!
+      
       Brief:
         Return the drivers list as the last call of DriverList.json
 
@@ -182,27 +184,13 @@ class PARSER:
       decompressed_data += decompress.flush()
       return decompressed_data
 
-    def flatten(self,dictionary, parent_key='', separator='_'):
-      """
-      Not used for now.
-      """
-      items = []
-      for key, value in dictionary.items():
-          key=str(key)
-          new_key = parent_key + separator + key if parent_key else key
-          if isinstance(value, MutableMapping):
-            items.extend(self.flatten(value, new_key, separator=separator).items())
-          else:
-            items.append((new_key, value))
-      return dict(items)
-
     def live_parser(self,feed: str, line: str, date:str):
       """
       Brief: 
         Used for LiveStreaming only. See jsonStream_parser and OneLineParser methods  
         for simulated live sessions.
         Convert timestamp of the message in ms (from the start of stream)
-        and decode the message if needed. For nested messages create an key for 
+        and decode the message if needed. For nested messages create a key for 
         each entry. 
 
       Args:
@@ -211,7 +199,7 @@ class PARSER:
         date (str): timestamp (format: yyyy-mm-ddThh:mm:ss.SSSZ , read with arrow pkg)
 
       Returns:
-        dict: datetime: msg
+        list: [string (feed), dict (msg_content), Datetime (UTC of the msg)]
       """
       try:
         if feed[-2:]==".z":
@@ -238,12 +226,15 @@ class PARSER:
         and decode the message if needed. For nested messages create an key for 
         each entry. 
 
+        *  It also extract drivers list (altough it is now taken from another api)
+           and extract the BASE_TIMESTAMP (the 'zero' 00:00:00.000 of the session) from
+           the first .z message. 
       Args:
         feed (str): feed name
         line (str): containing time and message (depends on feed)
   
       Returns:
-        list: FEED, MSG, DT
+        list: [string (feed), dict (msg_content), Datetime (UTC of the msg)]
        """
       try:
         line_noBOM=line.decode("utf-8")
@@ -259,8 +250,7 @@ class PARSER:
             #print(entry[list(entry.keys())[0]])
             time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
             if self._isFirstMsg:
-              date_splitted=date.split(":")
-              sec_from_first_message=int(date_splitted[0])*3600+int(date_splitted[1])*60+float(date_splitted[2])
+              sec_from_first_message=self.get_ms_from_date(date=date)
               self._DT_BASETIME = time_entry-datetime.timedelta(seconds=sec_from_first_message)
               _config.DATABASE._DT_BASETIME = time_entry-datetime.timedelta(seconds=sec_from_first_message)
               _config.DATABASE._DT_BASETIME_TIMESTAMP =  _config.DATABASE._DT_BASETIME.timestamp()
@@ -306,6 +296,9 @@ class PARSER:
       return ms 
 
     def extract_drivers_list(self,msg):
+      """ 
+        Extract driver list from one of the .z messages
+      """
       for entry in msg[list(msg.keys())[0]]:
         for key,value in entry.items():
           if key=="Entries" or key=="Cars":
@@ -391,7 +384,7 @@ class PARSER:
                 print(YEAR," ",meeting["Name"]," path not found!")
                 #logger
           
-      with open(paths.DATA_PATH / self._filename_urls,"w") as outfile:
+      with open(paths.JSONS_PATH / self._filename_urls,"w") as outfile:
           json.dump(SESSION_URLS, outfile,indent=3)
 
 #  https://livetiming.formula1.com/static/2023/2023-09-24_Japanese_Grand_Prix/2023-09-24_Race/CarData.z.jsonStream

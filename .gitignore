@@ -8,6 +8,7 @@ TDF1*
 Timing*
 your*
 __pycache__/
+*.pyc
 .vs/
 *jsonStream
 log/*.json
