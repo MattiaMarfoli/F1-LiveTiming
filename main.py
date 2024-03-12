@@ -48,18 +48,4 @@ if __name__ == "__main__":
 # 
 
 
-# clean code 
-# fix remaining keys in dict 
-# make errorless (sellallero)
-
-
-# add a table with all laps and possibility to plot in a separate window (well... it slows a lot the code.. Dunno why, prob frames dropping and lose accurate timing calculation)
-# track map
-# race messages
-# weather
-# TeamRadio
-# More analysis
-
-
-
 

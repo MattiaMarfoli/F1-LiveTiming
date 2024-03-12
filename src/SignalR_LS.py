@@ -9,7 +9,7 @@ import base64,json
 
 from fastf1.signalr_aio import Connection
 
-import fastf1
+#import fastf1
 
 
 class SignalRClient:
@@ -189,8 +189,6 @@ class SignalRClient:
       await asyncio.sleep(1)
 
   async def _async_start(self):
-    self.logger.info(f"Starting FastF1 live timing client "
-             f"[v{fastf1.__version__}]")
     await asyncio.gather(asyncio.ensure_future(self._supervise()),
                asyncio.ensure_future(self._run()))
     self._output_file.close()
