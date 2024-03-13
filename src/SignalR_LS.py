@@ -15,7 +15,6 @@ from fastf1.signalr_aio import Connection
 class SignalRClient:
   """ Base structure taken from FAST-F1 package. 
       Updated with additional checks when receiving messages.
-      TODO: add the reconnection after the 2 hours limit
   """
   def __init__(self, filename: str, timeout: int = 5):
 
@@ -68,7 +67,6 @@ class SignalRClient:
     # callback method still needs to be provided
     pass
 
-  # [x] check if this work!
   def _sort_msg(self,msg):
     if not self._drivers_list_downloaded:
       if msg[0]=="CarData.z" or msg[0]=="Position.z":

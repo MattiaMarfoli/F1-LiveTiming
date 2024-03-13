@@ -27,24 +27,22 @@ class GUI:
     self._LIVESIM_READY  = False
     
     # From config
-    self._FORCE_UPDATE   = FORCE_UPDATE  
-    self._filename_feeds = _config.FILENAME_FEEDS
-    self._filename_urls  = _config.FILENAME_URLS
-    self._filename_urls  = _config.FILENAME_URLS
-    self._LIVESIM_READY=False
-    self._filename_urls  = _config.FILENAME_URLS 
-    self._LIVESIM_READY=False
-    self._LIVE_SIM=_config.LIVE_SIM
-    self._LIVE = not self._LIVE_SIM
-    self._DEBUG_PRINT=_config.DEBUG_PRINT
+    self._FORCE_UPDATE           =  FORCE_UPDATE  
+    self._filename_feeds         = _config.FILENAME_FEEDS
+    self._filename_urls          = _config.FILENAME_URLS
+    self._filename_urls          = _config.FILENAME_URLS
+    self._filename_urls          = _config.FILENAME_URLS 
+    self._LIVE_SIM               = _config.LIVE_SIM
+    self._LIVE                   =  not self._LIVE_SIM
+    self._DEBUG_PRINT            = _config.DEBUG_PRINT
     
-    self._parser = _config.DATABASE._parser 
-    self._database = _config.DATABASE            # need to update filename txt..
-    self._client = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
+    self._parser    = _config.DATABASE._parser 
+    self._database  = _config.DATABASE            # need to update filename txt..
+    self._client    = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
     
     # hardcoding for life. These need to be updated...
-    self._map_width=630
-    self._map_height=480
+    self._map_width   = 630
+    self._map_height  = 480
     
     # Not used for now. But this gui doesn't track all the window 
     # i created (maybe it does but i still didn't found it). Therefore 
@@ -53,11 +51,14 @@ class GUI:
     
     # Initialize the GUI. Length of windows and other parameters that can be found in config
     self._MAX_WIDTH,self._MAX_HEIGHT            = int(_config.MAX_WIDTH),int(_config.MAX_HEIGHT)
+    
     self._BUTTONS_HEIGHT                        = _config.BUTTONS_HEIGHT
     self._BUTTONS_WIDTH                         = _config.BUTTONS_WIDTH
     self._BUTTONS_ROWS                          = _config.BUTTONS_ROWS
+    
     self._BOTTOM_BAR_HEIGHT                     = _config.BOTTOM_BAR_HEIGHT
     self._TOP_BAR_HEIGHT                        = _config.TOP_BAR_HEIGHT
+    
     self._TEL_OTHER_RATIO                       = _config.TEL_OTHER_RATIO
     self._FREQUENCY_TELEMETRY_UPDATE            = _config.FREQUENCY_TELEMETRY_UPDATE
     self._LAPS_TO_DISPLAY                       = _config.LAPS_TO_DISPLAY
@@ -65,6 +66,7 @@ class GUI:
     self._WINDOW_DISPLAY_LENGTH                 = _config.WINDOW_DISPLAY_LENGTH
     self._WINDOW_DISPLAY_PROPORTION_RIGHT       = _config.WINDOW_DISPLAY_PROPORTION_RIGHT
     self._WINDOW_DISPLAY_PROPORTION_LEFT        = 1. - _config.WINDOW_DISPLAY_PROPORTION_RIGHT
+    
     self._DRIVERS_INFO                          = _config.COLOR_DRIVERS
     self._watchlist_drivers                     = _config.WATCHLIST_DRIVERS
     self._watchlist_teams                       = _config.WATCHLIST_TEAMS
@@ -72,15 +74,12 @@ class GUI:
     self._segments                              = _config.SEGMENTS
     self._sessions_duration                     = _config.SESSION_DURATION
     
-    # Initializing the listener (signalr) to listen. Only if we are not simulating a session
+    # Initializing the listener (signalr). Only if we are not simulating a session
     if not self._LIVE_SIM:
       self._IO_thread = threading.Thread(target=self._client.start)
     
     # Let's start
     dpg.create_context()
-    
-    # debug
-    self._PRINT_TIMES = _config.PRINT_TIMES # flag that it is not used anymore.
     if _config.TERMINAL_MODE:
       self._TERMINAL_SPACE=_config.TERMINAL_SPACE
       dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._TERMINAL_SPACE,decorated=False)
@@ -88,9 +87,12 @@ class GUI:
       self._TERMINAL_SPACE=0
       dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._MAX_HEIGHT - self._BOTTOM_BAR_HEIGHT - self._TOP_BAR_HEIGHT - self._TERMINAL_SPACE,decorated=False)
     
+    # debug
+    self._PRINT_TIMES = _config.PRINT_TIMES # flag that it is not used anymore.
+    
     # TODO
     # Need to be updated
-    self._VIEWPORT_WIDTH = max(dpg.get_viewport_width(),1920)
+    self._VIEWPORT_WIDTH  = max(dpg.get_viewport_width(),1920)
     self._VIEWPORT_HEIGHT = max(dpg.get_viewport_height(),1080)
     
     # Still initial configurations
@@ -115,11 +117,11 @@ class GUI:
     self._TIME_UPDATE_POSITION_PLOT           = 1./_config.FREQ_UPDATE_PLOT
     self._sleeptime                           = _config.SLEEPTIME
      
-    self._last_session_status                  = "Inactive"
-    self._task_state                           = "running"
-    self._session_name                         = ""
-    self._event_name                           = ""
-    self._meeting_key                          = ""
+    self._last_session_status                 = "Inactive"
+    self._task_state                          = "running"
+    self._session_name                        = ""
+    self._event_name                          = ""
+    self._meeting_key                         = ""
     
     # Kill button. Needs to be reworked.
     self._StopUpdateThread = threading.Event()

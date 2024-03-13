@@ -18,3 +18,4 @@ log/*.json
 none*
 log/*
 src/__pycache__/
+config/__pycache__/
