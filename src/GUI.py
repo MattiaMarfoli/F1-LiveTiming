@@ -41,8 +41,8 @@ class GUI:
     self._client    = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
     
     # hardcoding for life. These need to be updated...
-    self._map_width   = 630
-    self._map_height  = 480
+    self._map_width   = 520
+    self._map_height  = 400
     
     # Not used for now. But this gui doesn't track all the window 
     # i created (maybe it does but i still didn't found it). Therefore 
@@ -465,19 +465,14 @@ class GUI:
     
     map_dict=str(_config.paths.MAPS_PATH / self._maps[self._event_name]["map"])
     width, height, channels, data = dpg.load_image(map_dict)
-
-    #self._mapScaleX = self._maps[dpg.get_value("Race_Map")]["mapScaleX"]
-    #self._mapScaleY = self._maps[dpg.get_value("Race_Map")]["mapScaleY"]
-    #self._Xoff      = self._maps[dpg.get_value("Race_Map")]["X-Off"]
-    #self._Yoff      = self._maps[dpg.get_value("Race_Map")]["Y-Off"]
-    #self._angle     = self._maps[dpg.get_value("Race_Map")]["angle"]
+    #print(width,height)
     
     #self._map_width,self._map_height=width,height
     with dpg.texture_registry():
       dpg.add_static_texture(width=width, height=height, default_value=data, tag="map_background_texture")
 
     
-    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(630,480),show=True)
+    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(self._map_width,self._map_height),show=True)
 
   def transform_position_from_F1_to_dpg(self,x,y):
     """ 
@@ -486,10 +481,10 @@ class GUI:
     xlims=self._maps[self._event_name]["xlim"]
     ylims=self._maps[self._event_name]["ylim"]
     x_shifted=x-xlims[0]
-    x_scaled=x_shifted/self._maps[self._event_name]["xscale"]
+    x_scaled=x_shifted/self._maps[self._event_name]["xscale"] * (self._map_width / 630)
 
     y_shifted=y-ylims[0]
-    y_scaled=y_shifted/self._maps[self._event_name]["yscale"]
+    y_scaled=y_shifted/self._maps[self._event_name]["yscale"] * (self._map_height / 480)
     y_updown=self._map_height-y_scaled
 
     return x_scaled,y_updown
@@ -542,9 +537,15 @@ class GUI:
             print(map_dict," not found!")
         if add_name_over_photo:
           dpg.add_text(default_value=map_dict.split("/")[-1][-12],tag=driver+"_nameOverImage",pos=(x_pos_headshot+10,y_pos+10))
-        dpg.add_text(default_value="Tyre: ",tag=driver+"_tyreFitted",pos=(x_pos_headshot,y_pos+95+20*0))
-        dpg.add_text(default_value="Tyre Age: ",tag=driver+"_agetyreFitted",pos=(x_pos_headshot,y_pos+95+20))
-        dpg.add_text(default_value="Drs: ",tag=driver+"_drs",pos=(x_pos_headshot,y_pos+95+20*2))
+      with dpg.group(pos=(x_pos_headshot+30,y_pos+110),tag=driver+"drivers_info_telemetry_tyre",horizontal=False):
+        with dpg.drawlist(width=34,height=34,pos=(0,0),tag=driver+"Tyres_drawlist"):
+          with dpg.texture_registry():
+            dpg.add_dynamic_texture(width=34, height=34, default_value=self.Tyres_Texture["Unknown"], tag=driver+"tyre")
+          dpg.draw_image(texture_tag=driver+"tyre",tag=driver+"tyre_image",parent=driver+"Tyres_drawlist",pmin=(0,0),pmax=(34,34),show=True)
+        #dpg.add_text(default_value="Tyre: ",tag=driver+"_tyreFitted",pos=(x_pos_headshot,y_pos+95+20*0))
+      with dpg.group(pos=(x_pos_headshot,y_pos+150),tag=driver+"drivers_info_telemetry_tyre_text",horizontal=False):
+        dpg.add_text(default_value="Tyre Age: ",tag=driver+"_agetyreFitted",pos=(x_pos_headshot+8,y_pos+140+15))
+        dpg.add_text(default_value="Drs: ",tag=driver+"_drs",pos=(x_pos_headshot+8,y_pos+140+35))
         
   def Initialize_Plot(self):
     """ 
@@ -580,9 +581,9 @@ class GUI:
           self._detected_year = str(datetime.datetime.now().year)
       
       self._windows_manager.append("Track_Map")
-      with dpg.window(label="Track_Map",tag="Track_Map",width=630,height=480,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
+      with dpg.window(label="Track_Map",tag="Track_Map",width=self._map_width,height=self._map_height,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
         #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
-          dpg.add_drawlist(width=630,height=480,pos=(0,0),tag="drawlist_map_position")
+          dpg.add_drawlist(width=self._map_width,height=self._map_height,pos=(0,0),tag="drawlist_map_position")
           #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
       self._event_name=self._database.get_meeting_name()
       self.change_map_background()
@@ -865,7 +866,7 @@ class GUI:
     self._driver_infos[driver]["TimeDiffToFastest"]       = "-"
     self._driver_infos[driver]["TimeDiffToPositionAhead"] = "-"
     self._driver_infos[driver]["Retired"]                 = False
-    self._driver_infos[driver]["Compound"]                = "-"
+    self._driver_infos[driver]["Compound"]                = "unknown"
     self._driver_infos[driver]["New"]                     = "-"    
     self._driver_infos[driver]["Stint"]                   = 0
     self._driver_infos[driver]["TotalLaps"]               = 0
@@ -1205,6 +1206,7 @@ class GUI:
                   mins,secs=value["Value"].split(":")
                   Value_int=round(int(mins)*60. + float(secs),3) # s
                   if not dpg.does_item_exist("vline"+driver+value["Value"]):
+                    #print(driver,"  at: ",T.timestamp()-self._first_message_UTC.timestamp()," with: ",value["Value"])
                     dpg.add_vline_series(x=[T.timestamp()-self._first_message_UTC.timestamp()],tag="vline"+driver+value["Value"],label=value["Value"],parent="y_axis_SPEED"+driver)
                     dpg.add_plot_annotation(label=value["Value"],tag="vline"+driver+value["Value"]+"_ann", default_value=(T.timestamp()-self._first_message_UTC.timestamp(),dpg.get_axis_limits("y_axis_SPEED"+driver)[1]-5), offset=(2,), color=[0,0,0,0],parent="speed"+driver) 
                   self._driver_infos[driver]["LastLapTime_s"] = Value_int
@@ -1344,7 +1346,7 @@ class GUI:
                   if "TotalLaps" in info_stint.keys():
                     self._driver_infos[driver]["TotalLaps"]=info_stint["TotalLaps"]
           #dpg.set_item_label(item=self._DRIVERS_INFO[driver]["full_name"],label=self._DRIVERS_INFO[driver]["full_name"]+" "+self._driver_infos[driver]["Compound"]+" "+str(self._driver_infos[driver]["New"])+" "+str(self._driver_infos[driver]["Stint"])+" "+str(int(self._driver_infos[driver]["StartLaps"])+int(self._driver_infos[driver]["TotalLaps"])))
-          dpg.set_value(item=driver+"_tyreFitted",value="Tyre: "+self._driver_infos[driver]["Compound"])
+          dpg.set_value(driver+"tyre",self.Tyres_Texture[self._driver_infos[driver]["Compound"].capitalize()])
           dpg.set_value(item=driver+"_agetyreFitted",value="Tyre Age: "+str(int(self._driver_infos[driver]["StartLaps"])+int(self._driver_infos[driver]["TotalLaps"])))
   
   def update_database_TimingAppData(self,feed,T,msg):
@@ -2309,6 +2311,13 @@ class GUI:
         with dpg.group(label="Race selector",tag="Race_Selector",show=True):
           dpg.add_combo(items=list(self._parser._sessions_dict.keys()),tag="year",default_value="None",callback=self.choose_session)
   
+  def initialize_textures(self):
+    self.Tyres_Texture={}
+    for tyre in os.listdir(_config.paths.TYRES_PATH):
+      width, height, channels, data = dpg.load_image(str(_config.paths.TYRES_PATH / tyre))
+      self.Tyres_Texture[tyre.split(".")[0].capitalize()]=data
+      #dpg.add_static_texture(width=width, height=height, default_value=data, tag="tyre_"+tyre.split(".")[0])
+  
   def run(self):
     """
       Everything starts from here. This is the only thing called in the main file.
@@ -2316,6 +2325,7 @@ class GUI:
     
     self.initialize_windows_and_tabs()
     self.initialize_themes_and_fonts()
+    self.initialize_textures()
     
     dpg.set_primary_window(window="Primary window",value=True)
     dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around for a known dpg bug!

@@ -28,8 +28,12 @@ sys.path.append(str(LOG_PATH))
 # Assets
 ASSETS_PATH     =  MAIN_PATH / "Assets"
 HEADSHOTS_PATH  =  MAIN_PATH / "Assets/HeadShots"
+ICONS_PATH      =  MAIN_PATH / "Assets/Icons"
+TYRES_PATH      =  MAIN_PATH / "Assets/Icons/Tyres"
 sys.path.append(str(ASSETS_PATH))
 sys.path.append(str(HEADSHOTS_PATH))
+sys.path.append(str(ICONS_PATH))
+sys.path.append(str(TYRES_PATH))
 
 
 

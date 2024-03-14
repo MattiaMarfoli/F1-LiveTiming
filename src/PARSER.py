@@ -250,7 +250,7 @@ class PARSER:
             #print(entry[list(entry.keys())[0]])
             time_entry=arrow.get(entry[list(entry.keys())[0]]).datetime
             if self._isFirstMsg:
-              sec_from_first_message=self.get_ms_from_date(date=date)
+              sec_from_first_message=self.get_sec_from_date(date=date)
               self._DT_BASETIME = time_entry-datetime.timedelta(seconds=sec_from_first_message)
               _config.DATABASE._DT_BASETIME = time_entry-datetime.timedelta(seconds=sec_from_first_message)
               _config.DATABASE._DT_BASETIME_TIMESTAMP =  _config.DATABASE._DT_BASETIME.timestamp()
@@ -272,6 +272,28 @@ class PARSER:
           return [feed,body,DateTime]
       except Exception as err:
         _config.WRITE_EXCEPTION(err)
+    
+    def get_sec_from_date(self,date: str):
+      """
+      Brief:
+        Convert date from 'hh:mm:ss.SSS' format to seconds
+
+      Args:
+        date (str): timestamp of 'hh:mm:ss.SSS'
+
+      Raises:
+        Exception: date not in 'hh:mm:ss.SSS' format
+
+      Returns:
+        int: converted date in seconds
+      """
+      sec=0
+      splitted_date=date.split(":")
+      if len(splitted_date)==3:
+        sec=int(int(splitted_date[0])*60*60 + int(splitted_date[1])*60 + float(splitted_date[2]))
+      else:
+         raise Exception("Date format not hh:mm:ss.SSS in PARSER.get_sec_from_date method!")
+      return sec
         
     def get_ms_from_date(self,date: str):
       """

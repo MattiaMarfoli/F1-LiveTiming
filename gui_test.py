@@ -189,7 +189,6 @@ dpg.bind_theme("Global_Theme")
 dpg.setup_dearpygui()
 
 
-
 _DRIVERS_INFO                          = COLOR_DRIVERS
 _watchlist_drivers                     = WATCHLIST_DRIVERS
 _watchlist_teams                       = WATCHLIST_TEAMS
@@ -311,16 +310,14 @@ def add_buttons():
       Initialize all buttons.
     """
     #int_times=_LS._interesting_times
-    with dpg.group(label="buttons1",tag="buttons1",horizontal=True,pos=(10,0)):
-      dpg.add_image_button(texture_tag="pause_icon",label="",tag="pause_button")
-      dpg.add_button(label="Pause",tag="PLAY_BUTTON",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,small=True)
-      dpg.add_button(label="-"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,tag="backward")
-      dpg.add_button(label="+"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,tag="forward")
-      dpg.add_button(label="kill",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,callback=kill_button)
-    with dpg.group(label="buttons2",tag="buttons2",horizontal=True,pos=(10,_BUTTONS_HEIGHT)):  
-      dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=_seconds_to_skip,width=_BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True)
-      dpg.add_input_int(label="Delay [s]",tag="delay",width=_BUTTONS_WIDTH,min_value=0,max_value=300,default_value=_delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True)
-      dpg.add_button(label="tel",tag="tel")
+    dpg.add_image_button(texture_tag="pause_icon",label="",tag="pause_button",parent="menu")
+    dpg.add_button(label="Pause",tag="PLAY_BUTTON",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,small=True,parent="menu")
+    dpg.add_button(label="-"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,tag="backward",parent="menu")
+    dpg.add_button(label="+"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,tag="forward",parent="menu")
+    dpg.add_button(label="kill",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,callback=kill_button,parent="menu")
+    dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=_seconds_to_skip,width=_BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,parent="menu")
+    dpg.add_input_int(label="Delay [s]",tag="delay",width=_BUTTONS_WIDTH,min_value=0,max_value=300,default_value=_delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,parent="menu")
+    dpg.add_button(label="tel",tag="tel",parent="menu")
     
  
 ########################################### PRIMARY WINDOW  ################################ 
@@ -471,35 +468,33 @@ dpg.configure_item("Primary window", horizontal_scrollbar=True) # work-around fo
     
 with dpg.group(label=YEAR+"-"+" ".join(RACE.split("_"))+"-"+SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
   
-  with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=MAP_WIDTH,height=_BUTTONS_HEIGHT*_BUTTONS_ROWS,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
-    # weather group
-    with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(7.3*_BUTTONS_WIDTH,0)):  
+  with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=MAP_WIDTH,height=_VIEWPORT_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
+    with dpg.group(label="menu_row",tag="menu",horizontal=True,pos=(0,0)):
+      add_buttons()
+    with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(0,_BUTTONS_HEIGHT)):  
       dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
       dpg.add_text(default_value="TrackTemp:",tag="TrackTemp") #
       dpg.add_text(default_value="Rainfall:", tag="Rainfall") #
       dpg.add_text(default_value="Current Time:", tag="Actual_Time")
       dpg.add_text(default_value="Session: ", tag="Session_Name")
       dpg.add_text(default_value="Session time remaining: ", tag="Session_TimeRemaining")
-      #dpg.add_text(default_value="WindDirection:", tag="WindDirection") 
-    with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(7.3*_BUTTONS_WIDTH+130,0)):
+      #dpg.add_text(default_value="WindDirection:", tag="WindDirection")
+    with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(_BUTTONS_WIDTH*2,_BUTTONS_HEIGHT)):
       dpg.add_text(default_value="WindSpeed:",tag="WindSpeed") #
       dpg.add_text(default_value="Humidity:", tag="Humidity") #
       dpg.add_text(default_value="Status:", tag="Session_Status")
       #dpg.add_text(default_value="Pressure:", tag="Pressure")
-    # buttons
-    drivers_list=sorted(drivers_list,key=int)
-    add_buttons()
-    y_scroll=dpg.get_y_scroll(item="Primary window")
     
-  with dpg.window(label="Track_Map",tag="Track_Map",width=MAP_WIDTH,height=MAP_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT+_BUTTONS_HEIGHT*(_BUTTONS_ROWS+2)),no_title_bar=True,no_resize=True,no_move=True):
+    #with dpg.window(label="Track_Map",tag="Track_Map",width=MAP_WIDTH,height=MAP_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT+_BUTTONS_HEIGHT*(_BUTTONS_ROWS+2)),no_title_bar=True,no_resize=True,no_move=True):
     #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
+    with dpg.group(label="Map",tag="Map_Track",horizontal=False,pos=(0,140),width=MAP_WIDTH,height=MAP_HEIGHT):
       dpg.add_drawlist(width=MAP_WIDTH,height=MAP_HEIGHT,pos=(0,0),tag="drawlist_map_position")
       #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
-  change_map_background()
+    change_map_background()
   
-  with dpg.window(label="RaceMessages",tag="Race_Messages",width=630/2,height=420,pos=(_TEL_PLOTS_WIDTH*2+10+630/2,_TOP_BAR_HEIGHT+_BUTTONS_HEIGHT*_BUTTONS_ROWS+10+485+5),no_title_bar=True,no_resize=True,no_move=True):
-    #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
-      dpg.add_text(tag="race_msgs",default_value="",wrap=308)
+    with dpg.group(label="RaceMessages",tag="Race_Messages",width=MAP_WIDTH,height=_VIEWPORT_HEIGHT-TOP_BAR_HEIGHT-MAP_HEIGHT-140,pos=(0,_VIEWPORT_HEIGHT-MAP_HEIGHT-140)):
+      dpg.add_text(tag="Race_MSG_HEADER",default_value=" RACE MESSAGES:",wrap=308)
+      dpg.add_text(tag="race_msgs",default_value=" asfasf asfaf \n asfafèjjs \n asfblnf \n adf \n pporororo ",wrap=308)
       #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
   
   # telemetry plots
