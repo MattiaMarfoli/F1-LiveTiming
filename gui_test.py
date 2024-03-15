@@ -115,7 +115,7 @@ _WINDOW_DISPLAY_PROPORTION_LEFT        = 1. - WINDOW_DISPLAY_PROPORTION_RIGHT
 
 dpg.create_context()
 _TERMINAL_SPACE=0
-dpg.create_viewport(title='Custom Title', width=_MAX_WIDTH,height=_MAX_HEIGHT - _BOTTOM_BAR_HEIGHT - _TOP_BAR_HEIGHT - _TERMINAL_SPACE,decorated=False)
+dpg.create_viewport(title='Custom Title', width=_MAX_WIDTH,height=_MAX_HEIGHT - _BOTTOM_BAR_HEIGHT - _TOP_BAR_HEIGHT - _TERMINAL_SPACE,decorated=True)
 
 _VIEWPORT_WIDTH  = max(dpg.get_viewport_width(),1920)
 _VIEWPORT_HEIGHT = max(dpg.get_viewport_height(),1080)
@@ -125,11 +125,20 @@ dpg.show_viewport()
 _TEL_PLOTS_HEIGHT = TELEMETRY_PLOTS_HEIGHT
 _TEL_PLOTS_WIDTH  = TELEMETRY_PLOTS_WIDTH
 
-pause_icon=str(paths.ASSETS_PATH / ("Icons/pause_icon.png"))
-width, height, channels, data = dpg.load_image(pause_icon)
+
 #_map_width,_map_height=width,height
 with dpg.texture_registry():
+  pause_icon=str(paths.ASSETS_PATH / ("Icons/pause.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
   dpg.add_static_texture(width=width, height=height, default_value=data, tag="pause_icon")
+  
+  pause_icon=str(paths.ASSETS_PATH / ("Icons/play.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="play_icon")
+  
+  pause_icon=str(paths.ASSETS_PATH / ("Icons/stop.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="stop_icon")  
 
 
 with dpg.theme(tag="Global_Theme"):
@@ -141,7 +150,7 @@ with dpg.theme(tag="Global_Theme"):
       dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing,         1,1,     category=dpg.mvThemeCat_Core)
       dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing,    1,1,     category=dpg.mvThemeCat_Core)
       dpg.add_theme_style(dpg.mvStyleVar_IndentSpacing,       21,      category=dpg.mvThemeCat_Core)
-      dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize,       6,  category=dpg.mvThemeCat_Core)
+      dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize,       6,       category=dpg.mvThemeCat_Core)
       dpg.add_theme_style(dpg.mvStyleVar_GrabMinSize,         7,       category=dpg.mvThemeCat_Core)
                                                                               
       # Borders                                                           
@@ -304,20 +313,26 @@ def change_map_background():
 
     
     dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(width,height),show=True)    
+    
+def set_time():
+  dpg.configure_item(item="backward",label="-"+str(dpg.get_value("skip_seconds"))+"s")
+  dpg.configure_item(item="forward",label="+"+str(dpg.get_value("skip_seconds"))+"s")
         
 def add_buttons():
     """
       Initialize all buttons.
     """
     #int_times=_LS._interesting_times
-    dpg.add_image_button(texture_tag="pause_icon",label="",tag="pause_button",parent="menu")
-    dpg.add_button(label="Pause",tag="PLAY_BUTTON",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,small=True,parent="menu")
-    dpg.add_button(label="-"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,tag="backward",parent="menu")
-    dpg.add_button(label="+"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,tag="forward",parent="menu")
-    dpg.add_button(label="kill",width=_BUTTONS_WIDTH,height=_BUTTONS_HEIGHT,callback=kill_button,parent="menu")
-    dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=_seconds_to_skip,width=_BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,parent="menu")
-    dpg.add_input_int(label="Delay [s]",tag="delay",width=_BUTTONS_WIDTH,min_value=0,max_value=300,default_value=_delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,parent="menu")
-    dpg.add_button(label="tel",tag="tel",parent="menu")
+    dpg.add_image_button(texture_tag="pause_icon",label="",tag="pause_button",parent="menu",width=30,height=30,background_color=(0,0,0,0),pos=(5,5),tint_color=(255,255,255,255))
+    dpg.add_image_button(texture_tag="play_icon",label="",tag="play_button",parent="menu",width=30,height=30,background_color=(0,0,0,0),pos=(37,5),tint_color=(255,255,255,255))
+    dpg.add_image_button(texture_tag="stop_icon",label="",tag="stop_button",parent="menu",width=30,height=30,background_color=(0,0,0,0),pos=(72,5),tint_color=(255,255,255,255),callback=kill_button)
+    #dpg.add_button(label="kill",width=_BUTTONS_WIDTH,height=30,callback=kill_button,parent="menu")
+    dpg.add_button(label="-"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=30,tag="backward",parent="menu")
+    with dpg.group(tag="update_buttons",horizontal=False,parent="menu"):
+      dpg.add_text(default_value="Update +/- [s]",tag="update_but")
+      dpg.add_slider_int(label="",tag="skip_seconds",default_value=_seconds_to_skip,width=100,height=30,min_value=1,max_value=300,clamped=True,callback=set_time,no_input=False)
+    dpg.add_button(label="+"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=30,tag="forward",parent="menu")
+    dpg.add_button(label="Save Tel",tag="tel",parent="menu",height=30)
     
  
 ########################################### PRIMARY WINDOW  ################################ 
@@ -471,18 +486,18 @@ with dpg.group(label=YEAR+"-"+" ".join(RACE.split("_"))+"-"+SESSION,tag="Telemet
   with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=MAP_WIDTH,height=_VIEWPORT_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
     with dpg.group(label="menu_row",tag="menu",horizontal=True,pos=(0,0)):
       add_buttons()
-    with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(0,_BUTTONS_HEIGHT)):  
-      dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
-      dpg.add_text(default_value="TrackTemp:",tag="TrackTemp") #
-      dpg.add_text(default_value="Rainfall:", tag="Rainfall") #
-      dpg.add_text(default_value="Current Time:", tag="Actual_Time")
-      dpg.add_text(default_value="Session: ", tag="Session_Name")
-      dpg.add_text(default_value="Session time remaining: ", tag="Session_TimeRemaining")
-      #dpg.add_text(default_value="WindDirection:", tag="WindDirection")
-    with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(_BUTTONS_WIDTH*2,_BUTTONS_HEIGHT)):
-      dpg.add_text(default_value="WindSpeed:",tag="WindSpeed") #
-      dpg.add_text(default_value="Humidity:", tag="Humidity") #
-      dpg.add_text(default_value="Status:", tag="Session_Status")
+    #with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(0,_BUTTONS_HEIGHT*4)):  
+    #  dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
+    #  dpg.add_text(default_value="TrackTemp:",tag="TrackTemp") #
+    #  dpg.add_text(default_value="Rainfall:", tag="Rainfall") #
+    #  dpg.add_text(default_value="Current Time:", tag="Actual_Time")
+    #  dpg.add_text(default_value="Session: ", tag="Session_Name")
+    #  dpg.add_text(default_value="Session time remaining: ", tag="Session_TimeRemaining")
+    #  #dpg.add_text(default_value="WindDirection:", tag="WindDirection")
+    #with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(_BUTTONS_WIDTH*2,_BUTTONS_HEIGHT)):
+    #  dpg.add_text(default_value="WindSpeed:",tag="WindSpeed") #
+    #  dpg.add_text(default_value="Humidity:", tag="Humidity") #
+    #  dpg.add_text(default_value="Status:", tag="Session_Status")
       #dpg.add_text(default_value="Pressure:", tag="Pressure")
     
     #with dpg.window(label="Track_Map",tag="Track_Map",width=MAP_WIDTH,height=MAP_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT+_BUTTONS_HEIGHT*(_BUTTONS_ROWS+2)),no_title_bar=True,no_resize=True,no_move=True):

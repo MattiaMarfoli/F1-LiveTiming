@@ -82,10 +82,10 @@ class GUI:
     dpg.create_context()
     if _config.TERMINAL_MODE:
       self._TERMINAL_SPACE=_config.TERMINAL_SPACE
-      dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._TERMINAL_SPACE,decorated=False)
+      dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._TERMINAL_SPACE,decorated=True)
     else:
       self._TERMINAL_SPACE=0
-      dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._MAX_HEIGHT - self._BOTTOM_BAR_HEIGHT - self._TOP_BAR_HEIGHT - self._TERMINAL_SPACE,decorated=False)
+      dpg.create_viewport(title='Custom Title', width=self._MAX_WIDTH,height=self._MAX_HEIGHT - self._BOTTOM_BAR_HEIGHT - self._TOP_BAR_HEIGHT - self._TERMINAL_SPACE,decorated=True)
     
     # debug
     self._PRINT_TIMES = _config.PRINT_TIMES # flag that it is not used anymore.
@@ -2274,23 +2274,59 @@ class GUI:
       # first argument ids the path to the .ttf or .otf file
       dpg.add_font("Fonts/Roboto-Bold.ttf", 40,tag="drawNodeFont")
     
-    with dpg.theme() as global_theme:
+    with dpg.theme(tag="Global_Theme"):
       with dpg.theme_component(dpg.mvAll):
-        # Core Style
-        dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0,0, category=dpg.mvThemeCat_Core)
-        dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 3,1, category=dpg.mvThemeCat_Core)
-        dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 2,2, category=dpg.mvThemeCat_Core)
-        dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 4,3, category=dpg.mvThemeCat_Core)
-        dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize, 1, category=dpg.mvThemeCat_Core)
-
-        # Plot Style
-        dpg.add_theme_style(dpg.mvPlotStyleVar_PlotBorderSize, 0, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_PlotPadding, 0,0, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_LabelPadding, 0,0, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_LineWeight, 1.2, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_AnnotationPadding,0,category=dpg.mvThemeCat_Plots)
+        # Main
+        dpg.add_theme_style(dpg.mvStyleVar_WindowPadding,       0,0,     category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_FramePadding,        4,2,     category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_CellPadding,         0,0,     category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing,         1,1,     category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing,    1,1,     category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_IndentSpacing,       21,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize,       6,  category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_GrabMinSize,         7,       category=dpg.mvThemeCat_Core)
+                                                                                
+        # Borders                                                           
+        dpg.add_theme_style(dpg.mvStyleVar_WindowBorderSize,    1,       category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize,     1,       category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_PopupBorderSize,     1,       category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_FrameBorderSize,     0,       category=dpg.mvThemeCat_Core)
+                                                                           
+        # Rounding                                                     
+        dpg.add_theme_style(dpg.mvStyleVar_WindowRounding,      12,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ChildRounding,        6,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding,       12,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_PopupRounding,        0,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ScrollbarRounding,    6,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_GrabRounding,        12,      category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_TabRounding,          6,      category=dpg.mvThemeCat_Core)
         
-    dpg.bind_theme(global_theme)
+        # Alignment
+        dpg.add_theme_style(dpg.mvStyleVar_WindowTitleAlign,     0,0,    category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ButtonTextAlign,    0.5,0.5,  category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_SelectableTextAlign,  0,0,    category=dpg.mvThemeCat_Core)
+        
+        # Plot styling
+        dpg.add_theme_style(dpg.mvPlotStyleVar_PlotBorderSize,   0,      category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MinorAlpha,      0.15,    category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MajorTickLen,   10,10,    category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MinorTickLen,    3,3,     category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MajorTickSize,   1,1,     category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MinorTickSize,   1,1,     category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MajorGridSize,   1,1,     category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MinorGridSize,   1,1,     category=dpg.mvThemeCat_Plots)
+        
+        # Plot padding
+        dpg.add_theme_style(dpg.mvPlotStyleVar_PlotPadding,        5,4,   category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_LabelPadding,       0,0,   category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_LegendPadding,     10,10,  category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_LegendInnerPadding, 5,5,   category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_LegendSpacing,      5,0,   category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_MousePosPadding,   10,10,  category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_AnnotationPadding,  0,0,   category=dpg.mvThemeCat_Plots)
+        dpg.add_theme_style(dpg.mvPlotStyleVar_FitPadding,         0,0,   category=dpg.mvThemeCat_Plots)
+  
+    dpg.bind_theme("Global_Theme")
     
   def initialize_windows_and_tabs(self):
     if not self._LIVE_SIM:
