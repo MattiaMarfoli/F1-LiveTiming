@@ -140,6 +140,30 @@ with dpg.texture_registry():
   width, height, channels, data = dpg.load_image(pause_icon)
   dpg.add_static_texture(width=width, height=height, default_value=data, tag="stop_icon")  
 
+  pause_icon=str(paths.ASSETS_PATH / ("CountryFlags/abu-dhabi-flag.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="circuit_flag")  
+
+  pause_icon=str(paths.ASSETS_PATH / ("RacingFlags/green_flag.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="green_flag")
+  
+  pause_icon=str(paths.ASSETS_PATH / ("RacingFlags/red_flag.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="red_flag")
+  
+  pause_icon=str(paths.ASSETS_PATH / ("RacingFlags/white_flag.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="white_flag")
+  
+  pause_icon=str(paths.ASSETS_PATH / ("RacingFlags/yellow_flag.png"))
+  width, height, channels, data = dpg.load_image(pause_icon)
+  dpg.add_static_texture(width=width, height=height, default_value=data, tag="yellow_flag")
+
+with dpg.font_registry():
+  # first argument ids the path to the .ttf or .otf file
+  dpg.add_font("Fonts/Roboto-Bold.ttf", 30,tag="drawNodeFont")
+    
 
 with dpg.theme(tag="Global_Theme"):
     with dpg.theme_component(dpg.mvAll):
@@ -197,6 +221,10 @@ dpg.bind_theme("Global_Theme")
 
 dpg.setup_dearpygui()
 
+with dpg.theme(tag="Green_Scuro"):
+    with dpg.theme_component(dpg.mvAll):
+      # Main
+      dpg.add_theme_color(dpg.mvThemeCol_Text,      (40,90,20,255),     category=dpg.mvThemeCat_Core)
 
 _DRIVERS_INFO                          = COLOR_DRIVERS
 _watchlist_drivers                     = WATCHLIST_DRIVERS
@@ -225,7 +253,8 @@ tabs={"update_telemetry":  "Telemetry_view",
       "compare_telemetry":  "Telemetry_compare_view",
       "timing":             "Timing_view"}
 
-YEAR,RACE,SESSION = "2024", "Jeddah", "Race"
+YEAR,RACE,SESSION = "2024", "Jeddah", "Practice"
+session_type = "FP3"
 _event_name="Saudi Arabian Grand Prix"
 
 def kill_button(self):
@@ -333,6 +362,7 @@ def add_buttons():
       dpg.add_slider_int(label="",tag="skip_seconds",default_value=_seconds_to_skip,width=100,height=30,min_value=1,max_value=300,clamped=True,callback=set_time,no_input=False)
     dpg.add_button(label="+"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=30,tag="forward",parent="menu")
     dpg.add_button(label="Save Tel",tag="tel",parent="menu",height=30)
+    dpg.add_image_button(texture_tag="circuit_flag",label="",tag="circ_flag",parent="menu",width=55,height=30,background_color=(0,0,0,0),pos=(225+BUTTONS_WIDTH*3,3),tint_color=(255,255,255,255),frame_padding=0)
     
  
 ########################################### PRIMARY WINDOW  ################################ 
@@ -486,19 +516,6 @@ with dpg.group(label=YEAR+"-"+" ".join(RACE.split("_"))+"-"+SESSION,tag="Telemet
   with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=MAP_WIDTH,height=_VIEWPORT_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
     with dpg.group(label="menu_row",tag="menu",horizontal=True,pos=(0,0)):
       add_buttons()
-    #with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(0,_BUTTONS_HEIGHT*4)):  
-    #  dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
-    #  dpg.add_text(default_value="TrackTemp:",tag="TrackTemp") #
-    #  dpg.add_text(default_value="Rainfall:", tag="Rainfall") #
-    #  dpg.add_text(default_value="Current Time:", tag="Actual_Time")
-    #  dpg.add_text(default_value="Session: ", tag="Session_Name")
-    #  dpg.add_text(default_value="Session time remaining: ", tag="Session_TimeRemaining")
-    #  #dpg.add_text(default_value="WindDirection:", tag="WindDirection")
-    #with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(_BUTTONS_WIDTH*2,_BUTTONS_HEIGHT)):
-    #  dpg.add_text(default_value="WindSpeed:",tag="WindSpeed") #
-    #  dpg.add_text(default_value="Humidity:", tag="Humidity") #
-    #  dpg.add_text(default_value="Status:", tag="Session_Status")
-      #dpg.add_text(default_value="Pressure:", tag="Pressure")
     
     #with dpg.window(label="Track_Map",tag="Track_Map",width=MAP_WIDTH,height=MAP_HEIGHT,pos=(_VIEWPORT_WIDTH-MAP_WIDTH-SCR_SIZE,_TOP_BAR_HEIGHT+_BUTTONS_HEIGHT*(_BUTTONS_ROWS+2)),no_title_bar=True,no_resize=True,no_move=True):
     #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
@@ -511,6 +528,21 @@ with dpg.group(label=YEAR+"-"+" ".join(RACE.split("_"))+"-"+SESSION,tag="Telemet
       dpg.add_text(tag="Race_MSG_HEADER",default_value=" RACE MESSAGES:",wrap=308)
       dpg.add_text(tag="race_msgs",default_value=" asfasf asfaf \n asfafèjjs \n asfblnf \n adf \n pporororo ",wrap=308)
       #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+
+    with dpg.group(tag="Session_info",horizontal=True):
+      if SESSION.lower()=="race":
+        dpg.add_text(default_value="Lap: 56/58 ",tag="lap_status",pos=(15,45)) # or session if not a race/sprint
+      else:
+        dpg.add_text(default_value="Session: "+session_type,tag="lap_status",pos=(15,45)) # or session if not a race/sprint
+      dpg.add_text(default_value="Remaining: 1:58:01",tag="time_status",pos=(MAP_WIDTH/2.8,45)) # or session if not a race/sprint
+      dpg.bind_item_font(item="lap_status",font="drawNodeFont")
+      dpg.bind_item_font(item="time_status",font="drawNodeFont")
+      
+      dpg.add_image_button(texture_tag="yellow_flag",label="Track Clear",tag="status_flag",parent="menu",width=80,height=80,background_color=(0,0,0,255),pos=(MAP_WIDTH-85,3),tint_color=(255,0,0,255),frame_padding=0)
+      dpg.add_text(default_value="Track \n Clear",tag="TrackClear_txt",pos=(MAP_WIDTH-80,10))
+      dpg.bind_item_theme("TrackClear_txt","Green_Scuro")
+      dpg.bind_item_font(item="TrackClear_txt",font="drawNodeFont")
+      dpg.configure_item("status_flag",tint_color=(0,255,0,255))
   
   # telemetry plots
   annotations_telemetry_plot = {}
