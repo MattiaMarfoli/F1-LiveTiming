@@ -297,7 +297,7 @@ def add_driver_tel_plot(number,parent,driver):
     with dpg.group(pos=(x_pos_headshot,y_pos),tag=driver+"drivers_info_telemetry",horizontal=False):
       with dpg.drawlist(width=SIDE_OF_HEADSHOTS_PNG,height=SIDE_OF_HEADSHOTS_PNG,pos=(0,0),tag=driver+"HeadShotUrl_drawlist"):
         map_dict=str(paths.HEADSHOTS_PATH / (_DRIVERS_INFO[driver]["full_name"]+"headshot.png"))
-        if map_dict.split("/")[-1] in os.listdir(str(paths.HEADSHOTS_PATH)):
+        if map_dict.split("/")[-1] in os.listdir(str(paths.HEADSHOTS_PATH)) or map_dict.split("\\")[-1] in os.listdir(str(paths.HEADSHOTS_PATH)):
           width, height, channels, data = dpg.load_image(map_dict)
           #_map_width,_map_height=width,height
           with dpg.texture_registry():

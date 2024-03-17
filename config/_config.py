@@ -2,6 +2,7 @@ import logging
 from src import Database
 import json
 import paths
+import os
 
 ##################################### Timing in GUI ############################################
 DELAY     = 0.    #seconds # TODO 
@@ -24,6 +25,8 @@ FILENAME_LOGGER="log/myapp.log"
 
 ####################################### Logger Info #############################################
 import logging
+if "log" not in os.listdir():
+  os.mkdir("log")
 logging.basicConfig(filename=FILENAME_LOGGER,filemode="w", level=logging.DEBUG, 
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
 LOGGER=logging.getLogger(__name__)
@@ -58,7 +61,7 @@ SUPERVISE_VERBOSE = 5 # sec
 ############################################## GUI ##############################################
   
   # Primary Window - Viewport
-MAX_WIDTH,MAX_HEIGHT = 9000,9000 #subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0].decode("utf-8").replace("\n","").split("x")
+MAX_WIDTH,MAX_HEIGHT = 1920,1080 #subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0].decode("utf-8").replace("\n","").split("x")
 
   # Buttons 
 BUTTONS_HEIGHT = 20

@@ -41,7 +41,7 @@ class GUI:
     self._client    = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
     
     # hardcoding for life. These need to be updated...
-    self._map_width   = 520
+    self._map_width   = 460
     self._map_height  = 400
     
     # Not used for now. But this gui doesn't track all the window 
@@ -92,6 +92,7 @@ class GUI:
     
     # TODO
     # Need to be updated
+    print("Viewport:" ,dpg.get_viewport_width()," " ,dpg.get_viewport_height())
     self._VIEWPORT_WIDTH  = max(dpg.get_viewport_width(),1920)
     self._VIEWPORT_HEIGHT = max(dpg.get_viewport_height(),1080)
     
@@ -526,7 +527,7 @@ class GUI:
       with dpg.group(pos=(x_pos_headshot,y_pos),tag=driver+"drivers_info_telemetry",horizontal=False):
         with dpg.drawlist(width=95,height=95,pos=(0,0),tag=driver+"HeadShotUrl_drawlist"):
           map_dict=str(_config.paths.HEADSHOTS_PATH / (self._DRIVERS_INFO[driver]["full_name"]+"headshot.png"))
-          if map_dict.split("/")[-1] in os.listdir(str(_config.paths.HEADSHOTS_PATH)):
+          if map_dict.split("/")[-1] in os.listdir(str(_config.paths.HEADSHOTS_PATH)) or map_dict.split("\\")[-1] in os.listdir(str(_config.paths.HEADSHOTS_PATH)):
             width, height, channels, data = dpg.load_image(map_dict)
             #self._map_width,self._map_height=width,height
             with dpg.texture_registry():
@@ -555,7 +556,7 @@ class GUI:
     with dpg.group(label=self._YEAR+"-"+" ".join(self._RACE.split("_"))+"-"+self._SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
       
       self._windows_manager.append("menu_bar_buttons_weather")
-      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=630,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
+      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=self._map_width,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
         # weather group
         with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH,0)):  
           dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
