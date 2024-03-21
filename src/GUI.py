@@ -9,6 +9,7 @@ import json
 import collections
 import re
 import os
+import csv
 
 
 from config import _config
@@ -41,8 +42,8 @@ class GUI:
     self._client    = SR_LS.SignalRClient(filename="data/PROVA.txt",timeout=_config.TIMEOUT_SR_LS)
     
     # hardcoding for life. These need to be updated...
-    self._map_width   = 460
-    self._map_height  = 400
+    self._map_width   = _config.MAP_WIDTH
+    self._map_height  = _config.MAP_HEIGHT
     
     # Not used for now. But this gui doesn't track all the window 
     # i created (maybe it does but i still didn't found it). Therefore 
@@ -59,7 +60,6 @@ class GUI:
     self._BOTTOM_BAR_HEIGHT                     = _config.BOTTOM_BAR_HEIGHT
     self._TOP_BAR_HEIGHT                        = _config.TOP_BAR_HEIGHT
     
-    self._TEL_OTHER_RATIO                       = _config.TEL_OTHER_RATIO
     self._FREQUENCY_TELEMETRY_UPDATE            = _config.FREQUENCY_TELEMETRY_UPDATE
     self._LAPS_TO_DISPLAY                       = _config.LAPS_TO_DISPLAY
     self._AVG_LAP_LENGTH                        = _config.AVG_LAP_LENGTH
@@ -180,7 +180,7 @@ class GUI:
         dpg.add_combo(parent="Race_Selector",items=self._parser._sessions_dict[self._YEAR][self._RACE],tag="session",default_value="None",callback=self.choose_session)
       else:
         self._SESSION=dpg.get_value("session")
-        dpg.add_button(parent="Race_Selector",tag="final_button",label="New Window",height=self._BUTTONS_HEIGHT,width=self._BUTTONS_WIDTH,callback=self.new_window)
+        dpg.add_button(parent="Race_Selector",tag="final_button",label="New Window",height=50,width=50,callback=self.new_window)
 
   def new_window(self):
     """
@@ -500,7 +500,7 @@ class GUI:
     y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._TOP_BAR_HEIGHT
     add_name_over_photo=False
     with dpg.group(pos=(x_pos,y_pos),height=self._TEL_PLOTS_HEIGHT,tag="wdw"+driver,parent=parent,horizontal=True):
-      with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),no_title=True,link_all_x=True,no_align=False,no_resize=False,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH-95,height=self._TEL_PLOTS_HEIGHT):
+      with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),no_title=True,link_all_x=True,no_align=False,no_resize=False,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH-95,height=self._TEL_PLOTS_HEIGHT/5.):
         with dpg.plot(tag="speed"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_SPEED"+driver,time=True,no_tick_labels=True,no_tick_marks=True)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_SPEED"+driver)

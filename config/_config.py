@@ -63,28 +63,38 @@ SUPERVISE_VERBOSE = 5 # sec
   # Primary Window - Viewport
 MAX_WIDTH,MAX_HEIGHT = 1920,1080 #subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0].decode("utf-8").replace("\n","").split("x")
 
+  # Fixed Lengths
+    # PNG HeadShots (width=height)
+SIDE_OF_HEADSHOTS_PNG = 95
+
+    # Top - Bottom bar  # Need checks
+BOTTOM_BAR_HEIGHT = 0
+TOP_BAR_HEIGHT = 25 # main.panel.height in gnome-shell.css 
+
+    # Ratio between tabs and menu
+TEL_OVER_MENU_RATIO = 3./4. 
+
+    # Infos on subplots displaying telemetry
+FREQUENCY_TELEMETRY_UPDATE = 6 #Hz
+LAPS_TO_DISPLAY            = 3 #n of laps to display
+AVG_LAP_LENGTH             = 90 #s
+
   # Buttons 
 BUTTONS_HEIGHT = 20
 BUTTONS_WIDTH  = 50
 BUTTONS_ROWS   = 4
 
-  # Top - Bottom bar
-BOTTOM_BAR_HEIGHT = 0
-TOP_BAR_HEIGHT = 25 # main.panel.height in gnome-shell.css
+  # Map
+MAP_WIDTH  = int( MAX_WIDTH * (1. - TEL_OVER_MENU_RATIO) )
+MAP_HEIGHT = int( 0.75 * MAP_WIDTH  )
 
   # Telemetry Tab
-TEL_OTHER_RATIO = 3./4.
-TELEMETRY_PLOTS_WIDTH,TELEMETRY_PLOTS_HEIGHT = 635,345 #635,345
-FREQUENCY_TELEMETRY_UPDATE = 6 #Hz
-LAPS_TO_DISPLAY            = 3 #n of laps to display
-AVG_LAP_LENGTH             = 90 #s
+TELEMETRY_PLOTS_WIDTH  = int( (MAX_WIDTH * TEL_OVER_MENU_RATIO) / 2. - SIDE_OF_HEADSHOTS_PNG ) 
+TELEMETRY_PLOTS_HEIGHT = int( (MAX_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT) / 3. )
 WINDOW_DISPLAY_LENGTH = AVG_LAP_LENGTH * LAPS_TO_DISPLAY   # in s
 WINDOW_DISPLAY_PROPORTION_RIGHT = 1./10
 WINDOW_DISPLAY_PROPORTION_LEFT = 1. - WINDOW_DISPLAY_PROPORTION_RIGHT 
 
-  # PNG HeadShots (width=height)
-SIDE_OF_HEADSHOTS_PNG = 93  
-  
   # Compare Tab
   
   # Timing Tab
