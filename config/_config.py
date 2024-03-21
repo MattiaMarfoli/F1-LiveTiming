@@ -67,6 +67,9 @@ MAX_WIDTH,MAX_HEIGHT = 1920,1080 #subprocess.Popen('xrandr | grep "\*" | cut -d"
     # PNG HeadShots (width=height)
 SIDE_OF_HEADSHOTS_PNG = 95
 
+    # PNG Tyres
+SIDE_OF_TYRES_PNG     = 34
+
     # Top - Bottom bar  # Need checks
 BOTTOM_BAR_HEIGHT = 0
 TOP_BAR_HEIGHT = 25 # main.panel.height in gnome-shell.css 
@@ -79,14 +82,19 @@ FREQUENCY_TELEMETRY_UPDATE = 6 #Hz
 LAPS_TO_DISPLAY            = 3 #n of laps to display
 AVG_LAP_LENGTH             = 90 #s
 
-  # Buttons 
-BUTTONS_HEIGHT = 20
-BUTTONS_WIDTH  = 50
-BUTTONS_ROWS   = 4
-
   # Map
 MAP_WIDTH  = int( MAX_WIDTH * (1. - TEL_OVER_MENU_RATIO) )
 MAP_HEIGHT = int( 0.75 * MAP_WIDTH  )
+
+  # Buttons 
+BUTTONS_HEIGHT_MENU     = 30
+BUTTONS_SPACE_MENU      = max(int(0.00625 * MAP_WIDTH),2)
+BUTTONS_WIDTH_MENU      = int(0.0625 * MAP_WIDTH) # 30 over map_width=520 
+BUTTONS_WIDTH_FWBW      = int(0.0825 * MAP_WIDTH)
+BUTTONS_WIDTH_SAVE_TEL  = int(0.0625 * 2 * MAP_WIDTH)
+BUTTONS_WIDTH_FLAG_COU  = int(0.0625 * 2 * MAP_WIDTH)
+BUTTONS_WIDTH_FLAG_STA  = int(0.19  * MAP_WIDTH)
+BUTTONS_WIDTH_SKIP_SEL  = int(0.23 * MAP_WIDTH)
 
   # Telemetry Tab
 TELEMETRY_PLOTS_WIDTH  = int( (MAX_WIDTH * TEL_OVER_MENU_RATIO) / 2. - SIDE_OF_HEADSHOTS_PNG ) 
@@ -98,6 +106,7 @@ WINDOW_DISPLAY_PROPORTION_LEFT = 1. - WINDOW_DISPLAY_PROPORTION_RIGHT
   # Compare Tab
   
   # Timing Tab
+
   
   # Flags
 TERMINAL_SPACE = 600

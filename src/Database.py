@@ -87,6 +87,7 @@ class DATABASE:
                           #}  
                           }
     self._detected_session_type,self._event_name,self._meeting_key,self._meeting_name,self._session_name_api = "","","","",""
+    self._meeting_country_name = ""
     self._Nof_Restarts=0
     self._finish_count=1
     self._finish_status={
@@ -107,13 +108,13 @@ class DATABASE:
                                         1: "Sprint Race"
                           },
                           "Practice 1":{
-                                        1: "Practice 1"
+                                        1: "FP1"
                           },
                           "Practice 2":{
-                                        1: "Practice 2"
+                                        1: "FP2"
                           },
                           "Practice 3":{
-                                        1: "Practice 3"
+                                        1: "FP3"
                           },
                         }
   
@@ -1009,6 +1010,7 @@ class DATABASE:
                 event_name=event["meetingOfficialName"]
                 meeting_key=event["meetingKey"]
                 meeting_name=event["meetingName"]
+                self._meeting_country_name=event["meetingCountryName"]
                 timetables_query="timetables?meeting="+event["meetingKey"]+"&season="+season
                 timetables_url="/".join([self._base_url,self._sessionResults_url,timetables_query])
                 proceed_flag=True
@@ -1073,6 +1075,10 @@ class DATABASE:
   def get_meeting_name(self):
     with self._lock:
       return self._meeting_name
+  
+  def get_meetingCountry_name(self):
+    with self._lock:
+      return self._meeting_country_name
     
   def update_drivers_list_from_api(self):
     """ 

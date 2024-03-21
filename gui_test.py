@@ -346,7 +346,13 @@ def change_map_background():
 def set_time():
   dpg.configure_item(item="backward",label="-"+str(dpg.get_value("skip_seconds"))+"s")
   dpg.configure_item(item="forward",label="+"+str(dpg.get_value("skip_seconds"))+"s")
-        
+  dpg.set_item_width(item="skip_seconds",width=100)
+  print("Update: ",dpg.get_text_size("Update +/- [s]"))    
+  print("-300: ",dpg.get_text_size("-300"))    
+  print("+300: ",dpg.get_text_size("+300"))    
+  print("Save Tel: ",dpg.get_text_size("Save Tel"))    
+  print(dpg.get_item_width("tel")," width")
+    
 def add_buttons():
     """
       Initialize all buttons.
@@ -359,9 +365,9 @@ def add_buttons():
     dpg.add_button(label="-"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=30,tag="backward",parent="menu")
     with dpg.group(tag="update_buttons",horizontal=False,parent="menu"):
       dpg.add_text(default_value="Update +/- [s]",tag="update_but")
-      dpg.add_slider_int(label="",tag="skip_seconds",default_value=_seconds_to_skip,width=100,height=30,min_value=1,max_value=300,clamped=True,callback=set_time,no_input=False)
+      dpg.add_slider_int(label="",tag="skip_seconds",default_value=_seconds_to_skip,width=100,height=27,min_value=1,max_value=300,clamped=True,callback=set_time,no_input=False)
     dpg.add_button(label="+"+str(_seconds_to_skip)+"s",width=_BUTTONS_WIDTH,height=30,tag="forward",parent="menu")
-    dpg.add_button(label="Save Tel",tag="tel",parent="menu",height=30)
+    dpg.add_button(label="Save Tel",tag="tel",parent="menu",height=30,width=60)
     dpg.add_image_button(texture_tag="circuit_flag",label="",tag="circ_flag",parent="menu",width=55,height=30,background_color=(0,0,0,0),pos=(225+BUTTONS_WIDTH*3,3),tint_color=(255,255,255,255),frame_padding=0)
     
  
@@ -543,7 +549,7 @@ with dpg.group(label=YEAR+"-"+" ".join(RACE.split("_"))+"-"+SESSION,tag="Telemet
       dpg.bind_item_theme("TrackClear_txt","Green_Scuro")
       dpg.bind_item_font(item="TrackClear_txt",font="drawNodeFont")
       dpg.configure_item("status_flag",tint_color=(0,255,0,255))
-  
+      #dpg.configure_item("pause_button",texture_tag="play_icon")
   # telemetry plots
   annotations_telemetry_plot = {}
   drivers_watchlist_telemetry=[]

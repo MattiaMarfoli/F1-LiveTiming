@@ -9,7 +9,6 @@ import json
 import collections
 import re
 import os
-import csv
 
 
 from config import _config
@@ -53,12 +52,22 @@ class GUI:
     # Initialize the GUI. Length of windows and other parameters that can be found in config
     self._MAX_WIDTH,self._MAX_HEIGHT            = int(_config.MAX_WIDTH),int(_config.MAX_HEIGHT)
     
-    self._BUTTONS_HEIGHT                        = _config.BUTTONS_HEIGHT
-    self._BUTTONS_WIDTH                         = _config.BUTTONS_WIDTH
-    self._BUTTONS_ROWS                          = _config.BUTTONS_ROWS
+    self._BUTTONS_HEIGHT_MENU                   = _config.BUTTONS_HEIGHT_MENU
+    self._BUTTONS_WIDTH_MENU                    = _config.BUTTONS_WIDTH_MENU
+    self._BUTTONS_WIDTH_SAVE_TEL                = _config.BUTTONS_WIDTH_SAVE_TEL
+    self._BUTTONS_WIDTH_FLAG_COU                = _config.BUTTONS_WIDTH_FLAG_COU
+    self._BUTTONS_WIDTH_FLAG_STA                = _config.BUTTONS_WIDTH_FLAG_STA
+    self._BUTTONS_WIDTH_SKIP_SEL                = _config.BUTTONS_WIDTH_SKIP_SEL
+    self._BUTTONS_SPACE_MENU                    = _config.BUTTONS_SPACE_MENU
+    self._BUTTONS_WIDTH_FWBW                    = _config.BUTTONS_WIDTH_FWBW
     
     self._BOTTOM_BAR_HEIGHT                     = _config.BOTTOM_BAR_HEIGHT
     self._TOP_BAR_HEIGHT                        = _config.TOP_BAR_HEIGHT
+    
+    self._TEL_PLOTS_HEIGHT                      = _config.TELEMETRY_PLOTS_HEIGHT
+    self._TEL_PLOTS_WIDTH                       = _config.TELEMETRY_PLOTS_WIDTH
+    self._SIDE_OF_HEADSHOTS_PNG                 = _config.SIDE_OF_HEADSHOTS_PNG
+    self._SIDE_OF_TYRES_PNG                     = _config.SIDE_OF_TYRES_PNG
     
     self._FREQUENCY_TELEMETRY_UPDATE            = _config.FREQUENCY_TELEMETRY_UPDATE
     self._LAPS_TO_DISPLAY                       = _config.LAPS_TO_DISPLAY
@@ -99,8 +108,6 @@ class GUI:
     # Still initial configurations
     dpg.show_viewport()
     dpg.setup_dearpygui()
-    self._TEL_PLOTS_HEIGHT = _config.TELEMETRY_PLOTS_HEIGHT
-    self._TEL_PLOTS_WIDTH  = _config.TELEMETRY_PLOTS_WIDTH
     
     # Useful variables (Datetimes and constant variables)
     self._last_message_DT                     = None
@@ -121,8 +128,39 @@ class GUI:
     self._last_session_status                 = "Inactive"
     self._task_state                          = "running"
     self._session_name                        = ""
-    self._event_name                          = ""
+    self._meeting_name                        = ""
     self._meeting_key                         = ""
+    self._meetingCountry_name                 = ""
+    self.session_count_flag                   = True
+    self.session_count                        = 0
+    self._finish_status={
+                          "Qualifying":{
+                                        1: "Q1",
+                                        2: "Q2",
+                                        3: "Q3"
+                          },
+                          "Sprint Shootout":{
+                                        1: "SQ1",
+                                        2: "SQ2",
+                                        3: "SQ3"
+                          },
+                          "Race":{
+                                        1: "Race"
+                          },
+                          "Sprint":{
+                                        1: "Sprint Race"
+                          },
+                          "Practice 1":{
+                                        1: "FP1"
+                          },
+                          "Practice 2":{
+                                        1: "FP2"
+                          },
+                          "Practice 3":{
+                                        1: "FP3"
+                          },
+                        }
+    
     
     # Kill button. Needs to be reworked.
     self._StopUpdateThread = threading.Event()
@@ -214,37 +252,37 @@ class GUI:
       Initialize all buttons.
     """
     #int_times=self._LS._interesting_times
-    with dpg.group(label="buttons1",tag="buttons1",horizontal=True,pos=(10,0)):
-      PLAY_LABEL="Pause" if self._task_state=="running" else "Start"
-      dpg.add_button(label=PLAY_LABEL,tag="PLAY_BUTTON",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.pause_button)
-      dpg.add_button(label="-"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,tag="backward",callback=self.backward_button)
-      dpg.add_button(label="+"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,tag="forward",callback=self.forward_button)
-      dpg.add_button(label="kill",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.kill_button)
-      #dpg.add_button(label="Laptimes",width=self._BUTTONS_WIDTH,height=self._BUTTONS_HEIGHT,callback=self.display_laptimes)
-    with dpg.group(label="buttons2",tag="buttons2",horizontal=True,pos=(10,self._BUTTONS_HEIGHT)):  
-      dpg.add_input_int(label="Update +/- [s]",tag="skip_seconds",default_value=self._seconds_to_skip,width=self._BUTTONS_WIDTH,min_value=1,max_value=300,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_skip_time)
-      dpg.add_input_int(label="Delay [s]",tag="delay",width=self._BUTTONS_WIDTH,min_value=0,max_value=300,default_value=self._delay_T,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.set_delay_time)
-      dpg.add_button(label="tel",tag="tel",callback=self.save_telemetry)
-      #dpg.add_combo(tag="Race_Map",default_value="None",items=list(self._maps.keys()),width=self._BUTTONS_WIDTH,callback=self.change_map_background)
-      #dpg.add_input_float(label="Map_Scale_X",tag="mapScaleX",width=50,min_value=10,max_value=100,default_value=50,min_clamped=True,max_clamped=True,step=0,step_fast=0)
-      #dpg.add_input_float(label="Map_Scale_Y",tag="mapScaleY",width=50,min_value=10,max_value=100,default_value=50,min_clamped=True,max_clamped=True,step=0,step_fast=0)
-      #dpg.add_input_float(label="X-Off",tag="XOFF",width=50,min_value=-640,max_value=640,default_value=320,min_clamped=True,max_clamped=True,step=0,step_fast=0)
-      #dpg.add_input_float(label="Y-Off",tag="YOFF",width=50,min_value=-480,max_value=480,default_value=240,min_clamped=True,max_clamped=True,step=0,step_fast=0)
-      #dpg.add_input_float(label="angle",tag="angle",width=50,min_value=0,max_value=360,default_value=0,min_clamped=True,max_clamped=True,step=0,step_fast=0,on_enter=True,callback=self.rotate_map)
-    n_rows=len(self._drivers_list) // 8 + (len(self._drivers_list) % 8 > 0)
-    #for n_row in range(1,n_rows+1):
-    #  with dpg.group(label="buttons"+str(2+n_row),tag="buttons"+str(2+n_row),horizontal=True,height=self._BUTTONS_HEIGHT,pos=(10,self._BUTTONS_HEIGHT*(1+n_row))):
-    #    self.show_telemetry_button(row_number=n_row)
-    #    self._BUTTONS_ROWS=2+n_row
-
+    #dpg.add_image_button(texture_tag="pause_icon",label="",tag="pause_button",parent="menu",width=30,height=30,background_color=(0,0,0,0),pos=(5,5),tint_color=(255,255,255,255))
+    base_distance_Vert=5
+    base_distance_Hori=self._BUTTONS_SPACE_MENU
+    
+    dpg.add_image_button(texture_tag="pause_icon",label="",tag="PLAY_BUTTON",parent="menu",width=self._BUTTONS_WIDTH_MENU,height=self._BUTTONS_HEIGHT_MENU,background_color=(0,0,0,0),pos=(base_distance_Hori*2,base_distance_Vert),tint_color=(255,255,255,255),callback=self.pause_button)
+    dpg.add_image_button(texture_tag="stop_icon",label="",tag="stop_button",parent="menu",width=self._BUTTONS_WIDTH_MENU,height=self._BUTTONS_HEIGHT_MENU,background_color=(0,0,0,0),pos=(base_distance_Hori*3+self._BUTTONS_WIDTH_MENU*1,base_distance_Vert),tint_color=(255,255,255,255),callback=self.kill_button)
+    #dpg.add_button(label="kill",width=_BUTTONS_WIDTH,height=30,callback=kill_button,parent="menu")
+    
+    dpg.add_button(label="-"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH_FWBW,height=self._BUTTONS_HEIGHT_MENU,tag="backward",parent="menu",callback=self.backward_button,pos=(base_distance_Hori*6+self._BUTTONS_WIDTH_MENU*2,base_distance_Vert))
+    with dpg.group(tag="update_buttons",horizontal=False,parent="menu",pos=(base_distance_Hori*7+self._BUTTONS_WIDTH_MENU*2+self._BUTTONS_WIDTH_FWBW,base_distance_Vert)):
+      dpg.add_text(default_value="Update +/- [s]",tag="update_but") # dpg.get_text_size("Update +/- [s]") ### After 1st frame -> [width,height]
+      dpg.add_slider_int(label="",tag="skip_seconds",default_value=self._seconds_to_skip,width=self._BUTTONS_WIDTH_SKIP_SEL,height=self._BUTTONS_HEIGHT_MENU,min_value=1,max_value=300,clamped=True,callback=self.set_skip_time,no_input=False)
+    dpg.add_button(label="+"+str(self._seconds_to_skip)+"s",width=self._BUTTONS_WIDTH_FWBW,height=self._BUTTONS_HEIGHT_MENU,tag="forward",parent="menu",callback=self.forward_button,pos=(base_distance_Hori*7+self._BUTTONS_WIDTH_MENU*2+self._BUTTONS_WIDTH_FWBW+self._BUTTONS_WIDTH_SKIP_SEL,base_distance_Vert))
+    
+    dpg.add_button(label="Save Tel",tag="tel",parent="menu",width=self._BUTTONS_WIDTH_SAVE_TEL,height=self._BUTTONS_HEIGHT_MENU,callback=self.save_telemetry,pos=(base_distance_Hori*8+self._BUTTONS_WIDTH_MENU*2+self._BUTTONS_WIDTH_FWBW*2+self._BUTTONS_WIDTH_SKIP_SEL,base_distance_Vert))
+    
+    dpg.add_image_button(texture_tag="circuit_flag",label="",tag="circ_flag",parent="menu",width=self._BUTTONS_WIDTH_FLAG_COU,height=self._BUTTONS_HEIGHT_MENU,background_color=(0,0,0,0),pos=(base_distance_Hori*9+self._BUTTONS_WIDTH_MENU*2+self._BUTTONS_WIDTH_FWBW*2+self._BUTTONS_WIDTH_SKIP_SEL+self._BUTTONS_WIDTH_SAVE_TEL,base_distance_Vert),tint_color=(255,255,255,255),frame_padding=0)
+    dpg.add_image_button(texture_tag="white_flag",label="Track Clear",tag="status_flag",parent="menu",width=self._BUTTONS_WIDTH_FLAG_STA,height=self._BUTTONS_WIDTH_FLAG_STA,background_color=(0,0,0,255),pos=(base_distance_Hori*9+self._BUTTONS_WIDTH_MENU*2+self._BUTTONS_WIDTH_FWBW*2+self._BUTTONS_WIDTH_SKIP_SEL+self._BUTTONS_WIDTH_SAVE_TEL+self._BUTTONS_WIDTH_FLAG_COU,base_distance_Vert),frame_padding=0)
+    #dpg.add_text(default_value="Track \n Clear",tag="TrackClear_txt",pos=(self._map_width-80,10))
+    #dpg.bind_item_theme("TrackClear_txt","Green_Scuro")
+    #dpg.bind_item_font(item="TrackClear_txt",font="drawNodeFont")
+    #dpg.configure_item("status_flag",tint_color=(0,255,0,255))
+  
   def pause_button(self):
     if self._task_state == "running":
       self._task_state = "pause"
-      dpg.set_item_label(item="PLAY_BUTTON",label="Play")
+      dpg.configure_item("PLAY_BUTTON",texture_tag="play_icon")
       print("Pausing..")
     else:
       self._task_state="running"
-      dpg.set_item_label(item="PLAY_BUTTON",label="Pause")
+      dpg.configure_item("PLAY_BUTTON",texture_tag="pause_icon")
       print("Resuming..")
 
   def save_telemetry(self):
@@ -346,6 +384,8 @@ class GUI:
             self.update_telemetry_FWBW(T,msg,True)
           elif feed=="WeatherData":
             self.update_variables_WeatherData(msg)
+          elif feed=="SessionStatus":
+            self.update_variables_SessionStatus(msg)
         else:
           break
         
@@ -409,6 +449,8 @@ class GUI:
             self.update_telemetry_FWBW(T,msg,True)
           elif feed=="WeatherData":
             self.update_variables_WeatherData(msg)
+          elif feed=="SessionStatus":
+            self.update_variables_SessionStatus(msg)
         else:
           break
         
@@ -464,7 +506,7 @@ class GUI:
       dpg.delete_item(item="map_background") 
       dpg.delete_item(item="map_background_texture")
     
-    map_dict=str(_config.paths.MAPS_PATH / self._maps[self._event_name]["map"])
+    map_dict=str(_config.paths.MAPS_PATH / self._maps[self._meeting_name]["map"])
     width, height, channels, data = dpg.load_image(map_dict)
     #print(width,height)
     
@@ -473,19 +515,19 @@ class GUI:
       dpg.add_static_texture(width=width, height=height, default_value=data, tag="map_background_texture")
 
     
-    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(self._map_width,self._map_height),show=True)
+    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(width,height),show=True)
 
   def transform_position_from_F1_to_dpg(self,x,y):
     """ 
       From x,y in F1 coordinates (Position.z) to x,y in DPG coordinates (Pixels).
     """
-    xlims=self._maps[self._event_name]["xlim"]
-    ylims=self._maps[self._event_name]["ylim"]
+    xlims=self._maps[self._meeting_name]["xlim"]
+    ylims=self._maps[self._meeting_name]["ylim"]
     x_shifted=x-xlims[0]
-    x_scaled=x_shifted/self._maps[self._event_name]["xscale"] * (self._map_width / 630)
+    x_scaled=x_shifted/self._maps[self._meeting_name]["xscale"] * (self._map_width / 630)
 
     y_shifted=y-ylims[0]
-    y_scaled=y_shifted/self._maps[self._event_name]["yscale"] * (self._map_height / 480)
+    y_scaled=y_shifted/self._maps[self._meeting_name]["yscale"] * (self._map_height / 480)
     y_updown=self._map_height-y_scaled
 
     return x_scaled,y_updown
@@ -495,12 +537,12 @@ class GUI:
       Adds subplots with speed,throttle and brakes (can easily add the remaining) for the given driver.  
     """
     nr=int(number) # 0 -> 19 !
-    x_pos=self._TEL_PLOTS_WIDTH*(nr%2) 
-    x_pos_headshot = (self._TEL_PLOTS_WIDTH-95) + self._TEL_PLOTS_WIDTH*(nr%2) 
+    x_pos=(self._TEL_PLOTS_WIDTH+self._SIDE_OF_HEADSHOTS_PNG)*(nr%2) 
+    x_pos_headshot = (self._TEL_PLOTS_WIDTH) + (self._TEL_PLOTS_WIDTH+self._SIDE_OF_HEADSHOTS_PNG)*(nr%2) 
     y_pos=self._TEL_PLOTS_HEIGHT*(nr//2)+self._TOP_BAR_HEIGHT
     add_name_over_photo=False
     with dpg.group(pos=(x_pos,y_pos),height=self._TEL_PLOTS_HEIGHT,tag="wdw"+driver,parent=parent,horizontal=True):
-      with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),no_title=True,link_all_x=True,no_align=False,no_resize=False,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH-95,height=self._TEL_PLOTS_HEIGHT/5.):
+      with dpg.subplots(rows=3,columns=1,row_ratios=(3,1,1),no_title=True,link_all_x=True,no_align=False,no_resize=False,label=self._DRIVERS_INFO[driver]["full_name"],tag=self._DRIVERS_INFO[driver]["full_name"],width=self._TEL_PLOTS_WIDTH,height=self._TEL_PLOTS_HEIGHT/5.):
         with dpg.plot(tag="speed"+driver,anti_aliased=True):    
           dpg.add_plot_axis(dpg.mvXAxis,tag="x_axis_SPEED"+driver,time=True,no_tick_labels=True,no_tick_marks=True)
           dpg.add_plot_axis(dpg.mvYAxis, tag="y_axis_SPEED"+driver)
@@ -524,8 +566,9 @@ class GUI:
           dpg.add_line_series(x=[0],y=[0],label=driver+"b",parent="y_axis_BRAKE"+driver,tag=driver+"b")
           #dpg.add_plot_legend(show=False)
           dpg.bind_item_theme(driver+"b",driver+"_color")
+      
       with dpg.group(pos=(x_pos_headshot,y_pos),tag=driver+"drivers_info_telemetry",horizontal=False):
-        with dpg.drawlist(width=95,height=95,pos=(0,0),tag=driver+"HeadShotUrl_drawlist"):
+        with dpg.drawlist(width=self._SIDE_OF_HEADSHOTS_PNG,height=self._SIDE_OF_HEADSHOTS_PNG,pos=(0,0),tag=driver+"HeadShotUrl_drawlist"):
           map_dict=str(_config.paths.HEADSHOTS_PATH / (self._DRIVERS_INFO[driver]["full_name"]+"headshot.png"))
           if map_dict.split("/")[-1] in os.listdir(str(_config.paths.HEADSHOTS_PATH)) or map_dict.split("\\")[-1] in os.listdir(str(_config.paths.HEADSHOTS_PATH)):
             width, height, channels, data = dpg.load_image(map_dict)
@@ -538,15 +581,17 @@ class GUI:
             print(map_dict," not found!")
         if add_name_over_photo:
           dpg.add_text(default_value=map_dict.split("/")[-1][-12],tag=driver+"_nameOverImage",pos=(x_pos_headshot+10,y_pos+10))
-      with dpg.group(pos=(x_pos_headshot+30,y_pos+110),tag=driver+"drivers_info_telemetry_tyre",horizontal=False):
-        with dpg.drawlist(width=34,height=34,pos=(0,0),tag=driver+"Tyres_drawlist"):
+      
+      with dpg.group(pos=(x_pos_headshot+int(self._SIDE_OF_HEADSHOTS_PNG/3),y_pos+self._SIDE_OF_HEADSHOTS_PNG+25),tag=driver+"drivers_info_telemetry_tyre",horizontal=False):
+        with dpg.drawlist(width=self._SIDE_OF_TYRES_PNG,height=self._SIDE_OF_TYRES_PNG,pos=(0,0),tag=driver+"Tyres_drawlist"):
           with dpg.texture_registry():
-            dpg.add_dynamic_texture(width=34, height=34, default_value=self.Tyres_Texture["Unknown"], tag=driver+"tyre")
-          dpg.draw_image(texture_tag=driver+"tyre",tag=driver+"tyre_image",parent=driver+"Tyres_drawlist",pmin=(0,0),pmax=(34,34),show=True)
+            dpg.add_dynamic_texture(width=self._SIDE_OF_TYRES_PNG, height=self._SIDE_OF_TYRES_PNG, default_value=self.Tyres_Texture["Unknown"], tag=driver+"tyre")
+          dpg.draw_image(texture_tag=driver+"tyre",tag=driver+"tyre_image",parent=driver+"Tyres_drawlist",pmin=(0,0),pmax=(self._SIDE_OF_TYRES_PNG,self._SIDE_OF_TYRES_PNG),show=True)
         #dpg.add_text(default_value="Tyre: ",tag=driver+"_tyreFitted",pos=(x_pos_headshot,y_pos+95+20*0))
-      with dpg.group(pos=(x_pos_headshot,y_pos+150),tag=driver+"drivers_info_telemetry_tyre_text",horizontal=False):
-        dpg.add_text(default_value="Tyre Age: ",tag=driver+"_agetyreFitted",pos=(x_pos_headshot+8,y_pos+140+15))
-        dpg.add_text(default_value="Drs: ",tag=driver+"_drs",pos=(x_pos_headshot+8,y_pos+140+35))
+      with dpg.group(pos=(x_pos_headshot,y_pos+self._SIDE_OF_HEADSHOTS_PNG+self._SIDE_OF_TYRES_PNG+25),tag=driver+"drivers_info_telemetry_tyre_text",horizontal=False):
+        base_value=8
+        dpg.add_text(default_value="Tyre Age: ",tag=driver+"_agetyreFitted",pos=(x_pos_headshot+base_value,y_pos+self._SIDE_OF_HEADSHOTS_PNG+self._SIDE_OF_TYRES_PNG+25+10))
+        dpg.add_text(default_value="Drs: ",tag=driver+"_drs",pos=(x_pos_headshot+base_value,y_pos+self._SIDE_OF_HEADSHOTS_PNG+self._SIDE_OF_TYRES_PNG+25+35))
         
   def Initialize_Plot(self):
     """ 
@@ -556,45 +601,38 @@ class GUI:
     with dpg.group(label=self._YEAR+"-"+" ".join(self._RACE.split("_"))+"-"+self._SESSION,tag="Telemetry_view",show=True,parent="Primary window"):
       
       self._windows_manager.append("menu_bar_buttons_weather")
-      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=self._map_width,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
-        # weather group
-        with dpg.group(label="Column1",tag="column1",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH,0)):  
-          dpg.add_text(default_value="AirTemp:",  tag="AirTemp") #
-          dpg.add_text(default_value="TrackTemp:",tag="TrackTemp") #
-          dpg.add_text(default_value="Rainfall:", tag="Rainfall") #
-          dpg.add_text(default_value="Current Time:", tag="Actual_Time")
-          dpg.add_text(default_value="Session: "+self._database.get_session_type(), tag="Session_Name")
-          dpg.add_text(default_value="Session time remaining: ", tag="Session_TimeRemaining")
-          #dpg.add_text(default_value="WindDirection:", tag="WindDirection") 
-        with dpg.group(label="Column2",tag="column2",horizontal=False,pos=(7.3*self._BUTTONS_WIDTH+130,0)):
-          dpg.add_text(default_value="WindSpeed:",tag="WindSpeed") #
-          dpg.add_text(default_value="Humidity:", tag="Humidity") #
-          dpg.add_text(default_value="Status:", tag="Session_Status")
-          #dpg.add_text(default_value="Pressure:", tag="Pressure") 
+      with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=self._map_width,height=140+self._map_height,pos=(self._VIEWPORT_WIDTH-self._map_width-self._SCR_SIZE,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
+        with dpg.group(label="menu_row",tag="menu",horizontal=True,pos=(0,0)):
+          self.add_buttons()
 
-        # buttons
-        self._drivers_list=sorted(self._drivers_list,key=int)
-        self.add_buttons()
-        self._y_scroll=dpg.get_y_scroll(item="Primary window")
-        if self._LIVE_SIM:
-          self._detected_year = self._database.get_year()
-        else:
-          self._detected_year = str(datetime.datetime.now().year)
-      
-      self._windows_manager.append("Track_Map")
-      with dpg.window(label="Track_Map",tag="Track_Map",width=self._map_width,height=self._map_height,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
-        #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
+        with dpg.group(tag="Session_info",horizontal=True):
+          if self._SESSION.lower()=="race" or self._SESSION.lower()=="sprint":
+            dpg.add_text(default_value="Lap: 56/58 ",tag="lap_status",pos=(15,45)) # or session if not a race/sprint
+          else:
+            dpg.add_text(default_value="Session: -",tag="lap_status",pos=(15,45)) # or session if not a race/sprint
+          dpg.add_text(default_value="Remaining: x:xx:xx",tag="time_status",pos=(self._map_width/2.8,45)) # or session if not a race/sprint
+          dpg.bind_item_font(item="lap_status",font="drawNodeFont")
+          dpg.bind_item_font(item="time_status",font="drawNodeFont")
+
+        #self._drivers_list=sorted(self._drivers_list,key=int)
+        #self.add_buttons()
+        #self._y_scroll=dpg.get_y_scroll(item="Primary window")
+        #if self._LIVE_SIM:
+        #  self._detected_year = self._database.get_year()
+        #else:
+        #  self._detected_year = str(datetime.datetime.now().year)
+
+        with dpg.group(label="Map",tag="Map_Track",horizontal=False,pos=(0,140),width=self._map_width,height=self._map_height):
           dpg.add_drawlist(width=self._map_width,height=self._map_height,pos=(0,0),tag="drawlist_map_position")
           #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
-      self._event_name=self._database.get_meeting_name()
-      self.change_map_background()
+        #self._event_name=self._database.get_meeting_name()
+        self.change_map_background()
       
-      self._windows_manager.append("Race_Messages")
-      with dpg.window(label="RaceMessages",tag="Race_Messages",width=630/2,height=420,pos=(self._TEL_PLOTS_WIDTH*2+10+630/2,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10+485+5),no_title_bar=True,no_resize=True,no_move=True):
-        #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
-          dpg.add_text(tag="race_msgs",default_value="",wrap=308)
-          #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
-      
+      with dpg.window(label="RaceMessages",tag="Race_Messages",width=self._map_width,height=self._VIEWPORT_HEIGHT-self._map_height-300-self._TOP_BAR_HEIGHT,pos=(self._VIEWPORT_WIDTH-self._map_width-self._SCR_SIZE,140+self._map_height+self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
+        dpg.add_text(tag="Race_MSG_HEADER",default_value=" RACE MESSAGES:",wrap=308)
+        dpg.add_text(tag="race_msgs",default_value="",wrap=308)
+        #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+
       # telemetry plots
       self._annotations_telemetry_plot = {}
       self._drivers_watchlist_telemetry=[]
@@ -607,6 +645,39 @@ class GUI:
             self._drivers_watchlist_telemetry.append(driver)
       for nr,driver in zip(range(len(self._drivers_list)),self._drivers_watchlist_telemetry):
         self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
+        
+
+          
+      
+      
+      
+      #with dpg.window(label="menu_bar_buttons_weather",tag="menu_bar_buttons_weather",width=self._map_width,height=self._BUTTONS_HEIGHT*self._BUTTONS_ROWS,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT),no_title_bar=True,no_resize=True,no_move=True):
+      #  # weather group
+      #  
+      #  # buttons
+      #  self._drivers_list=sorted(self._drivers_list,key=int)
+      #  self.add_buttons()
+      #  self._y_scroll=dpg.get_y_scroll(item="Primary window")
+      #  if self._LIVE_SIM:
+      #    self._detected_year = self._database.get_year()
+      #  else:
+      #    self._detected_year = str(datetime.datetime.now().year)
+      #
+      #self._windows_manager.append("Track_Map")
+      #with dpg.window(label="Track_Map",tag="Track_Map",width=self._map_width,height=self._map_height,pos=(self._TEL_PLOTS_WIDTH*2+10,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10),no_title_bar=True,no_resize=True,no_move=True):
+      #  #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
+      #    dpg.add_drawlist(width=self._map_width,height=self._map_height,pos=(0,0),tag="drawlist_map_position")
+      #    #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+      #self._event_name=self._database.get_meeting_name()
+      #self.change_map_background()
+      #
+      #self._windows_manager.append("Race_Messages")
+      #with dpg.window(label="RaceMessages",tag="Race_Messages",width=630/2,height=420,pos=(self._TEL_PLOTS_WIDTH*2+10+630/2,self._TOP_BAR_HEIGHT+self._BUTTONS_HEIGHT*self._BUTTONS_ROWS+10+485+5),no_title_bar=True,no_resize=True,no_move=True):
+      #  #with dpg.window(width=640,height=480,pos=(),tag="map_window"):
+      #    dpg.add_text(tag="race_msgs",default_value="",wrap=308)
+      #    #dpg.draw_circle(color=(255,0,0,255),center=(100,100),radius=5,fill=(255,0,0,255),tag="circle",parent="drawlist_map_position")
+      
+      
 
 
   def WaitingForAllPreStartChecks(self):
@@ -622,6 +693,12 @@ class GUI:
       if self._database.get_drivers_list()==None:
         print("No driver list... fail")
       self._list_of_msgs=self._database.get_list_of_msgs()
+      
+      self._database.update_drivers_list_from_api()  
+      self._drivers_list=self._database.get_drivers_list_from_api()
+    
+      for driver in self._database.get_drivers_list_from_api():
+        print("\t ",driver," : ",self._DRIVERS_INFO[driver]["full_name"])
     
     else: # We are in a live
       while self._database.get_drivers_list()==None:
@@ -633,11 +710,20 @@ class GUI:
     #for driver in self._drivers_list:
     #  print("\t ",driver," : ",self._DRIVERS_INFO[driver]["full_name"])
     #print("\n")
-    self._database.update_drivers_list_from_api()  
-    self._drivers_list=self._database.get_drivers_list_from_api()
-    for driver in self._database.get_drivers_list_from_api():
-      print("\t ",driver," : ",self._DRIVERS_INFO[driver]["full_name"])
-      
+
+    self._session_name                        = self._database.get_session_type()
+    self._meeting_name                        = self._database.get_meeting_name()
+    self._meeting_key                         = self._database.get_meeting_key()
+    self._meetingCountry_name                 = self._database.get_meetingCountry_name().lower()
+    country_flag_name                         = self._meetingCountry_name.replace(" ","-")+"-flag.png"
+    
+    # Country Flags texture
+    with dpg.texture_registry():
+      icon=str(_config.paths.ASSETS_PATH / ("CountryFlags/"+country_flag_name))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="circuit_flag")
+    
+    
     self._start_compare=True
     return True
 
@@ -902,6 +988,9 @@ class GUI:
     self._Best_OverallLap = ["",1e6]
     # SessionStatus
     self._sessions_status="Inactive"
+    
+    self.session_count_flag                   = True
+    self.session_count                        = 0
     
     # RaceControlMessages
     self._msgs_string=""
@@ -1171,10 +1260,14 @@ class GUI:
                     dpg.set_value(item=driver+"sector"+str(int(nsector)+1),value=info_sector["Value"])
                   if "Segments" in info_sector.keys():
                     for segment,status in info_sector["Segments"].items():
-                      self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                      if str(status["Status"]) in self._segments.keys():
+                        self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                      else:
+                        self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments["0"] # transparent
+                        print("\n\n ",str(status["Status"])," not available in segmentsStatus!!\n\n ")
                       if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
                         dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
-                      dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._segments[str(status["Status"])] )
+                      dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)] )
               elif type(value)==dict:
                 for nsector,info_sector in value.items():
                   if "Value" in info_sector.keys():
@@ -1187,17 +1280,25 @@ class GUI:
                   if "Segments" in info_sector.keys():
                     if type(info_sector["Segments"])==dict:
                       for segment,status in info_sector["Segments"].items():
-                        self._driver_infos[driver]["Sectors"][nsector]["Segment"][segment]=self._segments[str(status["Status"])] # for now not decrypted
+                        if str(status["Status"]) in self._segments.keys():
+                          self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                        else:
+                          self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments["0"] # transparent
+                          print("\n\n ",str(status["Status"])," not available in segmentsStatus!!\n\n ")
                         if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
                           dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
-                        dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._segments[str(status["Status"])] )
+                        dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)] )
                         #print("Color changed at: ",driver+"segments"+str(1+int(nsector))+"musec"+str(segment),"  to: ",self._segments[str(status["Status"])])
                     elif type(info_sector["Segments"])==list:
                       for segment,status in enumerate(info_sector["Segments"]):
-                        self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                        if str(status["Status"]) in self._segments.keys():
+                          self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments[str(status["Status"])] # for now not decrypted
+                        else:
+                          self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)]=self._segments["0"] # transparent
+                          print("\n\n ",str(status["Status"])," not available in segmentsStatus!!\n\n ")
                         if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
                           dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
-                        dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._segments[str(status["Status"])] )
+                        dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"][str(segment)] )
             elif info=="LastLapTime":
               if "Value" in value.keys():
                 self._driver_infos[driver]["LastLapTime"]=value["Value"]
@@ -1279,16 +1380,53 @@ class GUI:
   def update_variables_SessionStatus(self,msg):
     if msg["Status"]=="Inactive":
       self.session_status="Inactive"
+      dpg.configure_item("status_flag",texture_tag="white_flag")
+    
     elif msg["Status"]=="Started":
       self.session_status="Green Flag"
+      dpg.configure_item("status_flag",texture_tag="green_flag")
+      if self.session_count_flag:
+        self.session_count+=1 
+        dpg.set_value(item="lap_status",value="Session: "+self._finish_status[self._session_name][self.session_count]) 
+        self.session_count_flag=False
+    
     elif msg["Status"]=="Aborted":
       self.session_status="Red Flag"
+      #dpg.configure_item("status_flag",texture_tag="red_flag")
+    
     elif msg["Status"]=="Finished":
       self.session_status="Chequered Flag"
+      dpg.configure_item("status_flag",texture_tag="white_flag")
+      self.session_count_flag=True
+    
     else:
       self.session_status=msg["Status"]
   
   ##### RaceControlMessages #####
+  
+  def extractInfoFrom_RaceControlMsgs(self,msg):
+    #if all([m in msg for m in ["chequered","flag"]]) or  all([m in msg for m in ["not", "resum"]]):
+    #  self._sessions_status="Inactive"
+    #  self._Is_previous_session_finished=True
+    #
+    #elif all([m in msg for m in ["red", "flag"]]):
+    #  self._sessions_status="Inactive"
+    #
+    if all([m in msg for m in ["green", "light"]]):
+      #self._sessions_status="Active"
+      dpg.configure_item("status_flag",texture_tag="green_flag")
+      #if self._Is_previous_session_finished:
+      #  self._sessions_status_count+=1
+      #  self._Is_previous_session_finished=False
+    
+    elif all([m in msg for m in ["red", "flag"]]) and "chequered" not in msg:
+      dpg.configure_item("status_flag",texture_tag="red_flag")
+    
+    elif all([m in msg for m in ["yellow", "in"]]):
+      dpg.configure_item("status_flag",texture_tag="yellow_flag")
+      
+      
+  
   def update_variables_RaceControlMessages(self,feed,msg):
     """ 
       Could be optimized to extrapolate infos from raceControlMessages instead of 
@@ -1312,6 +1450,8 @@ class GUI:
           else:
             category=Msg["Category"]
           self._msgs_string += nrMsg + " - " + Msg["Utc"] + " - " + category.split("_")[-1] + " : " + Msg["Message"] +" \n\n" 
+          
+        self.extractInfoFrom_RaceControlMsgs(Msg["Message"].lower())
     
     dpg.set_value(item="race_msgs",value=self._msgs_string)
     dpg.set_y_scroll(item="Race_Messages",value=dpg.get_y_scroll_max(item="Race_Messages")) 
@@ -2273,7 +2413,7 @@ class GUI:
     
     with dpg.font_registry():
       # first argument ids the path to the .ttf or .otf file
-      dpg.add_font("Fonts/Roboto-Bold.ttf", 40,tag="drawNodeFont")
+      dpg.add_font("Fonts/Roboto-Bold.ttf", 30,tag="drawNodeFont")
     
     with dpg.theme(tag="Global_Theme"):
       with dpg.theme_component(dpg.mvAll):
@@ -2284,9 +2424,10 @@ class GUI:
         dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing,         1,1,     category=dpg.mvThemeCat_Core)
         dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing,    1,1,     category=dpg.mvThemeCat_Core)
         dpg.add_theme_style(dpg.mvStyleVar_IndentSpacing,       21,      category=dpg.mvThemeCat_Core)
-        dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize,       6,  category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize,       6,       category=dpg.mvThemeCat_Core)
         dpg.add_theme_style(dpg.mvStyleVar_GrabMinSize,         7,       category=dpg.mvThemeCat_Core)
-                                                                                
+        self._SCR_SIZE = 6                                                                         
+        
         # Borders                                                           
         dpg.add_theme_style(dpg.mvStyleVar_WindowBorderSize,    1,       category=dpg.mvThemeCat_Core)
         dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize,     1,       category=dpg.mvThemeCat_Core)
@@ -2353,6 +2494,42 @@ class GUI:
     for tyre in os.listdir(_config.paths.TYRES_PATH):
       width, height, channels, data = dpg.load_image(str(_config.paths.TYRES_PATH / tyre))
       self.Tyres_Texture[tyre.split(".")[0].capitalize()]=data
+    
+    with dpg.texture_registry():
+      # Pause/Play/Stop
+      icon=str(_config.paths.ASSETS_PATH / ("Icons/pause.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="pause_icon")
+
+      icon=str(_config.paths.ASSETS_PATH / ("Icons/play.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="play_icon")
+
+      icon=str(_config.paths.ASSETS_PATH / ("Icons/stop.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="stop_icon")  
+
+      # Country Flags
+      #icon=str(paths.ASSETS_PATH / ("CountryFlags/abu-dhabi-flag.png"))
+      #width, height, channels, data = dpg.load_image(icon)
+      #dpg.add_static_texture(width=width, height=height, default_value=data, tag="circuit_flag")  
+
+      # Flags Status
+      icon=str(_config.paths.ASSETS_PATH / ("RacingFlags/green_flag.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="green_flag")
+
+      icon=str(_config.paths.ASSETS_PATH / ("RacingFlags/red_flag.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="red_flag")
+
+      icon=str(_config.paths.ASSETS_PATH / ("RacingFlags/white_flag.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="white_flag")
+
+      icon=str(_config.paths.ASSETS_PATH / ("RacingFlags/yellow_flag.png"))
+      width, height, channels, data = dpg.load_image(icon)
+      dpg.add_static_texture(width=width, height=height, default_value=data, tag="yellow_flag")
       #dpg.add_static_texture(width=width, height=height, default_value=data, tag="tyre_"+tyre.split(".")[0])
   
   def run(self):
