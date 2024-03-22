@@ -118,6 +118,7 @@ class GUI:
     
     self._time_skipped                        = 0
     self._time_paused                         = 0
+    self._stints_done                         = 0
     self._BaseTimestamp                       = None
     self._seconds_to_skip                     = 5
     self._delay_T                             = _config.DELAY
@@ -125,7 +126,7 @@ class GUI:
     self._TIME_UPDATE_POSITION_PLOT           = 1./_config.FREQ_UPDATE_PLOT
     self._sleeptime                           = _config.SLEEPTIME
      
-    self._last_session_status                 = "Inactive"
+    self.session_status                       = "Inactive"
     self._task_state                          = "running"
     self._session_name                        = ""
     self._meeting_name                        = ""
@@ -133,30 +134,39 @@ class GUI:
     self._meetingCountry_name                 = ""
     self.session_count_flag                   = True
     self.session_count                        = 0
+    self._CurrentLap                          = "0"
+    self._TotalLaps                           = "-"
     self._finish_status={
                           "Qualifying":{
+                                        0: "Off",
                                         1: "Q1",
                                         2: "Q2",
                                         3: "Q3"
                           },
                           "Sprint Shootout":{
+                                        0: "Off",
                                         1: "SQ1",
                                         2: "SQ2",
                                         3: "SQ3"
                           },
                           "Race":{
+                                        0: "Off",
                                         1: "Race"
                           },
                           "Sprint":{
+                                        0: "Off",
                                         1: "Sprint Race"
                           },
                           "Practice 1":{
+                                        0: "Off",
                                         1: "FP1"
                           },
                           "Practice 2":{
+                                        0: "Off",
                                         1: "FP2"
                           },
                           "Practice 3":{
+                                        0: "Off",
                                         1: "FP3"
                           },
                         }
@@ -239,9 +249,9 @@ class GUI:
         print("Stuck inside new_window in GUI...")
       time.sleep(1)
     
-    self._drivers_list=sorted(self._database.get_drivers_list(),key=int)
-    print("Plot initialized!")
-    self._LIVESIM_READY=True
+    #self._drivers_list=sorted(self._database.get_drivers_list(),key=int)
+    #print("Plot initialized!")
+    #self._LIVESIM_READY=True
     #for driver in self._drivers_list:
     #  if driver not in self._LS._analyzer._laptimes_2.keys():
     #    self._LS._analyzer._laptimes_2[driver]={}
@@ -386,6 +396,8 @@ class GUI:
             self.update_variables_WeatherData(msg)
           elif feed=="SessionStatus":
             self.update_variables_SessionStatus(msg)
+          elif feed=="LapCount":
+            self.update_variables_LapCount(msg)
         else:
           break
         
@@ -451,6 +463,8 @@ class GUI:
             self.update_variables_WeatherData(msg)
           elif feed=="SessionStatus":
             self.update_variables_SessionStatus(msg)
+          elif feed=="LapCount":
+            self.update_variables_LapCount(msg)
         else:
           break
         
@@ -515,7 +529,7 @@ class GUI:
       dpg.add_static_texture(width=width, height=height, default_value=data, tag="map_background_texture")
 
     
-    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(width,height),show=True)
+    dpg.draw_image(texture_tag="map_background_texture",tag="map_background",parent="drawlist_map_position",pmin=(0,0),pmax=(self._map_width,self._map_height),show=True)
 
   def transform_position_from_F1_to_dpg(self,x,y):
     """ 
@@ -606,8 +620,8 @@ class GUI:
           self.add_buttons()
 
         with dpg.group(tag="Session_info",horizontal=True):
-          if self._SESSION.lower()=="race" or self._SESSION.lower()=="sprint":
-            dpg.add_text(default_value="Lap: 56/58 ",tag="lap_status",pos=(15,45)) # or session if not a race/sprint
+          if self._session_name.lower()=="race" or self._session_name.lower()=="sprint":
+            dpg.add_text(default_value="Lap: "+str(self._CurrentLap)+"/"+str(self._TotalLaps),tag="lap_status",pos=(15,45)) # or session if not a race/sprint
           else:
             dpg.add_text(default_value="Session: -",tag="lap_status",pos=(15,45)) # or session if not a race/sprint
           dpg.add_text(default_value="Remaining: x:xx:xx",tag="time_status",pos=(self._map_width/2.8,45)) # or session if not a race/sprint
@@ -694,16 +708,19 @@ class GUI:
         print("No driver list... fail")
       self._list_of_msgs=self._database.get_list_of_msgs()
       
-      self._database.update_drivers_list_from_api()  
+      #self._database.update_drivers_list_from_api()  
       self._drivers_list=self._database.get_drivers_list_from_api()
-    
-      for driver in self._database.get_drivers_list_from_api():
-        print("\t ",driver," : ",self._DRIVERS_INFO[driver]["full_name"])
+      self._drivers_list.sort()
     
     else: # We are in a live
       while self._database.get_drivers_list()==None:
         print("Waiting for drivers list to arrive..")
         time.sleep(0.25)
+      self._drivers_list=self._database.get_drivers_list()
+      self._drivers_list.sort()
+    
+    for driver in self._drivers_list:
+      print("\t ",driver," : ",self._DRIVERS_INFO[driver]["full_name"])
     
     #self._drivers_list=self._database.get_drivers_list()
     #print("Driver list: ")
@@ -713,6 +730,7 @@ class GUI:
 
     self._session_name                        = self._database.get_session_type()
     self._meeting_name                        = self._database.get_meeting_name()
+    self._detected_year                       = str(self._database.get_year())
     self._meeting_key                         = self._database.get_meeting_key()
     self._meetingCountry_name                 = self._database.get_meetingCountry_name().lower()
     country_flag_name                         = self._meetingCountry_name.replace(" ","-")+"-flag.png"
@@ -740,10 +758,11 @@ class GUI:
     self._last_message_displayed_UTC = self._database.get_DT_Basetime() 
     self._last_index                 = 0
     self._last_index_checked         = 0
+    self._time_session_duration      = self._sessions_duration[self._detected_year][self._finish_status[self._session_name][self.session_count]]
     
     if self._LIVE_SIM:
-      self._last_message_displayed_UTC =   self._database.get_first_startingSession_DT()
-      self._time_skipped               =   self._database.get_first_startingSession_DT().timestamp() \
+      self._last_message_displayed_UTC =   self._database.get_first_startingSession_DT() - datetime.timedelta(seconds=30.)
+      self._time_skipped               =   self._database.get_first_startingSession_DT().timestamp() - 30. \
                                          - self._first_message_UTC.timestamp()
 
   def recursive_children(self,object_dict,n_tab):
@@ -800,9 +819,19 @@ class GUI:
                                          + (datetime.datetime.now() - self._first_message_DT_myTime) \
                                          - datetime.timedelta(seconds=self._time_paused) \
                                          + datetime.timedelta(seconds=self._time_skipped) 
-                                         
+              
       self.iteration(time_start = self._previous_message_displayed_UTC, \
                      time_end   = self._last_message_displayed_UTC)
+      
+      if self.session_status=="Green Flag" or ("Practice" in self._session_name and self.session_status=="Red Flag"):
+        time_remaining_in_session = self._time_session_duration - \
+                                    self._stints_done - \
+                                    (self._last_message_displayed_UTC.timestamp() - self._time_UTC_at_session_start.timestamp())
+        time_remaining_in_session_str = str(datetime.timedelta(seconds=int(time_remaining_in_session))) 
+        if time_remaining_in_session_str[0]=="0":
+          time_remaining_in_session_str=":".join(time_remaining_in_session_str.split(":")[1:])
+        dpg.set_value(item="time_status",value="     "+time_remaining_in_session_str)
+      
       #print(self._previous_message_displayed_UTC," ",self._last_message_displayed_UTC)
       time.sleep(self._TIME_UPDATE_TELEMETRY_PLOT)
       #print(self._previous_message_displayed_UTC," ",self._last_message_displayed_UTC)
@@ -879,6 +908,9 @@ class GUI:
     elif feed=="TimingAppData":
       self.update_variables_TimingAppData(feed,msg)  
       #self.update_database_TimingAppData(feed,T,msg)   
+    
+    elif feed=="LapCount":
+      self.update_variables_LapCount(msg)  
       
     else:
       return None
@@ -1385,22 +1417,40 @@ class GUI:
     elif msg["Status"]=="Started":
       self.session_status="Green Flag"
       dpg.configure_item("status_flag",texture_tag="green_flag")
+      if "Practice" not in self._session_name:
+        self._time_UTC_at_session_start = self._last_message_displayed_UTC
+      elif self.session_count==0:
+        self._time_UTC_at_session_start = self._database.get_first_startingSession_DT()
       if self.session_count_flag:
         self.session_count+=1 
-        dpg.set_value(item="lap_status",value="Session: "+self._finish_status[self._session_name][self.session_count]) 
+        if self._session_name.lower() not in ["race","sprint"]:
+          dpg.set_value(item="lap_status",value="Session: "+self._finish_status[self._session_name][self.session_count]) 
+        self._time_session_duration = self._sessions_duration[self._detected_year][self._finish_status[self._session_name][self.session_count]]
+        self._stints_done = 0
         self.session_count_flag=False
     
     elif msg["Status"]=="Aborted":
       self.session_status="Red Flag"
+      if "Practice" not in self._session_name:
+        self._stints_done+=(self._last_message_displayed_UTC.timestamp()-self._time_UTC_at_session_start.timestamp())
       #dpg.configure_item("status_flag",texture_tag="red_flag")
     
     elif msg["Status"]=="Finished":
       self.session_status="Chequered Flag"
       dpg.configure_item("status_flag",texture_tag="white_flag")
+      self._stints_done = 0
       self.session_count_flag=True
     
     else:
-      self.session_status=msg["Status"]
+      print("\nStatus not decrypted: ",msg["Status"],"\n")
+      #self.session_status=msg["Status"]
+  
+  ##### SessionData  ##########
+  
+  def update_variables_SessionData(self,msg):
+    pass
+      
+  
   
   ##### RaceControlMessages #####
   
@@ -1422,8 +1472,13 @@ class GUI:
     elif all([m in msg for m in ["red", "flag"]]) and "chequered" not in msg:
       dpg.configure_item("status_flag",texture_tag="red_flag")
     
-    elif all([m in msg for m in ["yellow", "in"]]):
-      dpg.configure_item("status_flag",texture_tag="yellow_flag")
+    #elif all([m in msg for m in ["yellow", "in"]]):
+    #  dpg.configure_item("status_flag",texture_tag="yellow_flag")
+    
+    #elif all([m in msg for m in ["track", "clear"]]):
+    #  dpg.configure_item("status_flag",texture_tag="green_flag")  
+    #  not setting yellow flag but put yellow in the map
+    #  need to redo map though
       
       
   
@@ -1497,6 +1552,16 @@ class GUI:
         -) lives  : update when receiving msgs directly in the signalr package 
     """    
     self._database.update_database({T:msg},feed)
+  
+  #####     LapCoount (Only valid for race and sprint race)   #####
+  def update_variables_LapCount(self,msg):
+    if "TotalLaps" in msg.keys():
+      self._TotalLaps=msg["TotalLaps"]
+    if "CurrentLap" in msg.keys():
+      self._CurrentLap=msg["CurrentLap"]
+    dpg.set_value(item="lap_status",value="Lap: "+str(self._CurrentLap)+"/"+str(self._TotalLaps))
+    #print("Lap: "+str(self._CurrentLap)+"/"+str(self._TotalLaps))
+  
   
   #####################################################################################
   
@@ -2104,7 +2169,7 @@ class GUI:
     LAP=laps[driver][NLAP] # DateTime , ValueString , ValueInt_sec are the keys
     LapTime_s=LAP["ValueInt_sec"]
     print(driver," ",NLAP," ",LAP["DateTime"]," ",LapTime_s)
-    SLICE=self._database.get_slice_between_times(start_time=LAP["DateTime"]-datetime.timedelta(seconds=LapTime_s)+datetime.timedelta(seconds=offset),end_time=LAP["DateTime"]+datetime.timedelta(seconds=offset))
+    SLICE=self._database.get_slice_between_times(start_time=LAP["DateTime"]-datetime.timedelta(seconds=LapTime_s)+datetime.timedelta(seconds=offset),end_time=LAP["DateTime"]+datetime.timedelta(seconds=offset),update_DB_flag=False,driver=driver)
     SLICE=slice(SLICE.start-1,SLICE.stop+1)
     TEL=self._database.get_dictionary(feed="CarData.z")[driver].copy()
     # Save all before interpolating to add first and last DT

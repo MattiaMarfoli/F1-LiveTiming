@@ -8,6 +8,25 @@ import json
 import numpy as np
 import scipy
 
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+         # linear interpolation of NaNs
+         nans, x= nan_helper(y)
+         y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]
+  
+
+
 class DATABASE:
   """
   
@@ -391,106 +410,144 @@ class DATABASE:
                               self._Laps[driver][self._last_lapnumber_found[driver]]["ValueInt_sec"]=Value_int
                               self._Laps[driver][self._last_lapnumber_found[driver]]["DateTime"]=DT
                               self._Laps[driver][self._last_lapnumber_found[driver]]["TimeStamp"]=DT.timestamp()-self._DT_BASETIME_TIMESTAMP
-                              
-                              #print(driver,"\t",self._last_lapnumber_found[driver])
-                              slice_tel=self.get_slice_between_times(start_time=DT-datetime.timedelta(seconds=Value_int),end_time=DT,update_DB_flag=True,driver=driver)
-                              slice_tel=slice(slice_tel.start-1,slice_tel.stop+1)
-                              speed_bef_int         = np.array(self._CarData[driver]["Speed"][slice_tel])
-                              drs_bef_int           = np.array(self._CarData[driver]["DRS"][slice_tel])
-                              brake_bef_int         = np.array(self._CarData[driver]["Brake"][slice_tel])
-                              throttle_bef_int      = np.array(self._CarData[driver]["Throttle"][slice_tel])
-                              times_bef_int         = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
-                              
-                              times                 = np.copy(times_bef_int)
-                              times=np.insert(times,1,(DT-datetime.timedelta(seconds=Value_int)).timestamp()-self._DT_BASETIME_TIMESTAMP)
-                              times=np.insert(times,len(times)-1,DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
+                              if Value_int<= 60. * 2.5 and Value_int!=0:
+                                #print(driver,"\t",self._last_lapnumber_found[driver])
+                                slice_tel=self.get_slice_between_times(start_time=DT-datetime.timedelta(seconds=Value_int),end_time=DT,update_DB_flag=True,driver=driver)
+                                slice_tel=slice(slice_tel.start-1,slice_tel.stop+1)
+                                times_bef_int         = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
 
-                              speeds    = scipy.interpolate.Akima1DInterpolator(times_bef_int,speed_bef_int)(times)
-                              Throttles = scipy.interpolate.Akima1DInterpolator(times_bef_int,throttle_bef_int)(times) 
-                              Brakes    = scipy.interpolate.Akima1DInterpolator(times_bef_int,brake_bef_int)(times)
-                              Drs       = scipy.interpolate.Akima1DInterpolator(times_bef_int,drs_bef_int)(times)
-                              
-                              Times=[TS-times[1] for TS in times]
-                              #print(Times,"\n")
-                              Times     = Times[1:-1]
-                              speeds    = speeds[1:-1]   
-                              Throttles = Throttles[1:-1] 
-                              Brakes    = Brakes[1:-1]   
-                              Drs       = Drs[1:-1]   
-                              
-                              space = scipy.integrate.cumulative_trapezoid(speeds/3.6,Times,initial=0)  
-                              dx    = np.diff(space)
-                              Total_space = np.sum(dx)
-                              
-                              throttle_medium = np.convolve(Throttles,np.array([0.5, 0.5]), mode='valid')
-                              speed_medium    = np.convolve(speeds,np.array([0.5, 0.5]), mode='valid')
-                              brake_medium    = np.convolve(Brakes,np.array([0.5, 0.5]), mode='valid')
-                              
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Slice"]             = slice_tel
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["DRS"]               = bool(np.any(Drs == 1))
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Avg_Speed"]         = np.mean(speeds)
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Std_Speed"]         =  np.std(speeds)
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Max_Speed"]         =  float(speeds.max())
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Min_Speed"]         =  float(speeds.min())
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["FullThrottle_Perc"] = np.sum(dx[throttle_medium>98]) / Total_space * 100
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Braking_Perc"]      = np.sum(dx[brake_medium>98]) / Total_space * 100
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["Cornering_Perc"]    = np.sum(dx[(throttle_medium>=5) & (throttle_medium<=98)]) / Total_space * 100
-                              self._Laps[driver][self._last_lapnumber_found[driver]]["LiftCoast_Perc"]    = np.sum(dx[ (speed_medium>10) & (throttle_medium<5) & (brake_medium < 1) ]) / Total_space * 100
+                                left_correction_flag=False
+                                left_correction_nrs =0
+                                right_correction_flag=False
+                                right_correction_nrs =0
+
+                                while ((DT-datetime.timedelta(seconds=Value_int)).timestamp()-self._DT_BASETIME_TIMESTAMP)<times_bef_int[0]:
+                                  slice_tel=slice(slice_tel.start-1,slice_tel.stop)
+                                  times_bef_int = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
+                                  left_correction_flag=True
+                                  left_correction_nrs+=1
+
+                                while (DT.timestamp()-self._DT_BASETIME_TIMESTAMP)>times_bef_int[-1]:
+                                  slice_tel=slice(slice_tel.start,slice_tel.stop+1)
+                                  times_bef_int = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
+                                  right_correction_flag=True
+                                  right_correction_nrs+=1
+
+                                if right_correction_flag or left_correction_flag:
+                                  print("Correcting lap: ",self._last_lapnumber_found[driver]," of driver: ",driver," on the left for: ",left_correction_nrs," and on the right for: ",right_correction_nrs)
+
+                                speed_bef_int         = np.array(self._CarData[driver]["Speed"][slice_tel])
+                                drs_bef_int           = np.array(self._CarData[driver]["DRS"][slice_tel])
+                                brake_bef_int         = np.array(self._CarData[driver]["Brake"][slice_tel])
+                                throttle_bef_int      = np.array(self._CarData[driver]["Throttle"][slice_tel])
+                                times_bef_int         = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
+
+                                times                 = np.copy(times_bef_int)
+                                times=np.insert(times,1,(DT-datetime.timedelta(seconds=Value_int)).timestamp()-self._DT_BASETIME_TIMESTAMP)
+                                times=np.insert(times,len(times)-1,DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
+
+                                speeds    = scipy.interpolate.Akima1DInterpolator(times_bef_int,speed_bef_int)(times)
+                                Throttles = scipy.interpolate.Akima1DInterpolator(times_bef_int,throttle_bef_int)(times) 
+                                Brakes    = scipy.interpolate.Akima1DInterpolator(times_bef_int,brake_bef_int)(times)
+                                Drs       = scipy.interpolate.Akima1DInterpolator(times_bef_int,drs_bef_int)(times)
+
+                                Times=[TS-times[1] for TS in times]
+                                #print(Times,"\n")
+                                Times     = Times[1:-1]
+                                speeds    = speeds[1:-1]   
+                                Throttles = Throttles[1:-1] 
+                                Brakes    = Brakes[1:-1]   
+                                Drs       = Drs[1:-1]   
+
+                                space = scipy.integrate.cumulative_trapezoid(speeds/3.6,Times,initial=0)  
+                                dx    = np.diff(space)
+                                Total_space = np.sum(dx)
+
+                                throttle_medium = np.convolve(Throttles,np.array([0.5, 0.5]), mode='valid')
+                                speed_medium    = np.convolve(speeds,np.array([0.5, 0.5]), mode='valid')
+                                brake_medium    = np.convolve(Brakes,np.array([0.5, 0.5]), mode='valid')
+
+                                if np.isnan(speeds).any():
+                                  #nans, x= nan_helper(speeds)
+                                  #speeds[nans]= np.interp(x(nans), x(~nans), speeds[~nans])
+                                  print(driver," ",self._last_lapnumber_found[driver]," ",times_bef_int," \n\n",times)
+
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Slice"]             = slice_tel
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["DRS"]               = bool(np.any(Drs == 1))
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Avg_Speed"]         = np.mean(speeds)
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Std_Speed"]         =  np.std(speeds)
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Max_Speed"]         =  float(speeds.max())
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Min_Speed"]         =  float(speeds.min())
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["FullThrottle_Perc"] = np.sum(dx[throttle_medium>98]) / Total_space * 100
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Braking_Perc"]      = np.sum(dx[brake_medium>98]) / Total_space * 100
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["Cornering_Perc"]    = np.sum(dx[(throttle_medium>=5) & (throttle_medium<=98)]) / Total_space * 100
+                                self._Laps[driver][self._last_lapnumber_found[driver]]["LiftCoast_Perc"]    = np.sum(dx[ (speed_medium>10) & (throttle_medium<5) & (brake_medium < 1) ]) / Total_space * 100
                             
                             else:
-                              #print(driver,"\t",self._last_lapnumber_found[driver])
-                              slice_tel=self.get_slice_between_times(start_time=DT-datetime.timedelta(seconds=Value_int),end_time=DT,update_DB_flag=True,driver=driver)
-                              slice_tel=slice(slice_tel.start-1,slice_tel.stop+1)
-                              speed_bef_int         = np.array(self._CarData[driver]["Speed"][slice_tel])
-                              drs_bef_int           = np.array(self._CarData[driver]["DRS"][slice_tel])
-                              brake_bef_int         = np.array(self._CarData[driver]["Brake"][slice_tel])
-                              throttle_bef_int      = np.array(self._CarData[driver]["Throttle"][slice_tel])
-                              times_bef_int         = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
-                              
-                              times                 = np.copy(times_bef_int)
-                              times=np.insert(times,1,(DT-datetime.timedelta(seconds=Value_int)).timestamp()-self._DT_BASETIME_TIMESTAMP)
-                              times=np.insert(times,len(times)-1,DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
-
-                              speeds    = scipy.interpolate.Akima1DInterpolator(times_bef_int,speed_bef_int)(times)
-                              Throttles = scipy.interpolate.Akima1DInterpolator(times_bef_int,throttle_bef_int)(times) 
-                              Brakes    = scipy.interpolate.Akima1DInterpolator(times_bef_int,brake_bef_int)(times)
-                              Drs       = scipy.interpolate.Akima1DInterpolator(times_bef_int,drs_bef_int)(times)
-                              
-                              Times=[TS-times[1] for TS in times]
-                              #print(Times,"\n")
-                              Times     = Times[1:-1]
-                              speeds    = speeds[1:-1]   
-                              Throttles = Throttles[1:-1] 
-                              Brakes    = Brakes[1:-1]   
-                              Drs       = Drs[1:-1]   
-                              
-                              space = scipy.integrate.cumulative_trapezoid(speeds/3.6,Times,initial=0)  
-                              dx    = np.diff(space)
-                              Total_space = np.sum(dx)
-                              
-                              throttle_medium = np.convolve(Throttles,np.array([0.5, 0.5]), mode='valid')
-                              speed_medium    = np.convolve(speeds,np.array([0.5, 0.5]), mode='valid')
-                              brake_medium    = np.convolve(Brakes,np.array([0.5, 0.5]), mode='valid')
-                              
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Slice"]             = slice_tel
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["DRS"]               = bool(np.any(Drs == 1))
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Avg_Speed"]         = np.mean(speeds)
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Std_Speed"]         =  np.std(speeds)
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Max_Speed"]         =  float(speeds.max())
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Min_Speed"]         =  float(speeds.min())
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["FullThrottle_Perc"] = np.sum(dx[throttle_medium>98]) / Total_space * 100
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Braking_Perc"]      = np.sum(dx[brake_medium>98]) / Total_space * 100
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["Cornering_Perc"]    = np.sum(dx[(throttle_medium>=5) & (throttle_medium<=98)]) / Total_space * 100
-                              self._Laps[driver][self._last_lapnumber_found[driver]+1]["LiftCoast_Perc"]    = np.sum(dx[(speed_medium>10) & (throttle_medium<5) & (brake_medium < 1) ]) / Total_space * 100
-                              
+                              #print(driver,"\t",self._last_lapnumber_found[driver]," ",self._Laps[driver][self._last_lapnumber_found[driver]]["ValueString"])
                               self._Laps[driver][self._last_lapnumber_found[driver]+1]={"DateTime":          DT,
                                                                                         "ValueInt_sec":      Value_int,
                                                                                         "ValueString":       Value,
                                                                                         "TimeStamp":         DT.timestamp()-self._DT_BASETIME_TIMESTAMP,
                                                                                         "Stint":             self._last_stint_found[driver],
+                                                                                        "DRS":               False,
+                                                                                        "Slice":             False,
+                                                                                        "Avg_Speed":          0,
+                                                                                        "Std_Speed":          0,
+                                                                                        "FullThrottle_Perc":  0,
+                                                                                        "Braking_Perc":       0,
+                                                                                        "Cornering_Perc":     0,
+                                                                                        "LiftCoast_Perc":     0,
+                                                                                        "Max_Speed":          0,
+                                                                                        "Min_Speed":          0
                                                                                         #"PitOutLap":         False,
                                                                                         #"PitInLap":          self._PitIn[driver]}
-                                                                                        }    
+                                                                                        }
+                              if Value_int<= 60. * 2.5 and Value_int!=0:
+                                slice_tel=self.get_slice_between_times(start_time=DT-datetime.timedelta(seconds=Value_int),end_time=DT,update_DB_flag=True,driver=driver)
+                                slice_tel=slice(slice_tel.start-1,slice_tel.stop+1)
+                                speed_bef_int         = np.array(self._CarData[driver]["Speed"][slice_tel])
+                                drs_bef_int           = np.array(self._CarData[driver]["DRS"][slice_tel])
+                                brake_bef_int         = np.array(self._CarData[driver]["Brake"][slice_tel])
+                                throttle_bef_int      = np.array(self._CarData[driver]["Throttle"][slice_tel])
+                                times_bef_int         = np.array(self._CarData[driver]["TimeStamp"][slice_tel])
+
+                                times                 = np.copy(times_bef_int)
+                                times=np.insert(times,1,(DT-datetime.timedelta(seconds=Value_int)).timestamp()-self._DT_BASETIME_TIMESTAMP)
+                                times=np.insert(times,len(times)-1,DT.timestamp()-self._DT_BASETIME_TIMESTAMP)
+
+                                speeds    = scipy.interpolate.Akima1DInterpolator(times_bef_int,speed_bef_int)(times)
+                                Throttles = scipy.interpolate.Akima1DInterpolator(times_bef_int,throttle_bef_int)(times) 
+                                Brakes    = scipy.interpolate.Akima1DInterpolator(times_bef_int,brake_bef_int)(times)
+                                Drs       = scipy.interpolate.Akima1DInterpolator(times_bef_int,drs_bef_int)(times)
+
+                                Times=[TS-times[1] for TS in times]
+                                #print(Times,"\n")
+                                Times     = Times[1:-1]
+                                speeds    = speeds[1:-1]   
+                                Throttles = Throttles[1:-1] 
+                                Brakes    = Brakes[1:-1]   
+                                Drs       = Drs[1:-1]   
+
+                                space = scipy.integrate.cumulative_trapezoid(speeds/3.6,Times,initial=0)  
+                                dx    = np.diff(space)
+                                Total_space = np.sum(dx)
+
+                                throttle_medium = np.convolve(Throttles,np.array([0.5, 0.5]), mode='valid')
+                                speed_medium    = np.convolve(speeds,np.array([0.5, 0.5]), mode='valid')
+                                brake_medium    = np.convolve(Brakes,np.array([0.5, 0.5]), mode='valid')
+
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Slice"]             = slice_tel
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["DRS"]               = bool(np.any(Drs == 1))
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Avg_Speed"]         = np.mean(speeds)
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Std_Speed"]         =  np.std(speeds)
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Max_Speed"]         =  float(speeds.max())
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Min_Speed"]         =  float(speeds.min())
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["FullThrottle_Perc"] = np.sum(dx[throttle_medium>98]) / Total_space * 100
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Braking_Perc"]      = np.sum(dx[brake_medium>98]) / Total_space * 100
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["Cornering_Perc"]    = np.sum(dx[(throttle_medium>=5) & (throttle_medium<=98)]) / Total_space * 100
+                                self._Laps[driver][self._last_lapnumber_found[driver]+1]["LiftCoast_Perc"]    = np.sum(dx[(speed_medium>10) & (throttle_medium<5) & (brake_medium < 1) ]) / Total_space * 100
+                                 
                               self._last_lapnumber_found[driver]+=1
                           elif self._last_lapnumber_found[driver]==0:
                             self._last_lapnumber_found[driver]+=1
@@ -788,29 +845,30 @@ class DATABASE:
     if update_DB_flag:
       if driver not in self._last_cardata_index_checked.keys():
         self._last_cardata_index_checked[driver]=0
-      first_index_flag=True
-      for index,Time in zip(range(self._last_cardata_index_checked[driver],len(self._sample_cardata_list)),self._sample_cardata_list[self._last_cardata_index_checked[driver]:]): 
+      first_index_flag_db=True
+      for index,Time in zip(range(self._last_cardata_index_checked[driver],len(self._CarData[driver]["Time"])),self._CarData[driver]["Time"][self._last_cardata_index_checked[driver]:]): 
         #print("\t\t",Time)
-        if first_index_flag and Time.timestamp()>=start_time.timestamp():
-          self._last_racedata_starting_index_found=index
-          first_index_flag=False
+        if first_index_flag_db and Time.timestamp()>=start_time.timestamp():
+          first_index=index
+          first_index_flag_db=False
           #print("\n\n OK \n\n")
         elif Time.timestamp()>=end_time.timestamp():
           break
-      self._last_cardata_index_checked[driver]=index-10    
-      return slice(self._last_racedata_starting_index_found,index)
-    
-    with self._lock:
-      if not update_DB_flag:
-        first_index_flag=True
-        for index,Time in enumerate(self._sample_cardata_list): 
-          if first_index_flag and Time.timestamp()>=start_time.timestamp():
-            self._last_racedata_starting_index_found=index
-            first_index_flag=False
-          elif Time.timestamp()>=end_time.timestamp():
-            return slice(self._last_racedata_starting_index_found,index)
+      self._last_cardata_index_checked[driver]=index-50    
+      return slice(first_index,index)
+    else:
+      with self._lock:
+        if not update_DB_flag:
+          sample_timestamp_driver = self._CarData[driver]["Time"]
+          first_index_flag=True
+          for ind,TIME in enumerate(sample_timestamp_driver): 
+            if first_index_flag and TIME.timestamp()>=start_time.timestamp():
+              self._last_racedata_starting_index_found=ind
+              first_index_flag=False
+            elif TIME.timestamp()>=end_time.timestamp():
+              return slice(self._last_racedata_starting_index_found,ind)
 
-        return slice(self._last_racedata_starting_index_found,index)
+          return slice(self._last_racedata_starting_index_found,ind)
 
   def get_race_messages_before_time(self,sel_time: datetime.datetime):
     """ 
@@ -968,19 +1026,24 @@ class DATABASE:
     for feed in self._feed_list:
       print("Preparing the merge of feed: ", feed, "...",end="")
       F_L=self.feed_list(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION)
-      print("Length of list_of_msgs before adding: ", len(self._list_of_msgs),". Length of feed ",feed,": ",len(F_L))
       if F_L!=-1:
+        print("Length of list_of_msgs before adding: ", len(self._list_of_msgs),". Length of feed ",feed,": ",len(F_L))
         for msg in F_L:
           self._list_of_msgs.append(msg)
           self.update_database(msg_decrypted={msg[2]:msg[1]},feed=msg[0])
         print(" Done!")
+        print("Length of list_of_msgs after adding: ", len(self._list_of_msgs))
+      else:
+        print("Feed: ",feed," returned an error. Skipping it..")
       if feed=="CarData.z":
         self._last_datetime=msg[2]
         print("Last Datetime: ",self._last_datetime)
-      print("Length of list_of_msgs after adding: ", len(self._list_of_msgs))
     print("Sorting the list...",end="")
     self._list_of_msgs.sort(key=lambda x: x[2])
     print(" ended!")
+    print("\n Retrieving driver list..")
+    self.update_drivers_list_from_api(YEAR=YEAR,NAME=NAME,SESSION=SESSION)
+    print("Done!")
     #for ind,content in enumerate(self._list_of_msgs):
     #  if content[0]=="Position.z":
     #    print("First Position.z at index: ",ind," of: ",len(self._list_of_msgs), " with a DT of: ",content[2])
@@ -1080,7 +1143,7 @@ class DATABASE:
     with self._lock:
       return self._meeting_country_name
     
-  def update_drivers_list_from_api(self):
+  def update_drivers_list_from_api(self,YEAR,NAME,SESSION):
     """ 
       Used for live replays. Sometimes the first cardata.z msgs contain wrong drivers inside.
       Example: jeddah 2024 during the race the first msgs contain Sainz (55) instead of Bearman (38).
@@ -1089,31 +1152,36 @@ class DATABASE:
       As of now, it is not used for live since this endpoint stores the final ranking and it is created
       once the session is finished.  
     """
-    with self._lock:
-      base_url="https://api.formula1.com/v1/fom-results/"
-      query_url =self._session_name_api.split(" ")[0]+"?meeting="+str(self._meeting_key)+"&season="+str(self._year)+"&session="
-      session_num="1"
-      for char in self._session_name_api:
-        if char.isdigit():
-          session_num=str(char)
-          break
-      final_url=base_url+query_url+session_num
-      results_request=requests.get(final_url, headers=self._headers)
-      keyDict_parts=[word.capitalize() for word in self._session_name_api.replace("-"," ").split(" ")]
-      keyDict="raceResults"+"".join(keyDict_parts)
-      if results_request.ok:
-        if keyDict in results_request.json().keys():
-          results=results_request.json()[keyDict]["results"]
-          for driver_dict in results:
-            driverTLA=driver_dict["driverTLA"]             # Three char abbreviation
-            teamColourCode=driver_dict["teamColourCode"]   # HEX
-            teamName=driver_dict["teamName"]               # Full name
-            racingNumber=driver_dict["racingNumber"]       # eg 28
-            driverFirstName=driver_dict["driverFirstName"] # Full name
-            driverLastName=driver_dict["driverLastName"]   # Full surname 
-            self._drivers_list_api.append(racingNumber)
-        else:
-          print("Wrong keyDict: ",keyDict," . Components: ",keyDict_parts)
+    _,_,body=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED="DriverList")
+    for driver,info_driver in body.items():
+      print(driver," ",info_driver["FullName"])
+      self._drivers_list_api.append(driver)
+    self._drivers_list_api.sort()
+
+    #  base_url="https://api.formula1.com/v1/fom-results/"
+    #  query_url =self._session_name_api.split(" ")[0]+"?meeting="+str(self._meeting_key)+"&season="+str(self._year)+"&session="
+    #  session_num="1"
+    #  for char in self._session_name_api:
+    #    if char.isdigit():
+    #      session_num=str(char)
+    #      break
+    #  final_url=base_url+query_url+session_num
+    #  results_request=requests.get(final_url, headers=self._headers)
+    #  keyDict_parts=[word.capitalize() for word in self._session_name_api.replace("-"," ").split(" ")]
+    #  keyDict="raceResults"+"".join(keyDict_parts)
+    #  if results_request.ok:
+    #    if keyDict in results_request.json().keys():
+    #      results=results_request.json()[keyDict]["results"]
+    #      for driver_dict in results:
+    #        driverTLA=driver_dict["driverTLA"]             # Three char abbreviation
+    #        teamColourCode=driver_dict["teamColourCode"]   # HEX
+    #        teamName=driver_dict["teamName"]               # Full name
+    #        racingNumber=driver_dict["racingNumber"]       # eg 28
+    #        driverFirstName=driver_dict["driverFirstName"] # Full name
+    #        driverLastName=driver_dict["driverLastName"]   # Full surname 
+    #        self._drivers_list_api.append(racingNumber)
+    #    else:
+    #      print("Wrong keyDict: ",keyDict," . Components: ",keyDict_parts)
       
   def get_drivers_list_from_api(self):
     with self._lock:
@@ -1159,7 +1227,7 @@ class DATABASE:
   
   def get_first_startingSession_DT(self):
     with self._lock:
-      TD=300.
+      TD=0.
       print("Session starting at: ",self._session_start_DT ,"  but returning: ",self._session_start_DT - datetime.timedelta(seconds=TD) )
       return self._session_start_DT - datetime.timedelta(seconds=TD) 
       

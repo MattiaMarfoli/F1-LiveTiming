@@ -162,7 +162,11 @@ class SignalRClient:
       # Assign hub message handler
       hub.client.on('feed', self._on_message) # here it passes msg in this function self._on_message
       #hub.client.on('feed', self._on_print)
-    hub.server.invoke("Subscribe", self.topics)
+    try:
+      hub.server.invoke("Subscribe", self.topics)
+    except Exception as e:
+      print("An error occurred while subscribing to topics:", e)
+      hub.server.invoke("Subscribe", self.topics.remove("LapCount"))
 
     # Start the client
     self.loop = asyncio.get_event_loop()

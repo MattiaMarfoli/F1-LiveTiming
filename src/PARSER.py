@@ -264,6 +264,11 @@ class PARSER:
           body=json.loads(line_noBOM[12:])
           first_DT=arrow.get(body["Utc"]).datetime
           return [feed,first_DT,date]
+        elif feed=="DriverList":
+          line_noBOM=line_noBOM.replace("\ufeff","")
+          date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
+          body=json.loads(line_noBOM[12:])
+          return [feed,date,body]
         else:
           line_noBOM=line_noBOM.replace("\ufeff","")
           date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
@@ -350,7 +355,7 @@ class PARSER:
       """
       jsonStream_txt=self.get_response_content(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED=FEED,TYPE="jsonStream")
       if jsonStream_txt!=-1: 
-        if FEED!="Heartbeat":
+        if FEED!="Heartbeat" and FEED!="DriverList":
           msgs=[]
           for line in jsonStream_txt.splitlines():
             msg=self.OneLineParser(line,FEED)

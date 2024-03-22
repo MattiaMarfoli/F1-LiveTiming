@@ -50,7 +50,8 @@ FEED_LIST=["CarData.z",  # CarData.z needs to be the first
            "TimingDataF1",
            "WeatherData",
            "SessionStatus",
-           "TimingAppData"] 
+           "TimingAppData",
+           "LapCount"] 
 
 ###################################### Live Stream Real Time ####################################
 QUEUE_LENGTH_LS   = 5   # Number of messages in cache before put send them to analyzer

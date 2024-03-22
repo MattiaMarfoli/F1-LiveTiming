@@ -894,5 +894,12 @@
       "Practice_3": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-08_Practice_3/",
       "Qualifying": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-08_Qualifying/",
       "Race": "2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-09_Race/"
+   },
+   "2024_Australian_Grand_Prix": {
+      "Practice_1": "2024/2024-03-24_Australian_Grand_Prix/2024-03-22_Practice_1/",
+      "Practice_2": "2024/2024-03-24_Australian_Grand_Prix/2024-03-22_Practice_2/",
+      "Practice_3": "2024/2024-03-24_Australian_Grand_Prix/2024-03-23_Practice_3/",
+      "Qualifying": "2024/2024-03-24_Australian_Grand_Prix/2024-03-23_Qualifying/",
+      "Race": "2024/2024-03-24_Australian_Grand_Prix/2024-03-24_Race/"
    }
 }
