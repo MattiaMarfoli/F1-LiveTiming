@@ -34,7 +34,7 @@ class DATABASE:
   
   """
   
-  def __init__(self,FEED_LIST: str,logger: logging,logger_file):
+  def __init__(self,FEED_LIST: str,logger: logging,logger_file,live_sim: bool):
     
     # Initializing
     self._parser=PARSER.PARSER()
@@ -48,20 +48,27 @@ class DATABASE:
     # Initializing DateTimes
     self._first_starting_msg_DT = None
     self._first_datetime        = None
-    self._last_datetime         = None
-    self._DT_BASETIME_TIMESTAMP = None
-    self._DT_BASETIME           = None
     self._session_start_DT      = None
+    if live_sim:
+      self._last_datetime         = None
+      self._DT_BASETIME_TIMESTAMP = None
+      self._DT_BASETIME           = None 
+    else:
+      self._last_datetime         = arrow.utcnow().datetime
+      self._DT_BASETIME_TIMESTAMP = 0
+      self._DT_BASETIME           = 0
+    
     
     # Initializing flags
     self._is_first_RD_msg       = False
     self._is_merge_ended        = False
     self._Display_LapTimes      = False
     self._first_message_flag    = False
+    self._LiveSim               = live_sim
    
     # Initializing useful dicts / lists to speed up searches
-    self._last_tyres_fitted     = {}
-    self._list_of_msgs=[]
+    self._last_tyres_fitted                  = {}
+    self._list_of_msgs                       = []
     self._sample_position_list               = [] # exploiting the fact that positions data are given with the same Datetime for every driver
     self._sample_position_list_SC            = []
     self._sample_cardata_list                = [] # exploiting the fact that cardata are given with the same Datetime for every driver
@@ -78,20 +85,29 @@ class DATABASE:
     self._last_position_index_found_SC       = 0
     self._last_racedata_starting_index_found = 0 
     
+    # Initialization of Live Timing
+    self._Best_OverallLap                    = ["",1e6]
+    self._msgs_string                        = ""
+    self._session_status                     = ""
+    self._currentLap                         = ""
+    self._totalLap                           = ""
+    self._time_remaining                     = ""
+    self._DriversInfo                        = {}
+    
     # Drivers list
     self._drivers_list             = None
     self._drivers_list_provisional = set()
     self._drivers_list_api         = []
     
     # Ta-Daa the database..
-    self._CarData={}
-    self._Position={}
-    self._Position_SC={}
-    self._LeaderBoard={}
-    self._Laps={}
-    self._Tyres={}
-    self._Weather={}
-    self._RaceMessages = {}
+    self._CarData        = {}
+    self._Position       = {}
+    self._Position_SC    = {}
+    self._LeaderBoard    = {}
+    self._Laps           = {}
+    self._Tyres          = {}
+    self._Weather        = {}
+    self._RaceMessages   = {}
     
     # Session status. Hard to make it work if a user jumps in in the middle of the session...
     self._last_aborted_is_compatible = False
@@ -309,10 +325,10 @@ class DATABASE:
             self._drivers_list.sort()
         elif feed=="Position.z":
           for DT,P in msg_decrypted.items():
-            if DT.timestamp()-self._DT_BASETIME_TIMESTAMP<0:
+            if DT.timestamp()-self._DT_BASETIME_TIMESTAMP<0 and self._LiveSim:
               print(DT, " in Position.z in update_database is discarded: message sent before the first CarData message!")
             #elif self._last_datetime!=None:
-            elif DT.timestamp()-self._last_datetime.timestamp()>120:
+            elif DT.timestamp()-self._last_datetime.timestamp()>120 and self._LiveSim:
                 print(DT, " in Position.z in update_database is discarded: message sent after the last CarData message!")
             else:
               for DRIVER,P_dict in P.items():
@@ -347,7 +363,7 @@ class DATABASE:
                 #print(DRIVER," ",P_dict["X"],P_dict["Y"],P_dict["Z"])
         elif feed=="TimingDataF1":
           for DT,TDF1 in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>120:
+            if DT.timestamp()-self._last_datetime.timestamp()>120 and self._LiveSim:
               print(DT, " in TimingDataF1 in update_database is discarded: message sent after the last CarData message!")
             else:
               if "Lines" in TDF1.keys():
@@ -585,7 +601,7 @@ class DATABASE:
                     
         elif feed=="TimingAppData":
           for DT,TAD in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>120:
+            if DT.timestamp()-self._last_datetime.timestamp()>120 and self._LiveSim:
               print(DT, " in TimingAppData in update_database is discarded: message sent after the last CarData message!")
             else:
               if "Lines" in TAD.keys():
@@ -630,14 +646,14 @@ class DATABASE:
 
         elif feed=="WeatherData":
           for DT,WeatherDict in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>120:
+            if DT.timestamp()-self._last_datetime.timestamp()>120 and self._LiveSim:
               print(DT, " in WeatherData in update_database is discarded: message sent after the last CarData message!")
             else:
               self._Weather[DT]=WeatherDict    
             
         elif feed=="SessionStatus": # more checks needed
           for DT,Status in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>120:
+            if DT.timestamp()-self._last_datetime.timestamp()>120 and self._LiveSim:
               print(DT, " in SessionStatus in update_database is discarded: message sent after the last CarData message!")
             else:
               if Status["Status"]=="Started": 
@@ -708,7 +724,7 @@ class DATABASE:
        
         elif feed=="RaceControlMessages":
           for DT,Message in msg_decrypted.items():
-            if DT.timestamp()-self._last_datetime.timestamp()>120:
+            if DT.timestamp()-self._last_datetime.timestamp()>120 and self._LiveSim:
               print(DT, " in RaceControlMessages in update_database is discarded: message sent after the last CarData message!")
             else:
               if "Messages" in Message.keys():
@@ -751,7 +767,261 @@ class DATABASE:
         self._logger.exception(err)
         self._logger_file.write("\n")
         self._logger_file.flush()
+  
+  ##########################################################################################################################
+  
+  def initialize_liveFeeds_to_zero(self,driver_list: list):
+    """ 
+      This initializes the dictionaries to initial state
+    """
+    with self._lock:
+        # BestOverallLap
+        self._Best_OverallLap = ["",1e6]
         
+        # SessionStatus
+        self._sessions_status="Inactive"
+        self.session_count_flag                   = True
+        self.session_count                        = 0
+
+        # RaceControlMessages
+        self._msgs_string=""
+        
+        # Driver Infos
+        self._DriversInfo={}
+        for driver in driver_list:
+          self._DriversInfo[driver]={}
+          self._DriversInfo[driver]["InPit"]                   = False
+          self._DriversInfo[driver]["PitOut"]                  = False
+          self._DriversInfo[driver]["Sectors"]                 = {}
+          self._DriversInfo[driver]["BestSectors"]             = {}
+          for sector in ["0","1","2"]:
+            self._DriversInfo[driver]["Sectors"][sector]={"Value":    "-",
+                                                           "Segment":  {}}
+            self._DriversInfo[driver]["BestSectors"][sector]="120.00"
+          self._DriversInfo[driver]["LastLapTime"]             = "-"
+          self._DriversInfo[driver]["LastLapTime_s"]           = 1e6
+          self._DriversInfo[driver]["BestLapTime"]             = "-"
+          self._DriversInfo[driver]["BestLapTime_s"]           = 1e6
+          self._DriversInfo[driver]["Position"]                = "-"
+          self._DriversInfo[driver]["TimeDiffToFastest"]       = "-"
+          self._DriversInfo[driver]["TimeDiffToPositionAhead"] = "-"
+          self._DriversInfo[driver]["Retired"]                 = False
+          self._DriversInfo[driver]["Compound"]                = "unknown"
+          self._DriversInfo[driver]["New"]                     = "-"    
+          self._DriversInfo[driver]["Stint"]                   = 0
+          self._DriversInfo[driver]["TotalLaps"]               = 0
+          self._DriversInfo[driver]["StartLaps"]               = 0
+          self._DriversInfo[driver]["I1"]                      = "-"
+          self._DriversInfo[driver]["I2"]                      = "-"
+          self._DriversInfo[driver]["FL"]                      = "-"
+          self._DriversInfo[driver]["ST"]                      = "-"
+
+  
+  def initialize_liveFeeds_to_currentSituation(self,feed: str,value: dict):
+    """
+      Live Only! This takes the "R" message from the signalr connection and initializes the infos to the current situation
+    """
+    with self._lock:
+      try:
+        if feed=="RaceControlMessages":
+          if "Messages" in value.keys():
+            if type(value["Messages"])==list:
+              for nrMsg,Msg in enumerate(value["Messages"]):
+                if "Flag" in Msg.keys():
+                  category=Msg["Category"]+"_"+Msg["Flag"]
+                else:
+                  category=Msg["Category"]
+                self._msgs_string += str(nrMsg) + " - " + Msg["Utc"] + " - " + category.split("_")[-1] + " : " + Msg["Message"] +" \n\n"
+              #print("MSGS: ",self._msgs_string)
+        elif feed=="TimingDataF1":
+          if "Lines" in value.keys():
+            for driver,info_driver in value["Lines"].items():
+              if driver not in self._DriversInfo.keys():
+                self._DriversInfo[driver]={}
+
+              if "InPit" in info_driver.keys():
+                self._DriversInfo[driver]["InPit"]                   = info_driver["InPit"]
+              if "PitOut" in info_driver.keys():
+                self._DriversInfo[driver]["PitOut"]                  = info_driver["PitOut"]
+
+              if "Sectors" in info_driver.keys():
+                if type(info_driver["Sectors"])==list:
+                  self._DriversInfo[driver]["Sectors"]                 = {}
+                  self._DriversInfo[driver]["BestSectors"]             = {}
+                  for sector in ["0","1","2"]:
+                    if int(sector)<len(info_driver["Sectors"]):
+                      self._DriversInfo[driver]["Sectors"][sector]={"Value":    info_driver["Sectors"][int(sector)]["Value"],
+                                                                    "Segment":  {}}
+                      if "Segments" in info_driver["Sectors"][int(sector)].keys():
+                        if type(info_driver["Sectors"][int(sector)]["Segments"])==list:
+                          for segment,status in enumerate(info_driver["Sectors"][int(sector)]["Segments"]):
+                            self._DriversInfo[driver]["Sectors"][str(sector)]["Segment"][str(segment)]=str(status["Status"]) # for now not decrypted
+
+                      self._DriversInfo[driver]["BestSectors"][sector]=info_driver["Sectors"][int(sector)]["Value"]
+                    else:
+                      self._DriversInfo[driver]["Sectors"][sector]={"Value":    "-",
+                                                                    "Segment":  {}}
+                      self._DriversInfo[driver]["BestSectors"][sector]="120.00"
+
+              if "LastLapTime" in info_driver.keys():
+                if "Value" in info_driver["LastLapTime"].keys():
+                  self._DriversInfo[driver]["LastLapTime"]             = info_driver["LastLapTime"]["Value"]
+                  Value_int=1e6
+                  if info_driver["LastLapTime"]["Value"]!="":
+                    mins,secs=info_driver["LastLapTime"]["Value"].split(":")
+                    Value_int=round(int(mins)*60. + float(secs),3) # s
+                  self._DriversInfo[driver]["LastLapTime_s"]           = Value_int
+
+              if "BestLapTime" in info_driver.keys():
+                if "Value" in info_driver["BestLapTime"].keys():
+                  self._DriversInfo[driver]["BestLapTime"]             = info_driver["BestLapTime"]["Value"]
+                  Value_int_best=1e6
+                  if info_driver["BestLapTime"]["Value"]!="":
+                    mins,secs=info_driver["BestLapTime"]["Value"].split(":")
+                    Value_int_best=round(int(mins)*60. + float(secs),3) # s
+                    if Value_int<self._Best_OverallLap[1]:
+                      self._Best_OverallLap = [driver,Value_int]
+                  self._DriversInfo[driver]["BestLapTime_s"]           = Value_int_best
+
+              if "Position" in info_driver.keys():
+                self._DriversInfo[driver]["Position"]                = info_driver["Position"]
+
+              if "TimeDiffToFastest" in info_driver.keys():
+                self._DriversInfo[driver]["TimeDiffToFastest"]       = info_driver["TimeDiffToFastest"]
+              elif "GapToLeader" in info_driver.keys():
+                self._DriversInfo[driver]["TimeDiffToFastest"]       = info_driver["GapToLeader"]
+
+              if "TimeDiffToPositionAhead" in info_driver.keys():
+                if type(info_driver["TimeDiffToPositionAhead"])==dict:
+                  if "Value" in info_driver["TimeDiffToPositionAhead"].keys():
+                    self._DriversInfo[driver]["TimeDiffToPositionAhead"]=str(info_driver["TimeDiffToPositionAhead"]["Value"])
+                else:
+                  self._DriversInfo[driver]["TimeDiffToPositionAhead"]=info_driver["TimeDiffToPositionAhead"]
+              elif "IntervalToPositionAhead" in info_driver.keys():
+                if type(info_driver["IntervalToPositionAhead"])==dict:
+                  if "Value" in info_driver["IntervalToPositionAhead"].keys():
+                    self._DriversInfo[driver]["TimeDiffToPositionAhead"]=str(info_driver["IntervalToPositionAhead"]["Value"])
+                else:
+                  self._DriversInfo[driver]["TimeDiffToPositionAhead"] = info_driver["IntervalToPositionAhead"]
+
+              if "Retired" in info_driver.keys():
+                self._DriversInfo[driver]["Retired"]                 = info_driver["Retired"]
+
+              if "Speeds" in info_driver.keys():
+                if "I1" in info_driver["Speeds"].keys():
+                  if "Value" in info_driver["Speeds"]["I1"].keys():
+                    self._DriversInfo[driver]["I1"]                      = info_driver["Speeds"]["I1"]["Value"]
+                if "I2" in info_driver["Speeds"].keys():
+                  if "Value" in info_driver["Speeds"]["I2"].keys():
+                    self._DriversInfo[driver]["I2"]                      = info_driver["Speeds"]["I2"]["Value"]
+                if "FL" in info_driver["Speeds"].keys():
+                  if "Value" in info_driver["Speeds"]["FL"].keys():
+                    self._DriversInfo[driver]["FL"]                      = info_driver["Speeds"]["FL"]["Value"]
+                if "ST" in info_driver["Speeds"].keys():
+                  if "Value" in info_driver["Speeds"]["ST"].keys():
+                    self._DriversInfo[driver]["ST"]                      = info_driver["Speeds"]["ST"]["Value"]
+
+        elif feed=="WeatherData":
+          for k,v in value.items():
+            if k!="_kf":
+              self._Weather[k]=v
+
+        elif feed=="SessionStatus":
+          self._session_status = value["Status"]
+
+        elif feed=="TimingAppData":
+          if "Lines" in value.keys():
+            for driver,info_driver in value["Lines"].items():
+              if driver not in self._DriversInfo.keys():
+                self._DriversInfo[driver]={}
+              if driver not in self._Tyres.keys():
+                self._Tyres[driver]={}
+
+              if "Stints" in info_driver.keys():
+                if type(info_driver["Stints"])==list:
+                  for nstint,info_stint in enumerate(info_driver["Stints"]):
+                    if str(nstint) not in self._Tyres[driver].keys():
+                      self._Tyres[driver][str(nstint)]={}
+
+                    self._DriversInfo["Stint"]                             = nstint
+
+                    if "Compound" in info_stint.keys():
+                      self._DriversInfo[driver]["Compound"]                = info_stint["Compound"]
+                      self._Tyres[driver][str(nstint)]["Compound"]         = info_stint["Compound"]
+
+                    if "New" in info_stint.keys():
+                      self._DriversInfo[driver]["New"]                     = info_stint["New"]
+                      self._Tyres[driver][str(nstint)]["New"]              = info_stint["New"]
+
+                    if "StartLaps" in info_stint.keys():
+                      self._DriversInfo[driver]["StartLaps"]               = info_stint["StartLaps"]
+                      self._Tyres[driver][str(nstint)]["CompoundAge"]      = info_stint["StartLaps"]
+                    else:
+                      self._Tyres[driver][str(nstint)]["CompoundAge"]      = 0
+
+                    if "TotalLaps" in info_stint.keys():
+                      self._DriversInfo[driver]["TotalLaps"]               = info_stint["TotalLaps"]
+                      self._Tyres[driver][str(nstint)]["TotalLaps"]        = info_stint["TotalLaps"] - self._Tyres[driver][str(nstint)]["CompoundAge"]      
+
+                    if str(nstint)=="0":
+                      self._Tyres[driver][str(nstint)]["StartingLap"]      = 2
+                    else:     
+                      self._Tyres[driver][str(nstint)]["StartingLap"]      = self._Tyres[driver][str(nstint-1)]["EndingLap"]+1
+
+                    self._Tyres[driver][str(nstint)]["EndingLap"]          = self._Tyres[driver][str(nstint)]["StartingLap"]+info_stint["TotalLaps"]-1-self._Tyres[driver][str(nstint)]["CompoundAge"]
+
+        elif feed=="LapCount":
+          self._currentLap = value["CurrentLap"]
+          self._totalLap   = value["TotalLaps"]
+
+
+        elif feed=="SessionInfo":
+          # dunno if this is useful for now since there is the api method to understand the session
+          pass
+        
+        elif feed=="ExtrapolatedClock":
+          # it gives time remaining with keys "Remaining" and the current utc time with "Utc" (they also say if it is extrapolated with "Extrapolatin": bool) 
+          self._time_remaining = value["Remaining"]
+          print("Remaining: ",value["Remaining"], " at utc:",value["Utc"]," . Extrapolated: ",value["Extrapolating"])
+      except Exception as err:
+        self._logger.exception(err)
+        self._logger_file.write("\n")
+        self._logger_file.flush()
+          
+      #else:
+      #  # reamining not useful for now but it is possibile to investigate
+      #  pass
+
+  def get_DriversInfo(self):
+    with self._lock:
+      return self._DriversInfo
+  
+  def get_RaceControlMessages(self):
+    with self._lock:
+      return self._msgs_string
+    
+  def get_WeatherData(self):
+    with self._lock:
+      return self._Weather
+  
+  def get_SessionStatus(self):
+    with self._lock:
+      return self._session_status
+  
+  def get_LapCount(self):
+    with self._lock:
+      return self._currentLap,self._totalLap
+    
+  def get_ExtrapolatedClock(self):
+    with self._lock:
+      return self._time_remaining
+
+  def get_BestOverallLap(self):
+    with self._lock:
+      return self._Best_OverallLap
+
+####################################################################################################################################
+  
   def get_number_of_restarts(self):
     """ 
       Dunno if this works. Use it with caution.
@@ -1024,20 +1294,21 @@ class DATABASE:
     #self._parser._DT_BASETIME=self.find_DT_BASETIME(YEAR=YEAR,NAME=NAME,SESSION=SESSION)
     print("Starting the merge..")
     for feed in self._feed_list:
-      print("Preparing the merge of feed: ", feed, "...",end="")
-      F_L=self.feed_list(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION)
-      if F_L!=-1:
-        print("Length of list_of_msgs before adding: ", len(self._list_of_msgs),". Length of feed ",feed,": ",len(F_L))
-        for msg in F_L:
-          self._list_of_msgs.append(msg)
-          self.update_database(msg_decrypted={msg[2]:msg[1]},feed=msg[0])
-        print(" Done!")
-        print("Length of list_of_msgs after adding: ", len(self._list_of_msgs))
-      else:
-        print("Feed: ",feed," returned an error. Skipping it..")
-      if feed=="CarData.z":
-        self._last_datetime=msg[2]
-        print("Last Datetime: ",self._last_datetime)
+      if feed!="DriverList":
+        print("Preparing the merge of feed: ", feed, "...",end="")
+        F_L=self.feed_list(feed=feed,YEAR=YEAR,NAME=NAME,SESSION=SESSION)
+        if F_L!=-1:
+          print("Length of list_of_msgs before adding: ", len(self._list_of_msgs),". Length of feed ",feed,": ",len(F_L))
+          for msg in F_L:
+            self._list_of_msgs.append(msg)
+            self.update_database(msg_decrypted={msg[2]:msg[1]},feed=msg[0])
+          print(" Done!")
+          print("Length of list_of_msgs after adding: ", len(self._list_of_msgs))
+        else:
+          print("Feed: ",feed," returned an error. Skipping it..")
+        if feed=="CarData.z":
+          self._last_datetime=msg[2]
+          print("Last Datetime: ",self._last_datetime)
     print("Sorting the list...",end="")
     self._list_of_msgs.sort(key=lambda x: x[2])
     print(" ended!")
@@ -1152,7 +1423,7 @@ class DATABASE:
       As of now, it is not used for live since this endpoint stores the final ranking and it is created
       once the session is finished.  
     """
-    _,_,body=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED="DriverList")
+    _,body,_=self._parser.jsonStream_parser(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED="DriverList")
     for driver,info_driver in body.items():
       print(driver," ",info_driver["FullName"])
       self._drivers_list_api.append(driver)

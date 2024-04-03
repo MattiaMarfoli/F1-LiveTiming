@@ -211,7 +211,7 @@ class PARSER:
           return body_exp
         else:
           DT=arrow.get(date).datetime
-          body_exp=line
+          body_exp=json.loads(line) # Why it was just line??? Control if it works now, otherwise revert it!!! TODO
           return [feed,body_exp,DT]    
       except Exception as err:
         _config.WRITE_EXCEPTION(err)
@@ -268,7 +268,7 @@ class PARSER:
           line_noBOM=line_noBOM.replace("\ufeff","")
           date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
           body=json.loads(line_noBOM[12:])
-          return [feed,date,body]
+          return [feed,body,date]
         else:
           line_noBOM=line_noBOM.replace("\ufeff","")
           date=datetime.datetime.strptime(line_noBOM[:12],"%H:%M:%S.%f")
@@ -354,9 +354,9 @@ class PARSER:
                 returns -1
       """
       jsonStream_txt=self.get_response_content(YEAR=YEAR,NAME=NAME,SESSION=SESSION,FEED=FEED,TYPE="jsonStream")
+      msgs=[]
       if jsonStream_txt!=-1: 
-        if FEED!="Heartbeat" and FEED!="DriverList":
-          msgs=[]
+        if FEED not in ["Heartbeat","DriverList"]:
           for line in jsonStream_txt.splitlines():
             msg=self.OneLineParser(line,FEED)
             if len(msg)>0:
@@ -366,9 +366,14 @@ class PARSER:
               else:
                 msgs.append(msg)
           return msgs
-        else:
+        elif FEED=="DriverList":
           line=jsonStream_txt.splitlines()[0]
-          return self.OneLineParser(line,FEED)
+          msgs.append(self.OneLineParser(line,FEED))
+          return msgs[0]         # Here it is needed in drivers_list_from_api !!!!!!
+        elif FEED=="Heartbeat":
+          line=jsonStream_txt.splitlines()[0]
+          msgs.append(self.OneLineParser(line,FEED))
+          return []        # !!!!!! FOR NOW HEARTBEAT SUPPRESSED FROM LIVESIM !!!!!!!
       else:
          return -1
     

@@ -20,3 +20,5 @@ log/*
 src/__pycache__/
 config/__pycache__/
 *.zip
+node_modules/
+package*

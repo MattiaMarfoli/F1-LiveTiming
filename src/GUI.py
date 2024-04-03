@@ -134,6 +134,9 @@ class GUI:
     self._meetingCountry_name                 = ""
     self.session_count_flag                   = True
     self.session_count                        = 0
+    self._time_remaining_str                  = None
+    self._time_remaining_int                  = None
+    self._start_countdown                     = False
     self._CurrentLap                          = "0"
     self._TotalLaps                           = "-"
     self._finish_status={
@@ -398,6 +401,8 @@ class GUI:
             self.update_variables_SessionStatus(msg)
           elif feed=="LapCount":
             self.update_variables_LapCount(msg)
+          elif feed=="ExtrapolatedClock":
+            self.update_variables_ExtrapolatedClock(msg)
         else:
           break
         
@@ -465,6 +470,8 @@ class GUI:
             self.update_variables_SessionStatus(msg)
           elif feed=="LapCount":
             self.update_variables_LapCount(msg)
+          elif feed=="ExtrapolatedClock":
+            self.update_variables_ExtrapolatedClock(msg)
         else:
           break
         
@@ -657,9 +664,19 @@ class GUI:
           # track of latest id of the annotations in telemetry
           if team==self._DRIVERS_INFO[driver]["team"]:
             self._drivers_watchlist_telemetry.append(driver)
-      for nr,driver in zip(range(len(self._drivers_list)),self._drivers_watchlist_telemetry):
-        self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
-        
+      nr=0
+      for i,driver in zip(range(len(self._drivers_list)),self._drivers_watchlist_telemetry):
+        if nr%2==0:  
+          self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
+          nr+=1
+        elif nr%2==1 and self._DRIVERS_INFO[self._drivers_watchlist_telemetry[nr-1]]["team"]==self._DRIVERS_INFO[driver]["team"]:
+          self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
+          nr+=1
+        elif nr%2==1 and self._DRIVERS_INFO[self._drivers_watchlist_telemetry[nr-1]]["team"]!=self._DRIVERS_INFO[driver]["team"]:
+          nr+=1
+          self.add_driver_tel_plot(number=nr,parent="Telemetry_view",driver=driver)
+          nr+=1
+
 
           
       
@@ -823,13 +840,12 @@ class GUI:
       self.iteration(time_start = self._previous_message_displayed_UTC, \
                      time_end   = self._last_message_displayed_UTC)
       
-      if self.session_status=="Green Flag" or ("Practice" in self._session_name and self.session_status=="Red Flag"):
-        time_remaining_in_session = self._time_session_duration - \
-                                    self._stints_done - \
-                                    (self._last_message_displayed_UTC.timestamp() - self._time_UTC_at_session_start.timestamp())
+      if self._start_countdown:
+        time_remaining_in_session = max(self._time_remaining_int - (self._last_message_displayed_UTC.timestamp() - self._time_UTC_at_session_start.timestamp()) , \
+                                        0)
         time_remaining_in_session_str = str(datetime.timedelta(seconds=int(time_remaining_in_session))) 
-        if time_remaining_in_session_str[0]=="0":
-          time_remaining_in_session_str=":".join(time_remaining_in_session_str.split(":")[1:])
+        if len(time_remaining_in_session_str.split(":"))==2:
+          time_remaining_in_session_str="00:"+time_remaining_in_session_str
         dpg.set_value(item="time_status",value="     "+time_remaining_in_session_str)
       
       #print(self._previous_message_displayed_UTC," ",self._last_message_displayed_UTC)
@@ -912,6 +928,9 @@ class GUI:
     elif feed=="LapCount":
       self.update_variables_LapCount(msg)  
       
+    elif feed=="ExtrapolatedClock":
+      self.update_variables_ExtrapolatedClock(msg)
+      
     else:
       return None
   
@@ -966,35 +985,7 @@ class GUI:
     self._CarData[driver]["RPM"]       = collections.deque([],maxlen=self._MAX_LEN_DEQUES)
     self._CarData[driver]["DRS"]       = collections.deque([],maxlen=self._MAX_LEN_DEQUES)
     self._CarData[driver]["Gear"]      = collections.deque([],maxlen=self._MAX_LEN_DEQUES)
-    
-    # DriverInfos
-    self._driver_infos[driver]={}
-    self._driver_infos[driver]["InPit"]                   = False
-    self._driver_infos[driver]["PitOut"]                  = False
-    self._driver_infos[driver]["Sectors"]                 = {}
-    self._driver_infos[driver]["BestSectors"]             = {}
-    for sector in ["0","1","2"]:
-      self._driver_infos[driver]["Sectors"][sector]={"Value":    "-",
-                                                     "Segment":  {}}
-      self._driver_infos[driver]["BestSectors"][sector]="120.00"
-    self._driver_infos[driver]["LastLapTime"]             = "-"
-    self._driver_infos[driver]["LastLapTime_s"]           = 1e6
-    self._driver_infos[driver]["BestLapTime"]             = "-"
-    self._driver_infos[driver]["BestLapTime_s"]           = 1e6
-    self._driver_infos[driver]["Position"]                = "-"
-    self._driver_infos[driver]["TimeDiffToFastest"]       = "-"
-    self._driver_infos[driver]["TimeDiffToPositionAhead"] = "-"
-    self._driver_infos[driver]["Retired"]                 = False
-    self._driver_infos[driver]["Compound"]                = "unknown"
-    self._driver_infos[driver]["New"]                     = "-"    
-    self._driver_infos[driver]["Stint"]                   = 0
-    self._driver_infos[driver]["TotalLaps"]               = 0
-    self._driver_infos[driver]["StartLaps"]               = 0
-    self._driver_infos[driver]["I1"]                      = "-"
-    self._driver_infos[driver]["I2"]                      = "-"
-    self._driver_infos[driver]["FL"]                      = "-"
-    self._driver_infos[driver]["ST"]                      = "-"
-    
+        
     # TimingView
     if driver not in self._DriverInTimingView:
       self.AddDriverToTimingView(driver)
@@ -1014,18 +1005,82 @@ class GUI:
     self._MAX_LEN_DEQUES = int(self._FREQUENCY_TELEMETRY_UPDATE * self._AVG_LAP_LENGTH * (self._LAPS_TO_DISPLAY+0.25))
     self._CarData={}
     self._driver_infos={}
-    for driver in self._drivers_list:
-      self.AddDriverToTracker(driver)
-      
-    self._Best_OverallLap = ["",1e6]
-    # SessionStatus
-    self._sessions_status="Inactive"
     
+    # Temporarely. Need to understand how i can modify it for live timing
     self.session_count_flag                   = True
     self.session_count                        = 0
     
-    # RaceControlMessages
-    self._msgs_string=""
+    for driver in self._drivers_list:
+      self.AddDriverToTracker(driver)
+    
+    if self._LIVE_SIM: 
+      self._database.initialize_liveFeeds_to_zero(driver_list=self._drivers_list)
+      self._driver_infos                = self._database.get_DriversInfo()
+      self._Best_OverallLap             = self._database.get_BestOverallLap()
+      self._msgs_string                 = self._database.get_RaceControlMessages()
+    else:
+      # already initialized in the LS package
+      # here i need to retrieve all the infos 
+      # here i need to make a refresh for all the infos which need to be displayed
+      self._driver_infos                = self._database.get_DriversInfo()
+      self._Best_OverallLap             = self._database.get_BestOverallLap()
+      self._time_remaining              = self._database.get_ExtrapolatedClock()    #
+      self._msgs_string                 = self._database.get_RaceControlMessages()
+      self._CurrentLap,self._TotalLaps  = self._database.get_LapCount()
+      self.session_status               = self._database.get_SessionStatus()        # 
+      #self._database.get_WeatherData()
+        
+    self.refreshDisplay()    
+    
+    
+  def refreshDisplay(self):
+    for driver in self._drivers_list:
+    # DriverInfos
+      # Sectors
+      for nsector,info_sector in self._driver_infos[driver]["Sectors"].items():
+        dpg.set_value(driver+"Bestsector"+str(int(nsector)+1),info_sector["Value"])
+        dpg.set_value(item=driver+"sector"+str(int(nsector)+1),value=info_sector["Value"])
+
+        # Segments
+        for segment,info_segment in self._driver_infos[driver]["Sectors"][str(nsector)]["Segment"].items():
+          if info_segment.isdigit():
+            status=self._segments[str(info_segment)]
+          else:
+            status=info_segment
+          if not dpg.does_item_exist(driver+"segments"+str(1+int(nsector))+"musec"+str(segment)):
+            dpg.add_button(label="",tag=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),parent=driver+"segments"+str(1+int(nsector))+"musec")
+          dpg.bind_item_theme(item=driver+"segments"+str(1+int(nsector))+"musec"+str(segment),theme=status)
+      
+      # LapTimes
+      dpg.set_value(item=driver+"LastLapTime",value=self._driver_infos[driver]["LastLapTime"])
+      dpg.set_value(item=driver+"BestLapTime",value=self._driver_infos[driver]["BestLapTime"])
+      
+      # Position
+      dpg.set_value(item=driver+"Position",value=self._driver_infos[driver]["Position"])
+
+      # Gap/Interval
+      dpg.set_value(item=driver+"gap",value=self._driver_infos[driver]["TimeDiffToFastest"])
+      dpg.set_value(item=driver+"int",value=str(self._driver_infos[driver]["TimeDiffToPositionAhead"]))
+
+      # Speed Traps
+      for speedPoint in ["I1","I2","ST","FL"]:
+        dpg.set_value(driver+speedPoint,self._driver_infos[driver][speedPoint])
+    
+    # Tyres
+      dpg.set_value(driver+"tyre",self.Tyres_Texture[self._driver_infos[driver]["Compound"].capitalize()])
+      dpg.set_value(item=driver+"_agetyreFitted",value="Tyre Age: "+str(int(self._driver_infos[driver]["StartLaps"])+int(self._driver_infos[driver]["TotalLaps"])))
+
+    
+    # Session Status
+    self.update_variables_SessionStatus(msg={"Status":self.session_status})
+    
+    # Race Messages
+    dpg.set_value(item="race_msgs",value=self._msgs_string)
+    dpg.set_y_scroll(item="Race_Messages",value=dpg.get_y_scroll_max(item="Race_Messages"))
+  
+    # Lap Count   for now nothing since i have to distinguish between race and non-race
+    #dpg.set_value(item="lap_status",value="Lap: "+str(self._CurrentLap)+"/"+str(self._TotalLaps))
+
   
   #####################################################################################
   
@@ -1035,21 +1090,25 @@ class GUI:
       The -5 is VITAL otherwise it detects the final index as max/min at each call.
       Cons: lags a bit in displaying maxima/minima (those 5 indices)
     """
+    #if maximum:
+    #  arrExtrema=scipy.signal.argrelextrema(arr, np.greater_equal,order=3)[0]
+    #else:
+    #  arrExtrema=scipy.signal.argrelextrema(arr, np.less_equal,order=3)[0]
+    ## otherwise the last value will always be an extrema and with multiple iteration is gonna write all values lol
+    #arrExtrema_New=np.array([i for i in arrExtrema if i<len(arr)-5]) 
+    #if len(arrExtrema_New)>0:
+    #  diff = np.diff(arrExtrema_New, prepend=arrExtrema_New[0])
+    #  #diff = np.pad(diff, (0, 1), constant_values=False)  # Pad with False at the end
+    #  mask = diff != 1
+    #  indices = arrExtrema_New[mask]
+    #else:
+    #  indices=np.array([])
+    
     if maximum:
-      arrExtrema=scipy.signal.argrelextrema(arr, np.greater_equal,order=3)[0]
+      return scipy.signal.find_peaks(arr,height=1,distance=10,prominence=2)[0]
     else:
-      arrExtrema=scipy.signal.argrelextrema(arr, np.less_equal,order=3)[0]
-    # otherwise the last value will always be an extrema and with multiple iteration is gonna write all values lol
-    arrExtrema_New=np.array([i for i in arrExtrema if i<len(arr)-5]) 
-    if len(arrExtrema_New)>0:
-      diff = np.diff(arrExtrema_New, prepend=arrExtrema_New[0])
-      #diff = np.pad(diff, (0, 1), constant_values=False)  # Pad with False at the end
-      mask = diff != 1
-      indices = arrExtrema_New[mask]
-    else:
-      indices=np.array([])
-    return indices
-  
+      return scipy.signal.find_peaks(-arr,prominence=2,distance=1)[0]
+    
   #####       CarData.z     #####
   def update_variables_CarData(self,T,msg):
     """
@@ -1092,7 +1151,8 @@ class GUI:
       self._CarData[driver]["DRS"].append(1 if channels["Channels"]["45"] in [10,12,14] else 0)
       #print(channels["Channels"]["45"])
       drs= "On" if channels["Channels"]["45"] in [10,12,14] else "Off"
-      dpg.set_value(item=driver+"_drs",value="Drs: "+drs)
+      if dpg.does_item_exist(driver+"_drs"):
+        dpg.set_value(item=driver+"_drs",value="Drs: "+drs)
       #print(driver, " ",T.timestamp()-self._first_message_UTC.timestamp()," ",channels["Channels"]["2"])
     
     
@@ -1170,15 +1230,16 @@ class GUI:
           dpg.delete_item(item=item)
         
         # Updating telemetry
-        dpg.set_value(item=driver+"s", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Speed"])])
-        dpg.set_value(item=driver+"t", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Throttle"])])
-        dpg.set_value(item=driver+"b", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Brake"])])
+        if dpg.does_item_exist(driver+"s"):
+          dpg.set_value(item=driver+"s", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Speed"])])
+          dpg.set_value(item=driver+"t", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Throttle"])])
+          dpg.set_value(item=driver+"b", value=[list(self._CarData[driver]["TimeStamp"]),list(self._CarData[driver]["Brake"])])
 
-        # Updating axis
-        dpg.set_axis_limits("x_axis_BRAKE"+driver, minx, maxx)
-        dpg.set_axis_ticks(axis="x_axis_BRAKE"+driver,label_pairs=x_label)
-        dpg.set_axis_ticks(axis="x_axis_THROTTLE"+driver,label_pairs=x_label)
-        dpg.set_axis_ticks(axis="x_axis_SPEED"+driver,label_pairs=x_label)
+          # Updating axis
+          dpg.set_axis_limits("x_axis_BRAKE"+driver, minx, maxx)
+          dpg.set_axis_ticks(axis="x_axis_BRAKE"+driver,label_pairs=x_label)
+          dpg.set_axis_ticks(axis="x_axis_THROTTLE"+driver,label_pairs=x_label)
+          dpg.set_axis_ticks(axis="x_axis_SPEED"+driver,label_pairs=x_label)
           
   
   def update_database_CarData(self,feed,T,msg):
@@ -1417,24 +1478,15 @@ class GUI:
     elif msg["Status"]=="Started":
       self.session_status="Green Flag"
       dpg.configure_item("status_flag",texture_tag="green_flag")
-      if "Practice" not in self._session_name:
-        self._time_UTC_at_session_start = self._last_message_displayed_UTC
-      elif self.session_count==0:
-        self._time_UTC_at_session_start = self._database.get_first_startingSession_DT()
       if self.session_count_flag:
         self.session_count+=1 
         if self._session_name.lower() not in ["race","sprint"]:
           dpg.set_value(item="lap_status",value="Session: "+self._finish_status[self._session_name][self.session_count]) 
-        self._time_session_duration = self._sessions_duration[self._detected_year][self._finish_status[self._session_name][self.session_count]]
-        self._stints_done = 0
         self.session_count_flag=False
     
     elif msg["Status"]=="Aborted":
       self.session_status="Red Flag"
-      if "Practice" not in self._session_name:
-        self._stints_done+=(self._last_message_displayed_UTC.timestamp()-self._time_UTC_at_session_start.timestamp())
-      #dpg.configure_item("status_flag",texture_tag="red_flag")
-    
+      
     elif msg["Status"]=="Finished":
       self.session_status="Chequered Flag"
       dpg.configure_item("status_flag",texture_tag="white_flag")
@@ -1532,7 +1584,7 @@ class GUI:
             if "Stints" in info_driver.keys():
               if type(info_driver["Stints"])==dict:
                 for stint,info_stint in info_driver["Stints"].items():
-                  self._driver_infos[driver]["Stint"]=stint
+                  self._driver_infos[driver]["Stint"]=int(stint)
                   if "Compound" in info_stint.keys():
                     self._driver_infos[driver]["Compound"]=info_stint["Compound"]
                   if "New" in info_stint.keys():
@@ -1562,7 +1614,26 @@ class GUI:
     dpg.set_value(item="lap_status",value="Lap: "+str(self._CurrentLap)+"/"+str(self._TotalLaps))
     #print("Lap: "+str(self._CurrentLap)+"/"+str(self._TotalLaps))
   
-  
+  def update_variables_ExtrapolatedClock(self,msg):
+    #if "Practice" not in self._session_name:
+    #    self._time_UTC_at_session_start = self._last_message_displayed_UTC
+    #  elif self.session_count==0:
+    #    self._time_UTC_at_session_start = self._database.get_first_startingSession_DT()
+    #  if self.session_count_flag:
+    #    self.session_count+=1 
+    #    if self._session_name.lower() not in ["race","sprint"]:
+    #      dpg.set_value(item="lap_status",value="Session: "+self._finish_status[self._session_name][self.session_count]) 
+    #    self._time_session_duration = self._sessions_duration[self._detected_year][self._finish_status[self._session_name][self.session_count]]
+    #    self._stints_done = 0
+    #    self.session_count_flag=False
+    if "Remaining" in msg.keys():
+      self._time_remaining_str        = msg["Remaining"]
+      self._time_remaining_int        = int(msg["Remaining"].split(":")[0])*3600 + int(msg["Remaining"].split(":")[1])*60 + int(msg["Remaining"].split(":")[2])
+      self._time_UTC_at_session_start = self._last_message_displayed_UTC
+      dpg.set_value(item="time_status",value="     "+self._time_remaining_str)
+    if "Extrapolating" in msg.keys():
+      self._start_countdown    = msg["Extrapolating"] 
+      dpg.set_value(item="time_status",value="     "+self._time_remaining_str)
   #####################################################################################
   
   def update_displayer_FWBW(self,T,feed,msg):
@@ -1831,6 +1902,8 @@ class GUI:
       with dpg.group(label="clear_buttons",tag="clear_buttons",horizontal=True):
         dpg.add_button(label="Clear Annotations",tag="clear_ann",callback=self._clear_annotations)
         dpg.add_button(label="Clear Plot",tag="clear_plot",callback=self._clear_plot)
+        dpg.add_button(label="Add Annotations",tag="add_ann",callback=self._add_annotations)
+        dpg.add_input_float(label="Set dx",tag="dx_annotations",default_value=0.05,min_value=0.001,max_value=0.1)
         dpg.add_checkbox(label="Adjust Speed Limits",tag="Adjust Speed Limits",callback=self._set_yspeed_limits)
         
       for i in range(self._n_drivers):
@@ -1843,7 +1916,7 @@ class GUI:
           #dpg.add_combo(items=list(self._drivers_list),tag="DRV-2-LapTimes",width=150,default_value=None)
       
       with dpg.plot(label="CompareSpeed",tag="CompareSpeed",width=width,height=height,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        dpg.add_plot_legend(location=dpg.mvPlot_Location_SouthWest)
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_SPEED_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Speed [km/h]", tag="y_axis_SPEED_Compare")
         dpg.set_axis_limits("y_axis_SPEED_Compare", -2, 380)
@@ -1855,7 +1928,7 @@ class GUI:
         
         
       with dpg.plot(label="CompareThrottle",width=width,height=height/3.,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        #dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_THROTTLE_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Throttle [%]", tag="y_axis_THROTTLE_Compare")
         dpg.set_axis_limits("y_axis_THROTTLE_Compare", -2, 101)
@@ -1863,7 +1936,7 @@ class GUI:
         dpg.set_axis_ticks("x_axis_THROTTLE_Compare",self._xTurns)
 
       with dpg.plot(label="CompareBrake",width=width,height=height/3.,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        #dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_BRAKE_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Brake [on/off]", tag="y_axis_BRAKE_Compare")
         dpg.set_axis_limits("y_axis_BRAKE_Compare", -2, 101)
@@ -1871,7 +1944,7 @@ class GUI:
         dpg.set_axis_ticks("x_axis_BRAKE_Compare",self._xTurns)
 
       with dpg.plot(label="CompareDeltaTime",width=width,height=height/3.,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        #dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DELTA_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Delta [s]", tag="y_axis_DELTA_Compare")
         dpg.set_axis_limits("y_axis_DELTA_Compare", -3, 3)
@@ -1879,15 +1952,15 @@ class GUI:
         dpg.set_axis_ticks("x_axis_DELTA_Compare",self._xTurns)
 
       with dpg.plot(label="CompareRPM",width=width,height=height/3.,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        #dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_RPM_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="RPM", tag="y_axis_RPM_Compare")
-        dpg.set_axis_limits("y_axis_RPM_Compare", -2, 19000)
+        dpg.set_axis_limits("y_axis_RPM_Compare", 6000, 16000)
         dpg.set_axis_limits("x_axis_RPM_Compare", ymin=minx1 ,ymax=maxx1)
         dpg.set_axis_ticks("x_axis_RPM_Compare",self._xTurns)
       
       with dpg.plot(label="CompareGear",width=width,height=height/3.,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        #dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_GEAR_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Gear", tag="y_axis_GEAR_Compare")
         dpg.set_axis_limits("y_axis_GEAR_Compare", -0.2, 9)
@@ -1895,7 +1968,7 @@ class GUI:
         dpg.set_axis_ticks("x_axis_GEAR_Compare",self._xTurns)
       
       with dpg.plot(label="CompareDrs",width=width,height=height/3.,no_title=True,anti_aliased=True):
-        dpg.add_plot_legend()
+        #dpg.add_plot_legend()
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_DRS_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="DRS [on/off]", tag="y_axis_DRS_Compare")
         dpg.set_axis_limits("y_axis_DRS_Compare", -0.2, 1.2)
@@ -2058,12 +2131,122 @@ class GUI:
       dpg.set_axis_limits("y_axis_SPEED_Compare", -2, 380)
 
   def _clear_annotations(self):
-    for key,value in self._annotations_speed.items():
+    for x,value in self._annotations_speed.items():
       for i in range(self._n_drivers):
-        if dpg.does_item_exist(item=value["ann_name"]+str(i)):
-          dpg.delete_item(item=value["ann_name"]+str(i))
+        if dpg.does_item_exist(item=str(x)+"_"+str(i)):
+          dpg.delete_item(item=str(x)+"_"+str(i))
     self._annotations_speed={}
+  
+  def find_label_positions(self,arrays, key, reference_index, dx):
+    # arrays: list of arrays where each array contains local maxima/minima
+    # reference_index: index of the array to use as reference for x-coordinates
+    # dx: range for considering maxima/minima to be "near"
 
+    n_drivers=len(arrays[key])
+    reference_array = arrays[key][reference_index]
+    num_points = len(reference_array)
+
+    labels_positions = []
+
+    for i in range(num_points):
+      reference_x  = reference_array[i][1]  # Assuming x-coordinate is at index 1
+      near_points  = []
+      label_points = []
+      # Find near points in other arrays
+      for array_index, array in enumerate(arrays[key]):
+        min_dx=1e6
+        for point in array:
+          if abs(point[1] - reference_x) <= dx and abs(point[1] - reference_x)<min_dx:
+            min_dx=abs(point[1] - reference_x)
+            nps=point[1]
+            lps=[array_index,point[2]]
+        if min_dx!=1e6:
+          near_points.append(nps)  # Append x-coordinate
+          label_points.append(lps) # Append drv_number and speed value 
+      #print(len(near_points)," ",n_drivers)
+      if len(near_points)==n_drivers:
+        # Calculate average x-coordinate for label position
+        avg_x = np.mean(np.array(near_points))
+        # Append label position and associated min/max values
+        labels_positions.append([avg_x,label_points])
+
+    return labels_positions
+  
+  def _add_annotations(self):
+    arrays={}
+    self._clear_annotations()
+
+    # Find reference array (eg the fastest lap from the selected ones)
+    min_lap_time=1e6
+    n_drv_ref=""
+    for n_drv in range(self._n_drivers):
+      if "DRV-"+str(n_drv) in self._saved_drivers.keys():  
+        if self._saved_drivers["DRV-"+str(n_drv)]["LapTime"]<min_lap_time:
+          min_lap_time=self._saved_drivers["DRV-"+str(n_drv)]["LapTime"]
+          n_drv_ref=n_drv
+    
+    for min_max_Ind in ["MinInd","MaxInd"]:
+      arrays[min_max_Ind]=[]
+      for n_drv in range(self._n_drivers):
+        n_drv=str(n_drv)
+        if "DRV-"+str(n_drv) in self._saved_drivers.keys():    
+          arrays[min_max_Ind].append(self._saved_drivers["DRV-"+n_drv][min_max_Ind]) # [[i,space[i]/Total_space,speeds[i]] for i in minInd]
+      
+      labels=self.find_label_positions(arrays,min_max_Ind,n_drv_ref,dx=dpg.get_value(item="dx_annotations"))
+      # cycle over labels to annotate
+      for label in labels:
+        x_ann=label[0] # x of the label
+        if x_ann!=0.0:
+          # search the fastest driver among the ones in the label
+          max_speed=-1
+          min_speed=1e6
+          for driver_label in label[1]:
+            if driver_label[1]>max_speed:
+              max_speed=driver_label[1]
+              DRV=dpg.get_value("DRV-"+str(driver_label[0]))
+            if driver_label[1]<min_speed:
+              min_speed=driver_label[1]
+          # annotate the fastest driver
+          self._annotations_speed[str(x_ann)]={}
+          self._annotations_speed[str(x_ann)]["Text"]=[]
+          self._annotations_speed[str(x_ann)]["Text"].append([DRV,(self._DRIVERS_INFO[DRV]["abbreviation"]+": "+str(int(max_speed)).rjust(3," ")+"\n")])
+          self._annotations_speed[str(x_ann)]["Mode"]=min_max_Ind
+          self._annotations_speed[str(x_ann)]["MaxSpeed"]=max_speed
+          self._annotations_speed[str(x_ann)]["MinSpeed"]=min_speed
+
+          for driver_label in label[1]: #DRV-i, keys: Driver,Space,Speed
+            drv_nr=driver_label[0]
+            speed=driver_label[1]
+            print("\n",dpg.get_value("DRV-"+str(drv_nr)),DRV,"\n")
+            if dpg.get_value("DRV-"+str(drv_nr))!=DRV:
+              speed_text=str(int(speed-max_speed))
+              if speed_text[0]!="-":
+                speed_text="-"+speed_text
+              self._annotations_speed[str(x_ann)]["Text"].append([dpg.get_value("DRV-"+str(drv_nr)),(self._DRIVERS_INFO[dpg.get_value("DRV-"+str(drv_nr))]["abbreviation"]+": "+speed_text.rjust(3," ")+"\n")])
+
+    for x,label_info in self._annotations_speed.items():
+      mode=label_info["Mode"]
+      max_speed=label_info["MaxSpeed"]
+      min_speed=label_info["MinSpeed"]
+      for index,txt in enumerate(label_info["Text"]):
+        drv=txt[0]
+        text=txt[1]
+        #dpg.add_text(default_value=text,tag=self._annotations_speed[mouse_pos_text[0]]["ann_name"]+str(index),color=self._DRIVERS_INFO[drv]["color"],parent="Telemetry_compare_view",pos=(mouse_pos_text[0],mouse_pos_text[1]+dpg.get_text_size(text=text)[1]*index),show=True)
+        if mode=="MinInd":
+          dpg.add_plot_annotation(label=text,tag=str(x)+"_"+str(index),default_value=(float(x)-0.01,min_speed-2-dpg.get_text_size(text=text)[1]*(index+1)),color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
+          print(x," ",dpg.get_text_size(text)," ",dpg.get_item_width(item="CompareSpeed"),"\n")
+          if not dpg.does_item_exist("provaann"):
+            dpg.add_vline_series([float(x),float(x)+float(dpg.get_text_size(text)[0])/float(dpg.get_item_width(item="CompareSpeed"))],tag="provaann",parent="y_axis_SPEED_Compare")
+        elif mode=="MaxInd":
+          dpg.add_plot_annotation(label=text,tag=str(x)+"_"+str(index),default_value=(float(x)-0.01,max_speed+2+dpg.get_text_size(text=text)[1]*(len(label_info["Text"])-index)),color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
+
+    # loop over all annotations
+    # loop again over all annotations
+    # check if ann1 and ann2 are overlapping ()
+    # if yes then move ann1 left and ann2 right or viceversa depending on the reciprocal position
+    # maybe also up/down think about this
+    
+    
   def Add_Driver_to_LaptimePlot(self):
     """ 
       Add long runs to the plot at the bottom with some restrictions based on the value of the plot.
@@ -2220,6 +2403,12 @@ class GUI:
     self._saved_drivers["DRV-"+n_drv]["Times"]=Times
     self._saved_drivers["DRV-"+n_drv]["LapTime"]=LapTime_s
     
+    maxInd=self.find_maxmin_indices(arr=np.array(speeds),maximum=True)
+    minInd=self.find_maxmin_indices(arr=np.array(speeds),maximum=False)
+    
+    self._saved_drivers["DRV-"+n_drv]["MinInd"]=[[i,space[i]/Total_space,speeds[i]] for i in minInd]
+    self._saved_drivers["DRV-"+n_drv]["MaxInd"]=[[i,space[i]/Total_space,speeds[i]] for i in maxInd]
+    
     dpg.set_value(item=driver_label+"s_c", value=[space/Total_space,speeds])
     dpg.set_value(item=driver_label+"z_c", value=[space/Total_space,speeds])
     dpg.set_value(item=driver_label+"t_c", value=[space/Total_space,Throttles])
@@ -2249,8 +2438,8 @@ class GUI:
     dpg.set_item_label(item=driver_label+"r_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
     dpg.set_item_label(item=driver_label+"d_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
     dpg.set_item_label(item=driver_label+"g_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
-    dpg.set_item_label(item=driver_label+"l_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
-    dpg.set_item_label(item=driver_label+"cmpl",label=self._DRIVERS_INFO[driver]["abbreviation"])
+    #dpg.set_item_label(item=driver_label+"l_c", label=self._DRIVERS_INFO[driver]["abbreviation"])
+    #dpg.set_item_label(item=driver_label+"cmpl",label=self._DRIVERS_INFO[driver]["abbreviation"])
     #dpg.set_axis_limits("x_axis_LAPS_Compare",xmin_LT,xmax_LT)
     #dpg.set_axis_limits("y_axis_LAPS_Compare",ymin_LT,ymax_LT)
     max_LT=1e6

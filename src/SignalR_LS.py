@@ -16,9 +16,9 @@ class SignalRClient:
   """ Base structure taken from FAST-F1 package. 
       Updated with additional checks when receiving messages.
   """
-  def __init__(self, filename: str, timeout: int = 5):
+  def __init__(self, filename: str, timeout: int = 20):
 
-    self.headers = {'User-agent': 'BestHTTP',
+    self.headers = {'User-agent': 'BestHttp',
             'Accept-Encoding': 'gzip, identity',
             'Connection': 'keep-alive, Upgrade'}
 
@@ -45,7 +45,7 @@ class SignalRClient:
     self._connection = None
 
     self._output_file = None
-    self._t_last_message = None
+    self._t_last_message = time.time()
     self.logger=_config.LOGGER # should work.. check after
     self.debug=False
     self._verbose = _config.SUPERVISE_VERBOSE 
@@ -110,6 +110,36 @@ class SignalRClient:
       if not self._is_already_inserted:
         self._prev_msgs_datetime.append([CURR_DT,msg])
   
+  async def _on_print(self, msg):
+    """
+        Brief: Handles connection to server
+    """
+    print(msg)
+  
+  
+  async def _on_status_recap(self, **data):
+    """ 
+        Handles the first recap message with "R"
+    """
+    #print(data)
+    #msg_json=json.loads(data)
+    if "R" in data.keys():
+      if "ExtrapolatedClock" in data["R"].keys():  
+        self.database._DT_BASETIME=arrow.get(data["R"]["ExtrapolatedClock"]["Utc"])
+        self.database._DT_BASETIME_TIMESTAMP=arrow.get(data["R"]["ExtrapolatedClock"]["Utc"]).timestamp()
+      if "DriverList" in data["R"].keys() and "Heartbeat" in data["R"].keys():
+        drvs_list=[nr for nr in data["R"]["DriverList"].keys() if nr.isdigit()]
+        current_DT=arrow.get(data["R"]["Heartbeat"]["Utc"]).datetime
+        self.database.update_drivers_list(current_DT,drvs_list)
+        self._drivers_list_downloaded=True
+      for feed,value in data["R"].items():  
+        if feed not in ["CarData.z","Position.z","DriverList"]:
+          self.database.initialize_liveFeeds_to_currentSituation(feed,value)
+      #    self.database.update_database(msg_decrypted={arrow.utcnow().datetime:value},feed=feed)
+      #    # this works but create a specific function in database to handle this message appearing at the beginning!
+      #    # furthemore create a flag that handles this message just the first time and than stops checking the "R" in data.keys()
+      #    #print(feed," ",type(value)," ",arrow.utcnow().datetime)
+  
   async def _on_message(self, msg):
     """
         Brief: Handles connection to server
@@ -121,13 +151,18 @@ class SignalRClient:
         await loop.run_in_executor(
           pool, self._sort_msg, msg)
         await loop.run_in_executor(
-          pool, self._to_file, str(msg))                                 
+          pool, self._to_file, str(msg))    
+        await loop.run_in_executor(
+          pool, self._on_print, str(msg))                              
     except Exception as err:
       _config.WRITE_EXCEPTION(err)
 
   async def _on_debug(self, **data):
     if 'M' in data and len(data['M']) > 0:
       self._t_last_message = time.time()
+    #elif "R" in data and len(data["R"]) > 0:
+    #  print(data)
+    #  # self._sort_msg(json.load(data)["R"])
 
     loop = asyncio.get_running_loop()
     try:
@@ -161,12 +196,14 @@ class SignalRClient:
     else:
       # Assign hub message handler
       hub.client.on('feed', self._on_message) # here it passes msg in this function self._on_message
+      self._connection.received += self._on_status_recap
       #hub.client.on('feed', self._on_print)
-    try:
-      hub.server.invoke("Subscribe", self.topics)
-    except Exception as e:
-      print("An error occurred while subscribing to topics:", e)
-      hub.server.invoke("Subscribe", self.topics.remove("LapCount"))
+    #try:
+    hub.server.invoke("Subscribe", self.topics)
+    #print(self._connection.received._handlers)
+    #except Exception as e:
+    #  print("An error occurred while subscribing to topics:", e)
+    #  hub.server.invoke("Subscribe", self.topics.remove("LapCount"))
 
     # Start the client
     self.loop = asyncio.get_event_loop()
@@ -174,7 +211,7 @@ class SignalRClient:
       await self.loop.run_in_executor(pool, self._connection.start)
 
   async def _supervise(self):
-    self._t_last_message = time.time()
+    #self._t_last_message = time.time()
     i=0
     while True:
       if (   (self.timeout != 0 and time.time() - self._t_last_message > self.timeout) 

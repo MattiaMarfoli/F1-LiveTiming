@@ -51,7 +51,12 @@ FEED_LIST=["CarData.z",  # CarData.z needs to be the first
            "WeatherData",
            "SessionStatus",
            "TimingAppData",
-           "LapCount"] 
+           "LapCount",
+           "SessionInfo",
+           "ExtrapolatedClock",
+           "DriverList",
+           "Heartbeat"
+           ] 
 
 ###################################### Live Stream Real Time ####################################
 QUEUE_LENGTH_LS   = 5   # Number of messages in cache before put send them to analyzer
@@ -139,4 +144,4 @@ WATCHLIST_TEAMS   = [
 
 ##################################### Initialization ############################################
 YEARS=["2018","2019","2020","2021","2022","2023","2024"]
-DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE)
+DATABASE=Database.DATABASE(FEED_LIST=FEED_LIST,logger=LOGGER,logger_file=LOGGER_FILE,live_sim=LIVE_SIM)
