@@ -1874,6 +1874,8 @@ class GUI:
     self._offset={}
     minx1=0
     maxx1=1
+    miny1=-2
+    maxy1=380
     minx2=0
     maxx2=1
     ymin_LT=60 #
@@ -1919,10 +1921,31 @@ class GUI:
         dpg.add_plot_legend(location=dpg.mvPlot_Location_SouthWest)
         dpg.add_plot_axis(dpg.mvXAxis, label="Turns",tag="x_axis_SPEED_Compare")
         dpg.add_plot_axis(dpg.mvYAxis, label="Speed [km/h]", tag="y_axis_SPEED_Compare")
-        dpg.set_axis_limits("y_axis_SPEED_Compare", -2, 380)
+        dpg.set_axis_limits("y_axis_SPEED_Compare", ymin=miny1, ymax=maxy1)
         dpg.set_axis_limits("x_axis_SPEED_Compare", ymin=minx1 ,ymax=maxx1)
         dpg.set_axis_ticks("x_axis_SPEED_Compare",self._xTurns)
         dpg.add_drag_line(label="speed_compare_line",tag="speed_compare_line", color=[255, 0, 0, 255],thickness=0.25, default_value=0.5)
+        
+        self.CompareSpeed_WIDTH      = float(dpg.get_item_width("CompareSpeed"))
+        self.CompareSpeed_HEIGHT     = float(dpg.get_item_height("CompareSpeed"))
+        
+        self.XaxCompareSpeed_WIDTH   = maxx1 - minx1
+        self.YaxCompareSpeed_HEIGHT  = maxy1 - miny1
+        
+        self.XticksCompareSpeed_HEIGHT = dpg.get_text_size("8")[1]
+        self.YticksCompareSpeed_WIDTH  = dpg.get_text_size("200")[0]
+        
+        self.XlabCompareSpeed_HEIGHT = dpg.get_text_size(dpg.get_item_label("x_axis_SPEED_Compare"))[1]
+        self.YlabCompareSpeed_HEIGHT = dpg.get_text_size(dpg.get_item_label("y_axis_SPEED_Compare"))[1]
+      
+        self.WResizer_PtoC = self.XaxCompareSpeed_WIDTH / (  self.CompareSpeed_WIDTH - self._PLOT_PADDINGX*2 - \
+                                                             self._LABEL_PADDING - self.YticksCompareSpeed_WIDTH - \
+                                                             self.YlabCompareSpeed_HEIGHT )
+        
+        self.HResizer_PtoC = self.YaxCompareSpeed_HEIGHT / ( self.CompareSpeed_HEIGHT - self._PLOT_PADDINGY*2 - \
+                                                             self._LABEL_PADDING - self.XticksCompareSpeed_HEIGHT - \
+                                                             self.XlabCompareSpeed_HEIGHT )
+        
       dpg.add_vline_series(x=[],tag="speed_sectors",parent="y_axis_SPEED_Compare")
       dpg.bind_item_theme(item="speed_sectors",theme="line_weight")
         
@@ -2139,6 +2162,7 @@ class GUI:
   
   def find_label_positions(self,arrays, key, reference_index, dx):
     # arrays: list of arrays where each array contains local maxima/minima
+    # key: to distinguish for maxima or minima
     # reference_index: index of the array to use as reference for x-coordinates
     # dx: range for considering maxima/minima to be "near"
 
@@ -2148,35 +2172,78 @@ class GUI:
 
     labels_positions = []
 
+    near_points_overall  = [0]*num_points
+    label_points_overall = [0]*num_points
+    
     for i in range(num_points):
       reference_x  = reference_array[i][1]  # Assuming x-coordinate is at index 1
       near_points  = []
       label_points = []
-      # Find near points in other arrays
+      # Find near points in each array
       for array_index, array in enumerate(arrays[key]):
         min_dx=1e6
         for point in array:
           if abs(point[1] - reference_x) <= dx and abs(point[1] - reference_x)<min_dx:
             min_dx=abs(point[1] - reference_x)
             nps=point[1]
-            lps=[array_index,point[2]]
+            lps=[array_index,point[2]] # array index (from 0 to self._ndrvs) and speed saved here
         if min_dx!=1e6:
           near_points.append(nps)  # Append x-coordinate
           label_points.append(lps) # Append drv_number and speed value 
       #print(len(near_points)," ",n_drivers)
       if len(near_points)==n_drivers:
         # Calculate average x-coordinate for label position
-        avg_x = np.mean(np.array(near_points))
+        #avg_x = np.mean(np.array(near_points))
         # Append label position and associated min/max values
-        labels_positions.append([avg_x,label_points])
+        near_points_overall[i]=near_points
+        label_points_overall[i]=label_points
+        #labels_positions.append([avg_x,label_points])  # x of the mean of the annotations, [arrayindex,speed]
 
+    # check if a point for a driver is used in more than 1 near_point
+    indeces_to_check=[]
+    valid_indeces=[]
+    for ind1,np1 in enumerate(near_points_overall):
+      matches=set()
+      for ind2,np2 in enumerate(near_points_overall):
+        if np1!=0 and np2!=0 and np1!=np2:
+          for index_dr in range(n_drivers):
+            if np1[index_dr]==np2[index_dr]:
+              matches.add(ind2)
+              # the same point of a single driver is used in two near_points! Cannot happen, only one of the two is the true one
+      if len(matches)!=0:
+        matches.add(ind1)
+        if sorted(matches) not in indeces_to_check:
+          indeces_to_check.append(matches)
+      elif len(matches)==0 and np1!=0:
+        valid_indeces.append(ind1)
+    
+    # if yes then check among the matches which one has the minor standard deviations, keep it and discard the others
+    if len(indeces_to_check)>0:
+      for match in indeces_to_check:
+        dev_std=1e6
+        for index in match:
+          if np.std(near_points_overall[index])<dev_std:
+            valid_index=index
+            dev_std=np.std(near_points_overall[index])
+        print("Among: ",match," i am keeping only: ",valid_index)
+        valid_indeces.append(valid_index)  
+    
+    # Now fill the labels_poisions only with the valid points
+    for i in range(num_points):
+      if i in valid_indeces:
+        avg_x = np.mean(np.array(near_points_overall[i]))
+        label_points=label_points_overall[i]
+        # Append label position and associated min/max values
+        labels_positions.append([avg_x,label_points])  # x of the mean of the annotations, [arrayindex,speed]
+    
     return labels_positions
+  
   
   def _add_annotations(self):
     arrays={}
     self._clear_annotations()
 
-    # Find reference array (eg the fastest lap from the selected ones)
+    # Find reference array and driver (eg the fastest lap from the selected ones)
     min_lap_time=1e6
     n_drv_ref=""
     for n_drv in range(self._n_drivers):
@@ -2185,6 +2252,7 @@ class GUI:
           min_lap_time=self._saved_drivers["DRV-"+str(n_drv)]["LapTime"]
           n_drv_ref=n_drv
     
+    # Append [index,x(i),speed(x)] for each driver and each maxima/minima in the array 
     for min_max_Ind in ["MinInd","MaxInd"]:
       arrays[min_max_Ind]=[]
       for n_drv in range(self._n_drivers):
@@ -2192,6 +2260,7 @@ class GUI:
         if "DRV-"+str(n_drv) in self._saved_drivers.keys():    
           arrays[min_max_Ind].append(self._saved_drivers["DRV-"+n_drv][min_max_Ind]) # [[i,space[i]/Total_space,speeds[i]] for i in minInd]
       
+      # all labels. Each entry is: [ x where to put the ann,[[ndrv,speed(x)],...,...]   ]
       labels=self.find_label_positions(arrays,min_max_Ind,n_drv_ref,dx=dpg.get_value(item="dx_annotations"))
       # cycle over labels to annotate
       for label in labels:
@@ -2213,40 +2282,191 @@ class GUI:
           self._annotations_speed[str(x_ann)]["Mode"]=min_max_Ind
           self._annotations_speed[str(x_ann)]["MaxSpeed"]=max_speed
           self._annotations_speed[str(x_ann)]["MinSpeed"]=min_speed
+          self._annotations_speed[str(x_ann)]["timesX"]=0
+          self._annotations_speed[str(x_ann)]["timesY"]=0          
 
-          for driver_label in label[1]: #DRV-i, keys: Driver,Space,Speed
+          for driver_label in label[1]: # 0: ndrv , 1: speed
             drv_nr=driver_label[0]
             speed=driver_label[1]
-            print("\n",dpg.get_value("DRV-"+str(drv_nr)),DRV,"\n")
+            #print("\n",dpg.get_value("DRV-"+str(drv_nr)),DRV,"\n")
+            # if drv not the fastest then append info
             if dpg.get_value("DRV-"+str(drv_nr))!=DRV:
               speed_text=str(int(speed-max_speed))
               if speed_text[0]!="-":
                 speed_text="-"+speed_text
               self._annotations_speed[str(x_ann)]["Text"].append([dpg.get_value("DRV-"+str(drv_nr)),(self._DRIVERS_INFO[dpg.get_value("DRV-"+str(drv_nr))]["abbreviation"]+": "+speed_text.rjust(3," ")+"\n")])
 
+    # now draw each annotation
     for x,label_info in self._annotations_speed.items():
-      mode=label_info["Mode"]
-      max_speed=label_info["MaxSpeed"]
-      min_speed=label_info["MinSpeed"]
-      for index,txt in enumerate(label_info["Text"]):
-        drv=txt[0]
-        text=txt[1]
-        #dpg.add_text(default_value=text,tag=self._annotations_speed[mouse_pos_text[0]]["ann_name"]+str(index),color=self._DRIVERS_INFO[drv]["color"],parent="Telemetry_compare_view",pos=(mouse_pos_text[0],mouse_pos_text[1]+dpg.get_text_size(text=text)[1]*index),show=True)
-        if mode=="MinInd":
-          dpg.add_plot_annotation(label=text,tag=str(x)+"_"+str(index),default_value=(float(x)-0.01,min_speed-2-dpg.get_text_size(text=text)[1]*(index+1)),color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
-          print(x," ",dpg.get_text_size(text)," ",dpg.get_item_width(item="CompareSpeed"),"\n")
-          if not dpg.does_item_exist("provaann"):
-            dpg.add_vline_series([float(x),float(x)+float(dpg.get_text_size(text)[0])/float(dpg.get_item_width(item="CompareSpeed"))],tag="provaann",parent="y_axis_SPEED_Compare")
-        elif mode=="MaxInd":
-          dpg.add_plot_annotation(label=text,tag=str(x)+"_"+str(index),default_value=(float(x)-0.01,max_speed+2+dpg.get_text_size(text=text)[1]*(len(label_info["Text"])-index)),color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
-
+      self.draw_and_update_annotations(x,0,0)
+    #xH,xV = [] , []
+    #for x,info in self._annotations_speed.items():
+    #  xH.append(info["Box"][0])
+    #  xH.append(info["Box"][2])
+    #  xV.append(info["Box"][1])
+    #  xV.append(info["Box"][3])
+    #if dpg.does_item_exist("vline_ann"):
+    #  dpg.delete_item("vline_ann")
+    #  dpg.delete_item("hline_ann")
+    #dpg.add_vline_series(tag="vline_ann",parent="y_axis_SPEED_Compare",x=xH)
+    #dpg.add_hline_series(tag="hline_ann",parent="x_axis_SPEED_Compare",x=xV)
+    while self.CheckOverlapAmongAllAnnotations():
+      for x1,label_info1 in self._annotations_speed.items():
+        for x2,label_info2 in self._annotations_speed.items():
+          if x1!=x2:
+            while self.check_overlap(rect1=label_info1["Box"],rect2=label_info2["Box"],tag1=x1,tag2=x2):
+              self.move_annotations(rect1=label_info1["Box"],rect2=label_info2["Box"],tag1=x1,tag2=x2)
     # loop over all annotations
     # loop again over all annotations
     # check if ann1 and ann2 are overlapping ()
     # if yes then move ann1 left and ann2 right or viceversa depending on the reciprocal position
     # maybe also up/down think about this
     
+  def CheckOverlapAmongAllAnnotations(self):
+    for x1,label_info1 in self._annotations_speed.items():
+      for x2,label_info2 in self._annotations_speed.items():
+        if x1!=x2:
+          if self.check_overlap(rect1=label_info1["Box"],rect2=label_info2["Box"],tag1=x1,tag2=x2):
+            return True
+    return False
     
+  def draw_and_update_annotations(self,x,DV_to_right=0.,DV_to_up=0.):     
+    label_info=self._annotations_speed[x]
+    mode=label_info["Mode"]
+    max_speed=label_info["MaxSpeed"]
+    min_speed=label_info["MinSpeed"]
+    #self._annotations_speed[str(x_ann)]["Box"]=[]
+    Lx,By,Rx,Ty = 1e6,1e6,-1e6,-1e6
+    for index,txt in enumerate(label_info["Text"]):
+      drv=txt[0]
+      text=txt[1]
+      #dpg.add_text(default_value=text,tag=self._annotations_speed[mouse_pos_text[0]]["ann_name"]+str(index),color=self._DRIVERS_INFO[drv]["color"],parent="Telemetry_compare_view",pos=(mouse_pos_text[0],mouse_pos_text[1]+dpg.get_text_size(text=text)[1]*index),show=True)
+      if mode=="MinInd":
+        dpg.add_plot_annotation(label=text,tag=str(x)+"_"+str(index),\
+                                default_value=(float(x)-0.01+DV_to_right,min_speed-2+DV_to_up-dpg.get_text_size(text=text)[1]*(index+1)),\
+                                offset=(0,0),\
+                                color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
+      elif mode=="MaxInd":
+        dpg.add_plot_annotation(label=text,tag=str(x)+"_"+str(index),\
+                                default_value=(float(x)-0.01+DV_to_right,max_speed+2+DV_to_up+dpg.get_text_size(text=text)[1]*(len(label_info["Text"])-index)),\
+                                offset=(0,0),\
+                                color=self._DRIVERS_INFO[drv]["color"],parent="CompareSpeed")
+      
+      lx,by,rx,ty = self.get_plotCoord_of_ann(tag=str(x)+"_"+str(index))
+      if lx<Lx:
+        Lx=lx
+      if by<By:
+        By=by
+      if rx>Rx:
+        Rx=rx
+      if ty>Ty:
+        Ty=ty
+    self._annotations_speed[str(x)]["Box"]=[Lx,By,Rx,Ty]
+    #print(str(x), [Lx,By,Rx,Ty])
+    
+
+  def move_annotations(self,rect1, rect2,tag1,tag2):
+    # Calculate the amount of overlap in each direction
+    overlap_x = min(rect1[2], rect2[2]) - max(rect1[0], rect2[0])
+    overlap_y = min(rect1[3], rect2[3]) - max(rect1[1], rect2[1])
+    
+    # Move rect2 to the right if it's on the left of rect1
+    if (rect2[0] < rect1[2] and rect2[0] > rect1[0] and overlap_x > 0):
+      #print("\tMoving ",tag2," right")
+      for index in range(len(self._annotations_speed.keys())):
+        dpg.delete_item(str(tag2)+"_"+str(index))
+      self.draw_and_update_annotations(tag2,0.01*self._annotations_speed[tag2]["timesX"],0)
+      #print("\tMoving ",tag1," left")
+      for index in range(len(self._annotations_speed.keys())):
+        dpg.delete_item(str(tag1)+"_"+str(index))
+      self.draw_and_update_annotations(tag1,0.01*self._annotations_speed[tag1]["timesX"],0)  
+      
+      self._annotations_speed[tag2]["timesX"]+=1
+      self._annotations_speed[tag1]["timesX"]-=1
+        
+    # Move rect2 to the left if it's on the right of rect1
+    elif overlap_x > 0:
+      #print("\tMoving ",tag2," left")
+      for index in range(len(self._annotations_speed.keys())):
+        dpg.delete_item(str(tag2)+"_"+str(index))
+      self.draw_and_update_annotations(tag2,0.01*self._annotations_speed[tag2]["timesX"],0)
+      #print("\tMoving ",tag1," right")
+      for index in range(len(self._annotations_speed.keys())):
+        dpg.delete_item(str(tag1)+"_"+str(index))
+      self.draw_and_update_annotations(tag1,0.01*self._annotations_speed[tag1]["timesX"],0)
+      
+      self._annotations_speed[tag2]["timesX"]-=1
+      self._annotations_speed[tag1]["timesX"]+=1
+      
+    # Move rect2 down if it's above rect1
+    if (rect2[1] < rect1[3] and rect2[1] > rect1[1] and overlap_y > 0 and rect2[3]<120):
+      #print("\tMoving ",tag2," up")
+      for index in range(len(self._annotations_speed.keys())):
+        dpg.delete_item(str(tag2)+"_"+str(index))
+      self.draw_and_update_annotations(tag2,0,1*self._annotations_speed[tag1]["timesY"])
+      
+      self._annotations_speed[tag2]["timesY"]+=1
+      
+    # Move rect2 up if it's below rect1
+    elif overlap_y > 0 and rect2[3]<120:
+      #print("\tMoving ",tag2," down")
+      for index in range(len(self._annotations_speed.keys())):
+        dpg.delete_item(str(tag2)+"_"+str(index))
+      self.draw_and_update_annotations(tag2,0,1*self._annotations_speed[tag1]["timesY"])
+      
+      self._annotations_speed[tag2]["timesY"]-=1
+  
+  def check_overlap(self,rect1, rect2,tag1,tag2):
+    """ 
+      Check if two annotations are overlapping
+    """
+    overlap_on_x = ((rect1[0] <= rect2[2]) and (rect1[0] >= rect2[0])) or \
+                   ((rect1[2] <= rect2[2]) and (rect1[2] >= rect2[0]))
+
+    overlap_on_y = ((rect1[1] <= rect2[3]) and (rect1[1] >= rect2[1])) or \
+                    ((rect1[3] <= rect2[3]) and (rect1[3] >= rect2[1])) 
+
+    #print("\n",tag1," and ",tag2," overlapping: ",overlap_on_x and overlap_on_y)
+    #if overlap_on_x and overlap_on_y:
+    #  #print("\t",tag1," ",rect1,"\n\t",tag2," ",rect2)
+    #  print("\t Overlap between: ",tag1,"  and  ",tag2,"\n")
+    
+    return (overlap_on_x and overlap_on_y)
+  
+  def get_plotCoord_of_ann(self,tag):
+    """ 
+      Returns [LeftX,BottomY,RightX,TopY] coordinates of the annotation (with tag=tag)
+    """
+    it=dpg.get_text_size(dpg.get_item_label(tag))
+    xoff=dpg.get_item_configuration(tag)["offset"][0]
+    yoff=dpg.get_item_configuration(tag)["offset"][1]
+    wtc=it[0]*self.WResizer_PtoC
+    htc=it[1]*self.HResizer_PtoC
+    #print(wtc, htc)
+    
+    xpos=dpg.get_value(tag)[0]+xoff*self.WResizer_PtoC
+    ypos=dpg.get_value(tag)[1]-yoff*self.HResizer_PtoC
+    
+    #print(tag," x,y plot_pos: ",xpos,ypos)
+    
+    xH,xV= [],[]
+    
+    if xoff==0:
+        xH.append(xpos-float(wtc)/2.)
+        xH.append(xpos+float(wtc)/2.)
+    else:
+        xH.append(xpos)
+        xH.append(xpos+np.sign(xoff)*float(wtc))
+    if yoff==0:
+        xV.append(ypos-float(htc)/2.)
+        xV.append(ypos+float(htc)/2.)
+    else:
+        xV.append(ypos)
+        xV.append(ypos-np.sign(yoff)*float(htc))
+
+    return [min(xH),min(xV),max(xH),max(xV)]
+  
+  
   def Add_Driver_to_LaptimePlot(self):
     """ 
       Add long runs to the plot at the bottom with some restrictions based on the value of the plot.
@@ -2721,6 +2941,9 @@ class GUI:
         dpg.add_theme_style(dpg.mvPlotStyleVar_MousePosPadding,   10,10,  category=dpg.mvThemeCat_Plots)
         dpg.add_theme_style(dpg.mvPlotStyleVar_AnnotationPadding,  0,0,   category=dpg.mvThemeCat_Plots)
         dpg.add_theme_style(dpg.mvPlotStyleVar_FitPadding,         0,0,   category=dpg.mvThemeCat_Plots)
+        self._PLOT_PADDINGX  = 5
+        self._PLOT_PADDINGY  = 4
+        self._LABEL_PADDING  = 0
   
     dpg.bind_theme("Global_Theme")
     
