@@ -1,5 +1,5 @@
 # F1-LiveTiming
-F1-LiveTiming is a python package for displaying and analyzing F1 telemetry for passed sessions. 
+F1-LiveTiming is a python package for displaying and analyzing F1 telemetry for past and real-time sessions. 
 ![Image](./Assets/Telemetry_View.png)
 ## Main Features
 ### Telemetry View Tab
